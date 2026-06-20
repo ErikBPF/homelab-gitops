@@ -1,0 +1,11 @@
+# Helm dependency build artifacts (Argo fetches deps at apply time)
+charts/
+**/charts/
+*.tgz
+Chart.lock
+
+# local
+.DS_Store
+*.swp
+result
+result-*

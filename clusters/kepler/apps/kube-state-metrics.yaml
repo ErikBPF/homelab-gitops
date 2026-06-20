@@ -1,0 +1,26 @@
+# Wave 0: cluster object/health metrics. Exposes /metrics; a scraper must
+# remote_write it to discovery's Prometheus.
+# PREREQ: extend the cluster Alloy (or add an Alloy-metrics here) to scrape KSM +
+# kubelet cAdvisor and remote_write to discovery (telemetry RFC, deferred-metrics).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-state-metrics
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ErikBPF/platform-gitops.git
+    targetRevision: main
+    path: platform/kube-state-metrics
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

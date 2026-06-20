@@ -1,0 +1,11 @@
+# Lab sizing — tiny requests.
+external-secrets:
+  installCRDs: true
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+  webhook:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+  certController:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }

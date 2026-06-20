@@ -1,0 +1,27 @@
+# App-of-apps: kubectl apply'd once by `just bootstrap`. Watches the directory
+# of child Application manifests; Argo then reconciles each (sync-wave ordered).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # TODO(erik): real remote once the repo is pushed.
+    repoURL: https://github.com/ErikBPF/platform-gitops.git
+    targetRevision: main
+    path: clusters/kepler/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

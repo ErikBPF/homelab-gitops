@@ -1,0 +1,10 @@
+# Lab sizing — tiny requests.
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+  # No in-cluster Prometheus — a scraper (cluster Alloy) remote_writes to discovery.
+  # Annotations left for whatever scrape mechanism you wire up.
+  prometheus:
+    monitor:
+      enabled: false # no Prometheus Operator here

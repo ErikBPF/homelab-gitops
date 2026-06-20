@@ -1,0 +1,8 @@
+apiVersion: v2
+name: external-secrets
+description: External Secrets Operator + a ClusterSecretStore for Vault@discovery
+version: 0.1.0
+dependencies:
+  - name: external-secrets
+    version: 0.10.4 # TODO(erik): verify/Renovate (helm search repo external-secrets)
+    repository: https://charts.external-secrets.io

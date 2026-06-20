@@ -1,0 +1,25 @@
+# Wave -2: storage. Installs into kube-system to inherit the PSA exemption
+# (the node plugin is privileged). Provides nfs-fast + nfs-slow StorageClasses.
+# PREREQ: kepler NFS-exports an SSD dataset + /bulk to 10.250.0.0/24.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csi-driver-nfs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ErikBPF/platform-gitops.git
+    targetRevision: main
+    path: platform/csi-driver-nfs
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

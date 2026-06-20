@@ -1,0 +1,18 @@
+# Lab sizing — tiny requests. The driver only; StorageClasses are in templates/.
+csi-driver-nfs:
+  controller:
+    resources:
+      csiProvisioner:
+        requests: { cpu: 10m, memory: 20Mi }
+      livenessProbe:
+        requests: { cpu: 10m, memory: 20Mi }
+      nfs:
+        requests: { cpu: 10m, memory: 20Mi }
+  node:
+    resources:
+      livenessProbe:
+        requests: { cpu: 10m, memory: 20Mi }
+      nodeDriverRegistrar:
+        requests: { cpu: 10m, memory: 20Mi }
+      nfs:
+        requests: { cpu: 10m, memory: 20Mi }

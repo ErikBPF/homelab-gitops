@@ -1,0 +1,33 @@
+# Fast + slow NFS, both backed by kepler (the cluster gateway, 10.250.0.1, on the
+# br-k3s bridge). TODO(erik): confirm kepler NFS-exports these paths to 10.250.0.0/24.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-fast
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: "10.250.0.1"
+  share: "/export/fast" # TODO(erik): real SSD/NVMe dataset export
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - nfsvers=4.1
+  - hard
+  - noatime
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-slow
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: "10.250.0.1"
+  share: "/bulk" # TODO(erik): confirm /bulk export to the cluster subnet
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - nfsvers=4.1
+  - hard
+  - noatime
