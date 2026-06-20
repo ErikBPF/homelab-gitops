@@ -1,0 +1,27 @@
+# Wave -1: ingress. Replaces the Nix-deployed ingress-nginx as the default class.
+# CUTOVER (after Argo + Traefik are up + verified): remove ingress-nginx from
+# desktop-nixos kepler autoDeployCharts; the kepler L4 LB (.250->30443) is unchanged
+# since Traefik reuses NodePort 30443. Then repoint the argocd ingress to traefik.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ErikBPF/platform-gitops.git
+    targetRevision: main
+    path: platform/traefik
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # Traefik ships CRDs

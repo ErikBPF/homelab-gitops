@@ -1,5 +1,6 @@
-# Fast + slow NFS, both backed by kepler (the cluster gateway, 10.250.0.1, on the
-# br-k3s bridge). TODO(erik): confirm kepler NFS-exports these paths to 10.250.0.0/24.
+# Fast + slow NFS, both backed by kepler at its br-k3s gateway IP 10.250.0.1.
+# fast-pool (SSD RAIDZ1) → /fast/k8s ; bulk-pool (HDD) → /bulk/k8s. Exports added
+# in desktop-nixos modules/hosts/kepler/nas.nix (rw to 10.250.0.0/24).
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -7,7 +8,7 @@ metadata:
 provisioner: nfs.csi.k8s.io
 parameters:
   server: "10.250.0.1"
-  share: "/export/fast" # TODO(erik): real SSD/NVMe dataset export
+  share: "/fast/k8s" # fast-pool SSD
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
@@ -23,7 +24,7 @@ metadata:
 provisioner: nfs.csi.k8s.io
 parameters:
   server: "10.250.0.1"
-  share: "/bulk" # TODO(erik): confirm /bulk export to the cluster subnet
+  share: "/bulk/k8s" # bulk-pool HDD
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 allowVolumeExpansion: true

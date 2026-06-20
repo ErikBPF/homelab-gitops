@@ -1,0 +1,28 @@
+# Lab sizing. Replaces ingress-nginx → default IngressClass. NodePort matches the
+# kepler L4 LB (.250:443 -> workers:30443), so the LB config is unchanged at cutover.
+# PSA baseline: Traefik runs non-root + drops caps by default → baseline-clean.
+traefik:
+  deployment:
+    replicas: 1 # lab; bump for HA later
+
+  ingressClass:
+    enabled: true
+    isDefaultClass: true # takes over from ingress-nginx
+
+  providers:
+    kubernetesCRD:
+      enabled: true # IngressRoute/Middleware CRDs (prod-mimic)
+    kubernetesIngress:
+      enabled: true # plain Ingress objects too
+
+  service:
+    type: NodePort
+
+  ports:
+    web:
+      nodePort: 30080
+    websecure:
+      nodePort: 30443 # kepler L4 LB .250:443 -> here
+
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
