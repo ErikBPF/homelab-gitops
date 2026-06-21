@@ -1,0 +1,45 @@
+# Lab auto-unseal: poll Vault's seal-status; if sealed, unseal with the key from
+# vault-init-keys (created out-of-band at `vault operator init`). Decoupled from
+# the vault pod (no fragile postStart). Trade-off: the unseal key is readable in
+# the cluster — inherent to any in-cluster auto-unseal without an external KMS.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-unsealer
+  namespace: vault
+  labels:
+    app: vault-unsealer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-unsealer
+  template:
+    metadata:
+      labels:
+        app: vault-unsealer
+    spec:
+      containers:
+        - name: unsealer
+          image: curlimages/curl:8.11.0
+          env:
+            - name: VAULT_ADDR
+              value: http://vault.vault.svc.cluster.local:8200
+            - name: UNSEAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vault-init-keys
+                  key: unseal_key
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                if curl -s "$VAULT_ADDR/v1/sys/seal-status" | grep -q '"sealed":true'; then
+                  echo "vault sealed -> unsealing"
+                  curl -s -X PUT -d "{\"key\":\"$UNSEAL_KEY\"}" "$VAULT_ADDR/v1/sys/unseal" >/dev/null
+                fi
+                sleep 30
+              done
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 48Mi }
