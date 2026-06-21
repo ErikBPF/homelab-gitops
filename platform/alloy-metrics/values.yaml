@@ -58,6 +58,36 @@ alloy:
           forward_to        = [prometheus.remote_write.discovery.receiver]
         }
 
+        // ── Traefik: scrape the dedicated metrics Service in ns "traefik" ──
+        // Service-discovery (not hardcoded DNS) so it tracks the chart's service
+        // name; keep only the port named "metrics" (:9100).
+        discovery.kubernetes "traefik" {
+          role = "service"
+          namespaces { names = ["traefik"] }
+        }
+        discovery.relabel "traefik" {
+          targets = discovery.kubernetes.traefik.targets
+          rule {
+            source_labels = ["__meta_kubernetes_service_port_name"]
+            regex         = "metrics"
+            action        = "keep"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_service_name"]
+            target_label  = "service"
+          }
+        }
+        prometheus.scrape "traefik" {
+          targets         = discovery.relabel.traefik.output
+          job_name        = "traefik"
+          scrape_interval = "30s"
+          forward_to      = [prometheus.remote_write.discovery.receiver]
+        }
+
         prometheus.remote_write "discovery" {
           endpoint {
             url = "http://100.76.140.121:9090/api/v1/write"

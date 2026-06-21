@@ -30,3 +30,13 @@ traefik:
 
   resources:
     requests: { cpu: 25m, memory: 64Mi }
+
+  # Prometheus metrics are on by default in this chart; expose them on a
+  # dedicated ClusterIP metrics Service (:9100) so alloy-metrics can scrape them
+  # → discovery Prometheus (telemetry RFC). addRoutersLabels enriches per-router
+  # request/latency series for the Traefik dashboard.
+  metrics:
+    prometheus:
+      addRoutersLabels: true
+      service:
+        enabled: true
