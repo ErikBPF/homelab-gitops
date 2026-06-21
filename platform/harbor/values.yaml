@@ -1,6 +1,9 @@
-# Lab-slimmed Harbor: ingress via Traefik (TLS at the LB/SWAG), PVCs on nfs-fast,
-# Trivy scanning OFF for lab weight (re-enable to mimic prod scanning). Secrets are
-# placeholders → TODO move to ESO/Vault once that's bootstrapped.
+# Lab-slimmed Harbor: PVCs on nfs-fast, Trivy OFF (lab weight; flip on to mimic
+# prod scanning). Admin password comes from an out-of-band Secret (NEVER in git);
+# migrate to ESO once Vault@discovery is up. Ingress on the nginx class so it's
+# reachable via the existing kepler L4 LB (.250 -> ingress-nginx 30443) + the
+# *.k8s wildcard — Traefik (the eventual default) isn't behind the LB until the
+# §14 cutover, so a traefik-class ingress would be unreachable today.
 harbor:
   externalURL: https://harbor.k8s.pastelariadev.com
 
@@ -11,10 +14,12 @@ harbor:
     ingress:
       hosts:
         core: harbor.k8s.pastelariadev.com
-      className: traefik
+      className: nginx
 
-  # TODO(erik): ESO-managed once Vault@discovery is up.
-  harborAdminPassword: "Harbor12345"
+  # Admin password from a Secret created out-of-band (kubectl, strong random) —
+  # not committed. existingSecret takes effect on a fresh DB init.
+  existingSecretAdminPassword: harbor-admin-secret
+  existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
 
   trivy:
     enabled: false # lab weight; flip on to mimic prod image scanning
