@@ -11,7 +11,7 @@ traefik:
 
   ingressClass:
     enabled: true
-    isDefaultClass: true # cutover: Traefik is the default ingress
+    isDefaultClass: false # phase 1: don't steal default from ingress-nginx yet
 
   providers:
     kubernetesCRD:
@@ -24,9 +24,9 @@ traefik:
 
   ports:
     web:
-      nodePort: 30080
+      nodePort: 30081 # phase 1 (cutover → 30080)
     websecure:
-      nodePort: 30443 # behind the kepler L4 LB (.250)
+      nodePort: 30444 # phase 1 (cutover → 30443, behind the L4 LB)
 
   resources:
     requests: { cpu: 25m, memory: 64Mi }

@@ -14,7 +14,7 @@ argo-cd:
   server:
     ingress:
       enabled: true
-      ingressClassName: traefik # existing Nix-deployed ingress-nginx
+      ingressClassName: nginx # existing Nix-deployed ingress-nginx
       hostname: argocd.k8s.pastelariadev.com
     resources:
       requests: { cpu: 10m, memory: 64Mi }
