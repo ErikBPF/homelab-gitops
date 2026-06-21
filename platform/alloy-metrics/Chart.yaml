@@ -1,0 +1,8 @@
+apiVersion: v2
+name: alloy-metrics
+description: Single-replica Alloy — scrapes kube-state-metrics + kubelet cAdvisor → discovery Prometheus
+version: 0.1.0
+dependencies:
+  - name: alloy
+    version: 1.10.0 # Renovate-managed (grafana.github.io/helm-charts)
+    repository: https://grafana.github.io/helm-charts

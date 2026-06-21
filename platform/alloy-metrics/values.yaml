@@ -1,0 +1,66 @@
+# Single-replica Deployment (NOT a DaemonSet): KSM is a cluster singleton (scrape
+# once, not N×), and one pod scrapes every node's kubelet cAdvisor via the
+# apiserver proxy. Distinct release/SA ("alloy-metrics") from the log DaemonSet
+# ("alloy", Nix). remote_write → discovery Prometheus (raw tailnet IP — pods can't
+# resolve MagicDNS; reachable via kepler's tailscale0 masquerade + the ACL grant).
+alloy:
+  controller:
+    type: deployment
+    replicas: 1
+
+  serviceAccount:
+    create: true
+    name: alloy-metrics # deterministic, for the nodes/proxy ClusterRoleBinding
+
+  alloy:
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { memory: 256Mi }
+    configMap:
+      content: |
+        // ── kube-state-metrics: cluster object/health state (scraped once) ──
+        prometheus.scrape "ksm" {
+          targets = [{
+            "__address__" = "kube-state-metrics.monitoring.svc.cluster.local:8080",
+            "job"         = "kube-state-metrics",
+          }]
+          scrape_interval = "60s"
+          forward_to      = [prometheus.remote_write.discovery.receiver]
+        }
+
+        // ── per-node kubelet cAdvisor via the apiserver proxy (needs nodes/proxy) ──
+        discovery.kubernetes "nodes" {
+          role = "node"
+        }
+        discovery.relabel "cadvisor" {
+          targets = discovery.kubernetes.nodes.targets
+          rule {
+            target_label = "__address__"
+            replacement  = "kubernetes.default.svc:443"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_node_name"]
+            regex         = "(.+)"
+            target_label  = "__metrics_path__"
+            replacement   = "/api/v1/nodes/${1}/proxy/metrics/cadvisor"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_node_name"]
+            target_label  = "node"
+          }
+        }
+        prometheus.scrape "cadvisor" {
+          targets           = discovery.relabel.cadvisor.output
+          scheme            = "https"
+          bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+          tls_config { insecure_skip_verify = true }
+          scrape_interval   = "60s"
+          forward_to        = [prometheus.remote_write.discovery.receiver]
+        }
+
+        prometheus.remote_write "discovery" {
+          endpoint {
+            url = "http://100.76.140.121:9090/api/v1/write"
+          }
+          external_labels = { "cluster" = "pastelariadev" }
+        }
