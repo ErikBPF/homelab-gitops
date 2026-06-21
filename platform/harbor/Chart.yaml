@@ -1,0 +1,8 @@
+apiVersion: v2
+name: harbor
+description: Harbor private registry + Docker Hub proxy-cache (prod-mimic)
+version: 0.1.0
+dependencies:
+  - name: harbor
+    version: 1.19.1 # Renovate-managed (helm.goharbor.io)
+    repository: https://helm.goharbor.io

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: jaeger
+description: Jaeger tracing backend (all-in-one + badger for the lab)
+version: 0.1.0
+dependencies:
+  - name: jaeger
+    version: 4.11.1 # Renovate-managed (jaegertracing.github.io/helm-charts)
+    repository: https://jaegertracing.github.io/helm-charts

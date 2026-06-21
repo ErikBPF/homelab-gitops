@@ -1,0 +1,33 @@
+# Deployment-mode OTLP gateway: apps send OTLP here, it forwards to Jaeger.
+# Lab sizing + an explicit memory limit (the chart sets only limits otherwise,
+# silently reserving ~2Gi).
+opentelemetry-collector:
+  mode: deployment
+  image:
+    repository: otel/opentelemetry-collector-contrib
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch: {}
+    exporters:
+      # Jaeger all-in-one service (verified via helm template): name "jaeger",
+      # OTLP gRPC on 4317.
+      otlp/jaeger:
+        endpoint: "jaeger.observability.svc.cluster.local:4317"
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/jaeger]

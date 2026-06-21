@@ -54,8 +54,17 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
   (extend the cluster Alloy with a metrics pipeline, or a dedicated Alloy-metrics
   here). Wave 0.
 
-## Next components (decision-laden — scaffolded once their `TODO(erik)` is
-settled): traefik, harbor, keda, otel-collector, jaeger, external-dns.
+## Components scaffolded
+
+argocd, traefik (replaces ingress-nginx), csi-driver-nfs (nfs-fast/nfs-slow),
+external-secrets (→ Vault@discovery), kube-state-metrics, harbor (registry +
+proxy-cache), keda, jaeger (all-in-one), otel-collector (OTLP → Jaeger). Chart
+versions verified against the live repos + `helm template`-validated.
+
+**Not deployable yet:** Argo pulls from a git REMOTE — push this repo and set the
+real `repoURL` in `bootstrap/root-app.yaml` + `clusters/kepler/apps/*` first.
+external-secrets also needs Vault@discovery; external-dns is still deferred
+(AdGuard lives on discovery).
 
 ## Coupling
 

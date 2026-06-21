@@ -1,0 +1,22 @@
+# Lab: all-in-one + badger (ephemeral). No Cassandra/ES. Receives OTLP from the
+# OTel Collector (and apps can send OTLP directly — Jaeger v2 speaks OTLP).
+jaeger:
+  provisionDataStore:
+    cassandra: false
+    elasticsearch: false
+  storage:
+    type: badger
+    badger:
+      ephemeral: true # traces don't survive restart — fine for a lab
+  allInOne:
+    enabled: true
+    resources:
+      requests: { cpu: 25m, memory: 128Mi }
+      limits: { memory: 512Mi }
+  # all-in-one bundles these — disable the split production components
+  agent:
+    enabled: false
+  collector:
+    enabled: false
+  query:
+    enabled: false

@@ -1,0 +1,54 @@
+# Lab-slimmed Harbor: ingress via Traefik (TLS at the LB/SWAG), PVCs on nfs-fast,
+# Trivy scanning OFF for lab weight (re-enable to mimic prod scanning). Secrets are
+# placeholders → TODO move to ESO/Vault once that's bootstrapped.
+harbor:
+  externalURL: https://harbor.k8s.pastelariadev.com
+
+  expose:
+    type: ingress
+    tls:
+      enabled: false # terminated upstream (kepler L4 LB / SWAG)
+    ingress:
+      hosts:
+        core: harbor.k8s.pastelariadev.com
+      className: traefik
+
+  # TODO(erik): ESO-managed once Vault@discovery is up.
+  harborAdminPassword: "Harbor12345"
+
+  trivy:
+    enabled: false # lab weight; flip on to mimic prod image scanning
+
+  persistence:
+    enabled: true
+    persistentVolumeClaim:
+      registry:
+        storageClass: nfs-fast
+        size: 20Gi
+      jobservice:
+        jobLog:
+          storageClass: nfs-fast
+          size: 1Gi
+      database:
+        storageClass: nfs-fast
+        size: 2Gi
+      redis:
+        storageClass: nfs-fast
+        size: 1Gi
+
+  # Lab sizing — single replicas, small requests.
+  core:
+    resources:
+      requests: { cpu: 25m, memory: 128Mi }
+  registry:
+    registry:
+      resources:
+        requests: { cpu: 25m, memory: 128Mi }
+  database:
+    internal:
+      resources:
+        requests: { cpu: 25m, memory: 128Mi }
+  redis:
+    internal:
+      resources:
+        requests: { cpu: 10m, memory: 32Mi }
