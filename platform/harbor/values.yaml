@@ -14,7 +14,7 @@ harbor:
     ingress:
       hosts:
         core: harbor.k8s.pastelariadev.com
-      className: nginx
+      className: traefik
 
   # Admin password from a Secret created out-of-band (kubectl, strong random) —
   # not committed. existingSecret takes effect on a fresh DB init.
