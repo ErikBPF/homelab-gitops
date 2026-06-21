@@ -72,3 +72,17 @@ external-secrets also needs Vault@discovery; external-dns is still deferred
 Prometheus remote_write) · `desktop-nixos` (sops secret seed, `_k3s-node.nix`
 registries.yaml, kubeconfig). Land the leaf here → grant ACL → seed secret →
 `just sync`.
+
+## Ops notes (grill follow-ups)
+
+- **Renovate** (`renovate.json` present, not yet running): enable the Renovate
+  GitHub App on `ErikBPF/homelab-gitops`, or add a `renovatebot/github-action`
+  workflow + a `RENOVATE_TOKEN` repo secret. Until then chart versions are pinned
+  but not auto-bumped.
+- **Branch protection / review gate:** Argo auto-syncs `main` (prune + selfHeal),
+  so a bad push deploys cluster-wide. For a review gate, protect `main` (require
+  PR) on GitHub, or set the app `syncPolicy` to manual for the riskier components.
+- **alloy-metrics → discovery Prometheus** and the in-cluster log/secret paths
+  use discovery's **raw tailnet IP** (`100.76.140.121`) because pods can't resolve
+  MagicDNS. Stable, but if discovery's TS IP ever changes, update it in
+  `platform/alloy-metrics/values.yaml` (and the Nix cluster Alloy / ESO CSS).
