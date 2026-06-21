@@ -1,5 +1,6 @@
 # Scoped default-deny for the demo ns (grill #9 pattern — NOT cluster-wide, which
-# would break DNS). Deny all, then allow DNS egress + ingress from ingress-nginx.
+# would break DNS). Deny all, then allow DNS egress + ingress from the ingress
+# controllers (traefik = default post-cutover; ingress-nginx kept during coexist).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: default-deny, namespace: demo }
@@ -23,13 +24,16 @@ spec:
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
-metadata: { name: allow-ingress-nginx, namespace: demo }
+metadata: { name: allow-ingress, namespace: demo }
 spec:
   podSelector: { matchLabels: { app: demo } }
   policyTypes: [Ingress]
   ingress:
     - from:
         - namespaceSelector:
-            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [traefik, ingress-nginx]
       ports:
         - { protocol: TCP, port: 9898 }
