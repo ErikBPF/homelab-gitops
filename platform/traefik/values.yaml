@@ -1,5 +1,9 @@
-# Lab sizing. Replaces ingress-nginx → default IngressClass. NodePort matches the
-# kepler L4 LB (.250:443 -> workers:30443), so the LB config is unchanged at cutover.
+# Traefik replaces ingress-nginx — STAGED to avoid a NodePort clash:
+#   Phase 1 (now): coexist. Non-default class, alt NodePorts (30444/30081) since
+#     ingress-nginx still holds 30443/30080. Validate Traefik via worker:30444.
+#   Phase 2 (cutover): remove ingress-nginx from the Nix autoDeployCharts, then
+#     flip isDefaultClass=true + ports back to 30443/30080 (kepler L4 LB unchanged)
+#     + repoint the argocd ingress to traefik.
 # PSA baseline: Traefik runs non-root + drops caps by default → baseline-clean.
 traefik:
   deployment:
@@ -7,7 +11,7 @@ traefik:
 
   ingressClass:
     enabled: true
-    isDefaultClass: true # takes over from ingress-nginx
+    isDefaultClass: false # phase 1: don't steal default from ingress-nginx yet
 
   providers:
     kubernetesCRD:
@@ -20,9 +24,9 @@ traefik:
 
   ports:
     web:
-      nodePort: 30080
+      nodePort: 30081 # phase 1 (cutover → 30080)
     websecure:
-      nodePort: 30443 # kepler L4 LB .250:443 -> here
+      nodePort: 30444 # phase 1 (cutover → 30443, behind the L4 LB)
 
   resources:
     requests: { cpu: 25m, memory: 64Mi }
