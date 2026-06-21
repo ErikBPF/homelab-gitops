@@ -4,5 +4,5 @@ description: External Secrets Operator + a ClusterSecretStore for Vault@discover
 version: 0.1.0
 dependencies:
   - name: external-secrets
-    version: 0.10.4 # TODO(erik): verify/Renovate (helm search repo external-secrets)
+    version: 2.6.0 # Renovate-managed (charts.external-secrets.io)
     repository: https://charts.external-secrets.io
