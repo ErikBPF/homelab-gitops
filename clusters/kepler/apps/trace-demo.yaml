@@ -1,0 +1,20 @@
+# Wave 2: synthetic trace producer for the OTel→Jaeger pipeline (grill §8).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trace-demo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:ErikBPF/homelab-gitops.git
+    targetRevision: main
+    path: apps/trace-demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]

@@ -1,0 +1,33 @@
+# Synthetic trace producer so the OTel→Jaeger pipeline isn't inert (grill §8):
+# emits OTLP spans → otel-collector → Jaeger. Lab demo; swap for a real
+# instrumented app later. image: latest (demo) — pin via Renovate if kept.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trace-demo
+  namespace: observability
+  labels:
+    app: trace-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trace-demo
+  template:
+    metadata:
+      labels:
+        app: trace-demo
+    spec:
+      containers:
+        - name: telemetrygen
+          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
+          args:
+            - traces
+            - --otlp-endpoint=otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317
+            - --otlp-insecure
+            - --rate=2
+            - --duration=8760h
+            - --service=trace-demo
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
