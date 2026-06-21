@@ -1,11 +1,11 @@
-# platform-gitops
+# homelab-gitops
 
 Production-mimicking platform layer for the **kepler** k3s cluster
 (`pastelariadev`), deployed via **Argo CD** (GitOps). A sister repo of
 `desktop-nixos`, on the **servarr strategy**: a git repo + `just` recipes,
 applied to the cluster — **not** baked into the NixOS flake.
 
-See the RFC: `desktop-nixos/docs/proposals/2026-06-20-cluster-platform-gitops.md`.
+See the RFC: `desktop-nixos/docs/proposals/2026-06-20-cluster-homelab-gitops.md`.
 
 ## Model
 
@@ -29,7 +29,7 @@ apps/<workload>/             actual workloads (later)
 ```
 
 Wrapper-chart convention (Chart.yaml = one pinned dependency + values.yaml)
-mirrors the `dataplatform-gitops` reference — Renovate-friendly.
+mirrors the `datahomelab-gitops` reference — Renovate-friendly.
 
 ## Bootstrap
 

@@ -1,4 +1,4 @@
-# platform-gitops — bootstrap + ops recipes (servarr-style)
+# homelab-gitops — bootstrap + ops recipes (servarr-style)
 # Uses your existing kubeconfig context for the pastelariadev cluster.
 
 set shell := ["bash", "-uc"]
@@ -44,6 +44,6 @@ password:
 # Stamp the real git remote into every Argo Application + the root app (run once
 # after creating + pushing the repo, if the URL differs from the placeholder).
 set-repo url:
-    grep -rl 'github.com/ErikBPF/platform-gitops' bootstrap clusters \
-        | xargs sed -i "s|https://github.com/ErikBPF/platform-gitops.git|{{url}}|g"
+    grep -rl 'github.com/ErikBPF/homelab-gitops' bootstrap clusters \
+        | xargs sed -i "s|git@github.com:ErikBPF/homelab-gitops.git|{{url}}|g"
     @echo ":: repoURL set to {{url}}"
