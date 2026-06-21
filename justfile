@@ -40,3 +40,10 @@ ui:
 password:
     kubectl --context {{ctx}} -n {{ns}} get secret argocd-initial-admin-secret \
         -o jsonpath='{.data.password}' | base64 -d; echo
+
+# Stamp the real git remote into every Argo Application + the root app (run once
+# after creating + pushing the repo, if the URL differs from the placeholder).
+set-repo url:
+    grep -rl 'github.com/ErikBPF/platform-gitops' bootstrap clusters \
+        | xargs sed -i "s|https://github.com/ErikBPF/platform-gitops.git|{{url}}|g"
+    @echo ":: repoURL set to {{url}}"

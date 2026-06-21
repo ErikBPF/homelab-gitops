@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "helmv3": {
+    "managerFilePatterns": ["/(^|/)Chart\\.yaml$/"]
+  },
+  "packageRules": [
+    {
+      "description": "Group platform Helm chart bumps into one PR per chart",
+      "matchManagers": ["helmv3"],
+      "matchFileNames": ["platform/**", "argocd/**"]
+    },
+    {
+      "description": "Pin digests off — these are versioned Helm charts, not images",
+      "matchManagers": ["helmv3"],
+      "pinDigests": false
+    }
+  ]
+}
