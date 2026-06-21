@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: demo, namespace: demo, labels: { app: demo } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: demo } }
+  template:
+    metadata: { labels: { app: demo } }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.7.1
+          args: ["--port=9898", "--data-path=/data"]
+          env:
+            - name: PODINFO_UI_MESSAGE
+              valueFrom: { secretKeyRef: { name: demo-secret, key: message } }
+          ports: [{ name: http, containerPort: 9898 }]
+          volumeMounts: [{ name: data, mountPath: /data }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: demo-data }

@@ -1,0 +1,11 @@
+# Wave 3: flagship demo — exercises Vault(ESO)+NFS+ingress+KEDA+restricted-PSA.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: demo, namespace: argocd, annotations: { argocd.argoproj.io/sync-wave: "3" } }
+spec:
+  project: default
+  source: { repoURL: "git@github.com:ErikBPF/homelab-gitops.git", targetRevision: main, path: apps/demo }
+  destination: { server: https://kubernetes.default.svc, namespace: demo }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
