@@ -1,8 +1,0 @@
-apiVersion: v2
-name: vault
-description: In-cluster Vault (standalone) — secrets backend for ESO
-version: 0.1.0
-dependencies:
-  - name: vault
-    version: 0.33.0 # Renovate-managed (helm.releases.hashicorp.com)
-    repository: https://helm.releases.hashicorp.com
