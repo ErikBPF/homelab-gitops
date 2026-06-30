@@ -1,5 +1,9 @@
 # homelab-gitops
 
+> **SSOT role (desktop-nixos RFC 2026-06-29):** owns **lab / prod-mimic k8s
+> workloads** (Argo CD) on the kepler k3s cluster. Consumes the k3s substrate from
+> desktop-nixos + secrets via ESO→Vault@discovery.
+
 Production-mimicking platform layer for the **kepler** k3s cluster
 (`pastelariadev`), deployed via **Argo CD** (GitOps). A sister repo of
 `desktop-nixos`, on the **servarr strategy**: a git repo + `just` recipes,
