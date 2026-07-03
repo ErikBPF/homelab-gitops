@@ -58,6 +58,43 @@ alloy:
           forward_to        = [prometheus.remote_write.discovery.receiver]
         }
 
+        // ── per-node kubelet own /metrics via the same apiserver proxy ──
+        // Adds kubelet_volume_stats_* (PVC usage) which cAdvisor doesn't expose.
+        // Keep-filtered hard so remote_write volume stays sane.
+        discovery.relabel "kubelet" {
+          targets = discovery.kubernetes.nodes.targets
+          rule {
+            target_label = "__address__"
+            replacement  = "kubernetes.default.svc:443"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_node_name"]
+            regex         = "(.+)"
+            target_label  = "__metrics_path__"
+            replacement   = "/api/v1/nodes/${1}/proxy/metrics"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_node_name"]
+            target_label  = "node"
+          }
+        }
+        prometheus.scrape "kubelet" {
+          targets           = discovery.relabel.kubelet.output
+          scheme            = "https"
+          bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+          tls_config { insecure_skip_verify = true }
+          scrape_interval   = "60s"
+          forward_to        = [prometheus.relabel.kubelet_keep.receiver]
+        }
+        prometheus.relabel "kubelet_keep" {
+          rule {
+            source_labels = ["__name__"]
+            regex         = "kubelet_volume_stats_.*|kubelet_running_.*|kubelet_node_name|kubelet_pleg_relist_duration_seconds_.*"
+            action        = "keep"
+          }
+          forward_to = [prometheus.remote_write.discovery.receiver]
+        }
+
         // ── Traefik: scrape the dedicated metrics Service in ns "traefik" ──
         // Service-discovery (not hardcoded DNS) so it tracks the chart's service
         // name; keep only the port named "metrics" (:9100).
@@ -86,6 +123,50 @@ alloy:
           job_name        = "traefik"
           scrape_interval = "30s"
           forward_to      = [prometheus.remote_write.discovery.receiver]
+        }
+
+        // ── Argo CD application-controller: GitOps app health/sync state ──
+        // Service "argocd-application-controller-metrics" (:8082, port
+        // "http-metrics") — enabled via argo-cd.controller.metrics.enabled in
+        // argocd/values.yaml. Keep-filtered to the app/cluster health series.
+        discovery.kubernetes "argocd" {
+          role = "service"
+          namespaces { names = ["argocd"] }
+        }
+        discovery.relabel "argocd" {
+          targets = discovery.kubernetes.argocd.targets
+          rule {
+            source_labels = ["__meta_kubernetes_service_name"]
+            regex         = "argocd-application-controller-metrics"
+            action        = "keep"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_service_port_name"]
+            regex         = "http-metrics"
+            action        = "keep"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_service_name"]
+            target_label  = "service"
+          }
+        }
+        prometheus.scrape "argocd" {
+          targets         = discovery.relabel.argocd.output
+          job_name        = "argocd"
+          scrape_interval = "60s"
+          forward_to      = [prometheus.relabel.argocd_keep.receiver]
+        }
+        prometheus.relabel "argocd_keep" {
+          rule {
+            source_labels = ["__name__"]
+            regex         = "argocd_app_info|argocd_app_health_status|argocd_app_sync_total|argocd_app_k8s_request_total|argocd_cluster_connection_status|argocd_git_request_total|argocd_redis_request_total"
+            action        = "keep"
+          }
+          forward_to = [prometheus.remote_write.discovery.receiver]
         }
 
         prometheus.remote_write "discovery" {
