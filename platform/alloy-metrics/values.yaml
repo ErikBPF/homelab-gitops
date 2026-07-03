@@ -89,7 +89,9 @@ alloy:
         prometheus.relabel "kubelet_keep" {
           rule {
             source_labels = ["__name__"]
-            regex         = "kubelet_volume_stats_.*|kubelet_running_.*|kubelet_node_name|kubelet_pleg_relist_duration_seconds_.*"
+            // PLEG histogram buckets dropped (14 buckets/node, nothing
+            // consumes them); re-add _sum|_count if a latency panel appears.
+            regex         = "kubelet_volume_stats_.*|kubelet_running_.*|kubelet_node_name"
             action        = "keep"
           }
           forward_to = [prometheus.remote_write.discovery.receiver]
@@ -163,7 +165,11 @@ alloy:
         prometheus.relabel "argocd_keep" {
           rule {
             source_labels = ["__name__"]
-            regex         = "argocd_app_info|argocd_app_health_status|argocd_app_sync_total|argocd_app_k8s_request_total|argocd_cluster_connection_status|argocd_git_request_total|argocd_redis_request_total"
+            // health/sync signal only: app_info carries health_status +
+            // sync_status as labels (the standalone health metric was removed
+            // upstream); the per-verb k8s/git/redis request counters were
+            // ~100-200 unused series remote_written cross-host.
+            regex         = "argocd_app_info|argocd_app_sync_total|argocd_cluster_connection_status"
             action        = "keep"
           }
           forward_to = [prometheus.remote_write.discovery.receiver]
