@@ -22,7 +22,7 @@ jobs:
 
       - name: Install kubeconform
         run: |
-          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
             | tar -xz
           sudo install kubeconform /usr/local/bin/
 
@@ -36,7 +36,7 @@ jobs:
             if ! helm dependency build "$dir"; then
               echo "::error::helm dependency build failed for $dir"; rc=1
             elif ! helm template "$dir" \
-                   | kubeconform -strict -summary -ignore-missing-schemas -schema-location default; then
+                   | kubeconform -strict -summary -ignore-missing-schemas; then
               rc=1
             fi
             echo "::endgroup::"
@@ -45,5 +45,5 @@ jobs:
 
       - name: kubeconform raw manifests (apps / clusters / bootstrap)
         run: |
-          kubeconform -strict -summary -ignore-missing-schemas -schema-location default \
+          kubeconform -strict -summary -ignore-missing-schemas \
             $(find apps clusters bootstrap -name '*.yaml' 2>/dev/null)
