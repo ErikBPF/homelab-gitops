@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":dependencyDashboard"],
+  "extends": ["github>ErikBPF/renovate-config"],
   "helmv3": {
     "managerFilePatterns": ["/(^|/)Chart\\.yaml$/"]
   },
