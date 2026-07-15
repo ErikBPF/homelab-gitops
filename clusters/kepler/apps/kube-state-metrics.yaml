@@ -12,7 +12,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ErikBPF/homelab-gitops.git
+    repoURL: git@github.com:ErikBPF/homelab-gitops.git
     targetRevision: main
     path: platform/kube-state-metrics
   destination:
