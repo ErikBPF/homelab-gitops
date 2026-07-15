@@ -79,12 +79,13 @@ registries.yaml, kubeconfig). Land the leaf here → grant ACL → seed secret �
 
 ## Ops notes (grill follow-ups)
 
-- **Bootstrap credentials are not durable yet (P0).** A cluster rebuild removes
-  Argo's repository Secret and ESO's `vault-approle` Secret. The repository must
-  use a dedicated read-only deploy key, never a personal key. Both credentials
-  belong in the sops bootstrap layer and need a documented, repeatable restore
-  path. Until that lands, `just bootstrap` installs Argo but cannot fully
-  reconcile a private repository or restore Vault-backed workloads by itself.
+- **Bootstrap credentials are durable (P0 closed 2026-07-15).** `desktop-nixos`
+  sops owns the dedicated read-only Argo deploy key and ESO AppRole secret ID.
+  Kepler exposes only those two runtime files read-only to cp-1; a guest timer
+  reconciles `argocd/homelab-gitops-repo` and
+  `external-secrets/vault-approle`. `just test-k3s-bootstrap-recovery` in
+  `desktop-nixos` deletes both exact Secrets and verifies their recreation plus
+  `ClusterSecretStore Ready=True`. Vault remains runtime-secret SSOT.
 
 - **Renovate** (`renovate.json` present, not yet running): enable the Renovate
   GitHub App on `ErikBPF/homelab-gitops`, or add a `renovatebot/github-action`
