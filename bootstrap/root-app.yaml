@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     # TODO(erik): real remote once the repo is pushed.
-    repoURL: git@github.com:ErikBPF/homelab-gitops.git
+    repoURL: https://github.com/ErikBPF/homelab-gitops.git
     targetRevision: main
     path: clusters/kepler/apps
     directory:
