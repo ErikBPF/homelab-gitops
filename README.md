@@ -50,7 +50,7 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 ## Prerequisites per component (open — see RFC `TODO(erik)`)
 
 - **external-secrets** → a **Vault on discovery** (servarr docker stack, AppRole)
-  + the `vault-approle` secret seeded via sops-nix on kepler + an ACL grant
+  + the `vault-approle` bootstrap Secret + an ACL grant
   `kepler -> discovery:8200` (homelab-iac). Wave -3.
 - **csi-driver-nfs** (`nfs-fast` / `nfs-slow`) → kepler must NFS-export an SSD
   dataset and `/bulk` to the cluster subnet `10.250.0.0/24`. Wave -2.
@@ -78,6 +78,13 @@ registries.yaml, kubeconfig). Land the leaf here → grant ACL → seed secret �
 `just sync`.
 
 ## Ops notes (grill follow-ups)
+
+- **Bootstrap credentials are not durable yet (P0).** A cluster rebuild removes
+  Argo's repository Secret and ESO's `vault-approle` Secret. The repository must
+  use a dedicated read-only deploy key, never a personal key. Both credentials
+  belong in the sops bootstrap layer and need a documented, repeatable restore
+  path. Until that lands, `just bootstrap` installs Argo but cannot fully
+  reconcile a private repository or restore Vault-backed workloads by itself.
 
 - **Renovate** (`renovate.json` present, not yet running): enable the Renovate
   GitHub App on `ErikBPF/homelab-gitops`, or add a `renovatebot/github-action`
