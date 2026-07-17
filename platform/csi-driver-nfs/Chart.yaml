@@ -4,5 +4,5 @@ description: NFS CSI driver + nfs-fast / nfs-slow StorageClasses (backed by kepl
 version: 0.1.0
 dependencies:
   - name: csi-driver-nfs
-    version: 4.13.3 # Renovate-managed (kubernetes-csi/csi-driver-nfs)
+    version: 4.13.4 # Renovate-managed (kubernetes-csi/csi-driver-nfs)
     repository: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
