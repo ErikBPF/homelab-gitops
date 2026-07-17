@@ -6,6 +6,11 @@
   },
   "packageRules": [
     {
+      "description": "Keep GitHub Actions pinned to immutable commits",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
       "description": "Group platform Helm chart bumps into one PR per chart",
       "matchManagers": ["helmv3"],
       "matchFileNames": ["platform/**", "argocd/**"]
