@@ -50,7 +50,7 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 ## Prerequisites per component (open — see RFC `TODO(erik)`)
 
 - **external-secrets** → a **Vault on discovery** (servarr docker stack, AppRole)
-  + the `vault-approle` secret seeded via sops-nix on kepler + an ACL grant
+  + the `vault-approle` bootstrap Secret + an ACL grant
   `kepler -> discovery:8200` (homelab-iac). Wave -3.
 - **csi-driver-nfs** (`nfs-fast` / `nfs-slow`) → kepler must NFS-export an SSD
   dataset and `/bulk` to the cluster subnet `10.250.0.0/24`. Wave -2.
@@ -78,6 +78,14 @@ registries.yaml, kubeconfig). Land the leaf here → grant ACL → seed secret �
 `just sync`.
 
 ## Ops notes (grill follow-ups)
+
+- **Bootstrap credentials are durable (P0 closed 2026-07-15).** `desktop-nixos`
+  sops owns the dedicated read-only Argo deploy key and ESO AppRole secret ID.
+  Kepler exposes only those two runtime files read-only to cp-1; a guest timer
+  reconciles `argocd/homelab-gitops-repo` and
+  `external-secrets/vault-approle`. `just test-k3s-bootstrap-recovery` in
+  `desktop-nixos` deletes both exact Secrets and verifies their recreation plus
+  `ClusterSecretStore Ready=True`. Vault remains runtime-secret SSOT.
 
 - **Renovate** (`renovate.json` present, not yet running): enable the Renovate
   GitHub App on `ErikBPF/homelab-gitops`, or add a `renovatebot/github-action`

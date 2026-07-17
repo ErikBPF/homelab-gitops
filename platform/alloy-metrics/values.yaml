@@ -175,6 +175,32 @@ alloy:
           forward_to = [prometheus.remote_write.discovery.receiver]
         }
 
+        // ── embedded etcd: direct control-plane metrics on the private VM LAN ──
+        // k3s exposes unauthenticated metrics only on :2381 inside br-k3s.
+        // Static targets are intentional: the three control-plane addresses are
+        // fixed substrate owned by desktop-nixos, not Kubernetes Services.
+        prometheus.scrape "etcd" {
+          targets = [
+            { "__address__" = "10.250.0.11:2381", "instance" = "cp-1" },
+            { "__address__" = "10.250.0.12:2381", "instance" = "cp-2" },
+            { "__address__" = "10.250.0.13:2381", "instance" = "cp-3" },
+          ]
+          job_name        = "etcd"
+          scrape_interval = "30s"
+          scrape_timeout  = "10s"
+          forward_to      = [prometheus.relabel.etcd_keep.receiver]
+        }
+        prometheus.relabel "etcd_keep" {
+          rule {
+            source_labels = ["__name__"]
+            // Quorum, leader churn, DB growth, fsync and peer latency: enough
+            // to diagnose control-plane health without shipping every series.
+            regex  = "up|etcd_server_has_leader|etcd_server_is_leader|etcd_server_leader_changes_seen_total|etcd_server_proposals_(applied|committed|failed|pending)|etcd_mvcc_db_total_size_in_(bytes|use_in_bytes)|etcd_disk_(backend_commit|wal_fsync)_duration_seconds_(bucket|sum|count)|etcd_network_peer_round_trip_time_seconds_(bucket|sum|count)|process_resident_memory_bytes"
+            action = "keep"
+          }
+          forward_to = [prometheus.remote_write.discovery.receiver]
+        }
+
         prometheus.remote_write "discovery" {
           endpoint {
             url = "http://100.76.140.121:9090/api/v1/write"
