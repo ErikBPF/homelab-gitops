@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    # TODO(erik): real remote once the repo is pushed.
+    # Private remote; Argo authenticates with the reconciled read-only deploy key.
     repoURL: git@github.com:ErikBPF/homelab-gitops.git
     targetRevision: main
     path: clusters/kepler/apps

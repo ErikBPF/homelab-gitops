@@ -2,7 +2,7 @@
 
 > **SSOT role (desktop-nixos RFC 2026-06-29):** owns **lab / prod-mimic k8s
 > workloads** (Argo CD) on the kepler k3s cluster. Consumes the k3s substrate from
-> desktop-nixos + secrets via ESO→Vault@discovery.
+> desktop-nixos + secrets via ESO→OpenBao@Discovery.
 
 Production-mimicking platform layer for the **kepler** k3s cluster
 (`pastelariadev`), deployed via **Argo CD** (GitOps). A sister repo of
@@ -14,9 +14,9 @@ See the RFC: `desktop-nixos/docs/proposals/2026-06-20-cluster-homelab-gitops.md`
 ## Model
 
 - **The NixOS flake owns the substrate** (k3s, networking/NAT, the L4 LB, PSA
-  admission, etcd snapshots, and the existing `autoDeployCharts` ingress-nginx +
-  Alloy). Those stay in `desktop-nixos`. **This repo owns the platform/workload
-  layer on top.** Disjoint objects — no controller fights.
+  admission, etcd snapshots, bootstrap credentials, and their reconciler).
+  **This repo owns the platform/workload layer on top**, including Traefik and
+  in-cluster telemetry collectors. Disjoint objects — no controller fights.
 - **Argo CD is bootstrapped once** by `just bootstrap` (helm install +
   `kubectl apply` the root app-of-apps), then pulls everything from this repo,
   including its own chart ("Argo manages Argo"). Daily loop: edit → `git push` →
@@ -47,35 +47,39 @@ just ui            # how to reach the Argo UI
 Uses your existing kubeconfig (context `pastelariadev`). The Argo UI is exposed
 via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
-## Prerequisites per component (open — see RFC `TODO(erik)`)
+## Implemented prerequisites
 
-- **external-secrets** → a **Vault on discovery** (servarr docker stack, AppRole)
-  + the `vault-approle` bootstrap Secret + an ACL grant
-  `kepler -> discovery:8200` (homelab-iac). Wave -3.
+- **external-secrets** → **OpenBao on Discovery** (servarr stack, Vault-compatible
+  API, dedicated AppRole)
+  + the `vault-approle` bootstrap Secret reconciled from desktop-nixos sops +
+  an ACL grant `kepler -> discovery:8200` (homelab-iac). Wave -3.
 - **csi-driver-nfs** (`nfs-fast` / `nfs-slow`) → kepler must NFS-export an SSD
-  dataset and `/bulk` to the cluster subnet `10.250.0.0/24`. Wave -2.
+  dataset and `/bulk` to the cluster subnet `10.250.0.0/24`. Implemented. Wave -2.
 - **kube-state-metrics** → a scrape→remote_write path to discovery Prometheus
-  (extend the cluster Alloy with a metrics pipeline, or a dedicated Alloy-metrics
-  here). Wave 0.
+  through `alloy-metrics`. Implemented. Wave 0.
 
-## Components scaffolded
+## Current applications
 
-argocd, traefik (replaces ingress-nginx), csi-driver-nfs (nfs-fast/nfs-slow),
-external-secrets (→ Vault@discovery), kube-state-metrics, harbor (registry +
-proxy-cache), keda, jaeger (all-in-one), otel-collector (OTLP → Jaeger). Chart
-versions verified against the live repos + `helm template`-validated.
+The root app manages 11 child applications (12 Argo Applications including
+`root`):
 
-**Not deployable yet:** Argo pulls from a git REMOTE — push this repo and set the
-real `repoURL` in `bootstrap/root-app.yaml` + `clusters/kepler/apps/*` first.
-external-secrets also needs Vault@discovery; external-dns is still deferred
-(AdGuard lives on discovery).
+- `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`,
+  `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`, `otel-collector`,
+  `trace-demo`, and `demo`.
+- Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.
+- ESO reads runtime secrets from OpenBao@Discovery through a dedicated AppRole.
+- Harbor is intentionally **not** an Argo application. It moved to Discovery
+  on 2026-06-22 to avoid the registry self-hosting bootstrap trap.
+- The in-cluster Vault application was removed on 2026-06-29. The remaining
+  `platform/harbor/` and `platform/vault/` directories are historical scaffolds,
+  not root-app children.
 
 ## Coupling
 
-`homelab-iac` (tailnet ACL grants) · `servarr/machines/discovery` (Vault stack,
+`homelab-iac` (tailnet ACL grants) · `servarr/machines/discovery` (OpenBao,
 Prometheus remote_write) · `desktop-nixos` (sops secret seed, `_k3s-node.nix`
-registries.yaml, kubeconfig). Land the leaf here → grant ACL → seed secret →
-`just sync`.
+registries.yaml, kubeconfig, bootstrap-secret reconciler). Land the leaf here →
+grant ACL → seed secret → `just sync`.
 
 ## Ops notes (grill follow-ups)
 
@@ -87,10 +91,8 @@ registries.yaml, kubeconfig). Land the leaf here → grant ACL → seed secret �
   `desktop-nixos` deletes both exact Secrets and verifies their recreation plus
   `ClusterSecretStore Ready=True`. Vault remains runtime-secret SSOT.
 
-- **Renovate** (`renovate.json` present, not yet running): enable the Renovate
-  GitHub App on `ErikBPF/homelab-gitops`, or add a `renovatebot/github-action`
-  workflow + a `RENOVATE_TOKEN` repo secret. Until then chart versions are pinned
-  but not auto-bumped.
+- **Renovate is active** through the fleet shared preset. Chart and Actions
+  updates land through PRs after `helm template | kubeconform` validation.
 - **Branch protection / review gate:** Argo auto-syncs `main` (prune + selfHeal),
   so a bad push deploys cluster-wide. For a review gate, protect `main` (require
   PR) on GitHub, or set the app `syncPolicy` to manual for the riskier components.
