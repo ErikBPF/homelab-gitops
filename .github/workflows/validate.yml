@@ -6,8 +6,10 @@ name: validate
 # auto-merge.
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
