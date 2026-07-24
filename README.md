@@ -9,7 +9,8 @@ Production-mimicking platform layer for the **kepler** k3s cluster
 `desktop-nixos`, on the **servarr strategy**: a git repo + `just` recipes,
 applied to the cluster — **not** baked into the NixOS flake.
 
-See the RFC: `desktop-nixos/docs/proposals/2026-06-20-cluster-homelab-gitops.md`.
+See the implemented record:
+`desktop-nixos/docs/implemented/2026-06-20-cluster-homelab-gitops.md`.
 
 ## Model
 
