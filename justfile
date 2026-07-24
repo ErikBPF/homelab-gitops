@@ -25,6 +25,15 @@ sync app="root":
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
 
+status-alloy:
+    kubectl --context {{ctx}} -n monitoring get pods -l app.kubernetes.io/instance=alloy-metrics -o wide
+    kubectl --context {{ctx}} -n monitoring describe pods -l app.kubernetes.io/instance=alloy-metrics
+    kubectl --context {{ctx}} -n monitoring logs -l app.kubernetes.io/instance=alloy-metrics -c alloy --tail=100
+
+restart-alloy:
+    kubectl --context {{ctx}} -n monitoring rollout restart deployment/alloy-metrics
+    kubectl --context {{ctx}} -n monitoring rollout status deployment/alloy-metrics --timeout=2m
+
 diff app="root":
     argocd app diff {{app}}
 

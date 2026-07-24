@@ -14,8 +14,16 @@ alloy:
 
   alloy:
     resources:
-      requests: { cpu: 25m, memory: 64Mi }
-      limits: { memory: 256Mi }
+      requests: { cpu: 25m, memory: 128Mi }
+      limits: { memory: 512Mi }
+    livenessProbe:
+      httpGet:
+        path: /-/ready
+        port: 12345
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
     configMap:
       content: |
         // ── kube-state-metrics: cluster object/health state (scraped once) ──
@@ -25,6 +33,7 @@ alloy:
             "job"         = "kube-state-metrics",
           }]
           scrape_interval = "60s"
+          sample_limit    = 10000
           forward_to      = [prometheus.remote_write.discovery.receiver]
         }
 
@@ -55,6 +64,7 @@ alloy:
           bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
           tls_config { insecure_skip_verify = true }
           scrape_interval   = "60s"
+          sample_limit      = 25000
           forward_to        = [prometheus.remote_write.discovery.receiver]
         }
 
@@ -201,9 +211,31 @@ alloy:
           forward_to = [prometheus.remote_write.discovery.receiver]
         }
 
+        // ── Alloy's own remote-write health, kept narrow for alerting ──
+        prometheus.scrape "alloy" {
+          targets = [{
+            "__address__" = "127.0.0.1:12345",
+            "instance"    = "alloy-metrics",
+          }]
+          job_name        = "alloy-metrics"
+          scrape_interval = "30s"
+          forward_to      = [prometheus.relabel.alloy_keep.receiver]
+        }
+        prometheus.relabel "alloy_keep" {
+          rule {
+            source_labels = ["__name__"]
+            regex         = "up|prometheus_remote_storage_samples_pending|prometheus_remote_storage_samples_retries_total"
+            action        = "keep"
+          }
+          forward_to = [prometheus.remote_write.discovery.receiver]
+        }
+
         prometheus.remote_write "discovery" {
           endpoint {
             url = "http://100.76.140.121:9090/api/v1/write"
+            queue_config {
+              sample_age_limit = "30m"
+            }
           }
           external_labels = { "cluster" = "pastelariadev" }
         }
