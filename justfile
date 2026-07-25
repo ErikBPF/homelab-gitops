@@ -11,7 +11,7 @@ ns  := "argocd"
 bootstrap:
     helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
     helm repo update argo
-    helm dependency build ./argocd
+    helm dependency update ./argocd
     helm upgrade --install argocd ./argocd \
         --namespace {{ns}} --create-namespace --kube-context {{ctx}} --wait
     kubectl --context {{ctx}} apply -f bootstrap/root-app.yaml
