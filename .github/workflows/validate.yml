@@ -61,3 +61,17 @@ jobs:
         run: |
           kubeconform -strict -summary -ignore-missing-schemas \
             $(find apps clusters bootstrap -name '*.yaml' 2>/dev/null)
+
+  notify-ci:
+    needs: kubeconform
+    if: ${{ always() && needs.kubeconform.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify CI channel
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_CI_WEBHOOK }}
+        run: |
+          if [[ -z "$WEBHOOK" ]]; then echo "::notice::DISCORD_CI_WEBHOOK not configured"; exit 0; fi
+          jq -nc --arg repo "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" --arg actor "$GITHUB_ACTOR" --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{allowed_mentions:{parse:[]},embeds:[{title:"CI FAILED",description:("**Repository:** `"+$repo+"`\n**Ref:** `"+$ref+"`\n**Actor:** `"+$actor+"`\n[Open workflow]("+$url+")"),color:15548997}]}' |
+            curl -fsS -H "Content-Type: application/json" --data @- "$WEBHOOK"
