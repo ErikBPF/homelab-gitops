@@ -4,5 +4,5 @@ description: Single-replica Alloy — scrapes kube-state-metrics + kubelet cAdvi
 version: 0.1.0
 dependencies:
   - name: alloy
-    version: 1.10.1 # Renovate-managed (grafana.github.io/helm-charts)
+    version: 1.11.0 # Renovate-managed (grafana.github.io/helm-charts)
     repository: https://grafana.github.io/helm-charts
