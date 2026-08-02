@@ -4,5 +4,5 @@ description: Argo CD self-management wrapper (Argo manages Argo)
 version: 0.1.0
 dependencies:
   - name: argo-cd
-    version: 10.1.4 # Renovate-managed (argoproj.github.io/argo-helm)
+    version: 10.2.1 # Renovate-managed (argoproj.github.io/argo-helm)
     repository: https://argoproj.github.io/argo-helm
