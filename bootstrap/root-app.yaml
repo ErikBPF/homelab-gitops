@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     # Private remote; Argo authenticates with the reconciled read-only deploy key.
-    repoURL: git@github.com:ErikBPF/homelab-gitops.git
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
     path: clusters/kepler/apps
     directory:
