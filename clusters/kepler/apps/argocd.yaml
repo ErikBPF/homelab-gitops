@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:ErikBPF/homelab-gitops.git
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
     path: argocd
   destination:

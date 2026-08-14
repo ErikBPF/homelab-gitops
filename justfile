@@ -54,5 +54,5 @@ password:
 # after creating + pushing the repo, if the URL differs from the placeholder).
 set-repo url:
     grep -rl 'github.com/ErikBPF/homelab-gitops' bootstrap clusters \
-        | xargs sed -i "s|git@github.com:ErikBPF/homelab-gitops.git|{{url}}|g"
+        | xargs sed -i "s|ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git|{{url}}|g"
     @echo ":: repoURL set to {{url}}"
