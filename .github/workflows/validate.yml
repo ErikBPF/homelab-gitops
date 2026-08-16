@@ -62,6 +62,11 @@ jobs:
           kubeconform -strict -summary -ignore-missing-schemas \
             $(find apps clusters bootstrap -name '*.yaml' 2>/dev/null)
 
+      - name: Enforce manual sync containment
+        run: |
+          tests/manual-sync-containment.sh
+          tests/airflow-contract.sh
+
   notify-ci:
     needs: kubeconform
     if: ${{ always() && needs.kubeconform.result == 'failure' }}

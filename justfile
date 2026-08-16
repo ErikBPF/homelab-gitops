@@ -25,6 +25,11 @@ sync app="root":
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
 
+# One-time migration: copy current Helm runtime values into Vault without output.
+# Reads an OpenBao operator token from stdin.
+capture-airflow-runtime-to-vault:
+    scripts/capture-airflow-runtime-to-vault.sh
+
 status-alloy:
     kubectl --context {{ctx}} -n monitoring get pods -l app.kubernetes.io/instance=alloy-metrics -o wide
     kubectl --context {{ctx}} -n monitoring describe pods -l app.kubernetes.io/instance=alloy-metrics

@@ -1,0 +1,171 @@
+airflow:
+  airflowVersion: "3.3.0"
+  executor: KubernetesExecutor
+
+  images:
+    airflow:
+      repository: harbor.homelab.pastelariadev.com/library/airflow-dataplatform
+      tag: pr-180-27d225a
+      digest: sha256:179ffa3e6978e1bcc060f7baf163105cd8283ad6966568629f69f24ce9b79b9f
+      pullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: airflow-harbor
+
+  data:
+    metadataSecretName: airflow-metadata
+    resultBackendSecretName: airflow-metadata
+    brokerUrlSecretName: airflow-broker-url
+  fernetKeySecretName: airflow-fernet-key
+  apiSecretKeySecretName: airflow-api-secret-key
+  jwtSecretName: airflow-jwt-secret
+  extraEnvFrom: |
+    - secretRef:
+        name: airflow-runtime
+  podTemplate: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: placeholder-name
+      labels:
+        tier: airflow
+        component: worker
+        release: airflow
+    spec:
+      restartPolicy: Never
+      serviceAccountName: airflow-worker
+      terminationGracePeriodSeconds: 600
+      securityContext:
+        runAsUser: 50000
+        fsGroup: 0
+      nodeSelector:
+        node-group: data-jobs
+      imagePullSecrets:
+        - name: airflow-harbor
+      containers:
+        - name: base
+          image: "{{ .Values.images.airflow.repository }}@{{ .Values.images.airflow.digest }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 250m, memory: 512Mi }
+          envFrom:
+            - secretRef: { name: airflow-runtime }
+          env:
+            - { name: AIRFLOW__CORE__EXECUTOR, value: KubernetesExecutor }
+            - { name: AIRFLOW_HOME, value: /opt/airflow }
+            - name: AIRFLOW__CORE__FERNET_KEY
+              valueFrom: { secretKeyRef: { name: airflow-fernet-key, key: fernet-key } }
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom: { secretKeyRef: { name: airflow-metadata, key: connection } }
+            - name: AIRFLOW_CONN_AIRFLOW_DB
+              valueFrom: { secretKeyRef: { name: airflow-metadata, key: connection } }
+            - name: AIRFLOW__API__SECRET_KEY
+              valueFrom: { secretKeyRef: { name: airflow-api-secret-key, key: api-secret-key } }
+          volumeMounts:
+            - { name: logs, mountPath: /opt/airflow/logs }
+            - { name: config, mountPath: /opt/airflow/airflow.cfg, subPath: airflow.cfg, readOnly: true }
+            - { name: config, mountPath: /opt/airflow/config/airflow_local_settings.py, subPath: airflow_local_settings.py, readOnly: true }
+            - { name: dags, mountPath: /opt/airflow/dags }
+            - { name: runtime-plugins, mountPath: /opt/airflow/plugins, subPath: .runtime-plugins-d44de20 }
+      volumes:
+        - name: dags
+          persistentVolumeClaim: { claimName: airflow-dags }
+        - name: logs
+          persistentVolumeClaim: { claimName: airflow-logs }
+        - name: config
+          configMap: { name: airflow-config }
+        - name: runtime-plugins
+          persistentVolumeClaim: { claimName: airflow-dags }
+
+  createUserJob:
+    enabled: false
+  postgresql:
+    enabled: false
+  redis:
+    enabled: false
+  statsd:
+    enabled: false
+  triggerer:
+    enabled: false
+  flower:
+    enabled: false
+
+  apiServer:
+    replicas: 1
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: 1500m, memory: 1Gi }
+    livenessProbe: { failureThreshold: 10, periodSeconds: 15, timeoutSeconds: 20 }
+    readinessProbe: { failureThreshold: 10, periodSeconds: 15, timeoutSeconds: 20 }
+    startupProbe: { failureThreshold: 20, periodSeconds: 15, timeoutSeconds: 20 }
+
+  scheduler:
+    replicas: 1
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: 500m, memory: 1Gi }
+    startupProbe: { failureThreshold: 20, periodSeconds: 15, timeoutSeconds: 20 }
+    extraVolumes:
+      - name: dbt-manifests-vol
+        persistentVolumeClaim: { claimName: dbt-manifests }
+    extraVolumeMounts:
+      - name: dbt-manifests-vol
+        mountPath: /opt/airflow/dbt-manifests
+
+  webserver:
+    replicas: 1
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { cpu: 500m, memory: 1Gi }
+
+  workers:
+    replicas: 0
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: 250m, memory: 512Mi }
+    celery:
+      nodeSelector: { node-group: data-jobs }
+    kubernetes:
+      nodeSelector: { node-group: data-jobs }
+
+  migrateDatabaseJob:
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+
+  dags:
+    gitSync: { enabled: false }
+    persistence:
+      enabled: true
+      accessMode: ReadWriteMany
+      size: 1Gi
+      storageClassName: nfs-fast
+  logs:
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClassName: nfs-fast
+
+  volumes:
+    - name: runtime-plugins
+      persistentVolumeClaim: { claimName: airflow-dags }
+  volumeMounts:
+    - name: runtime-plugins
+      mountPath: /opt/airflow/plugins
+      subPath: .runtime-plugins-d44de20
+
+  config:
+    core:
+      auth_manager: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      execution_api_server_url: http://airflow-api-server:8080/execution/
+      load_examples: "False"
+    dag_processor: { refresh_interval: 5 }
+    kubernetes_executor:
+      delete_worker_pods: "True"
+      delete_worker_pods_on_failure: "False"
+      namespace: airflow
+    logging: { logging_level: INFO }
+    scheduler: { dag_dir_list_interval: 5 }
