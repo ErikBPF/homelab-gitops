@@ -7,5 +7,4 @@ spec:
   source: { repoURL: "git@github.com:ErikBPF/homelab-gitops.git", targetRevision: main, path: apps/demo }
   destination: { server: https://kubernetes.default.svc, namespace: demo }
   syncPolicy:
-    automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
