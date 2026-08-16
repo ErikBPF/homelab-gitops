@@ -3,15 +3,12 @@ set -euo pipefail
 
 KUBE_CONTEXT="${KUBE_CONTEXT:-pastelariadev}"
 BAO_API="${BAO_API:-http://discovery:8200/v1}"
+BAO_SSH="${BAO_SSH:-}"
+BAO_SSH_PORT="${BAO_SSH_PORT:-2222}"
 vault_path="$BAO_API/secret/data/lab/airflow"
 
-IFS= read -r bao_token
+IFS= read -r bao_token || [ -n "$bao_token" ]
 [ -n "$bao_token" ] || { echo "OpenBao operator token required on stdin" >&2; exit 2; }
-header="$(mktemp)"
-trap 'shred -u "$header" 2>/dev/null || rm -f "$header"' EXIT
-chmod 600 "$header"
-printf 'X-Vault-Token: %s\n' "$bao_token" > "$header"
-unset bao_token
 
 values="$(helm --kube-context "$KUBE_CONTEXT" -n airflow get values airflow -o json)"
 env_value() {
@@ -34,13 +31,7 @@ metadata="$(secret_value airflow-metadata connection)"
 broker="$(secret_value airflow-broker-url connection)"
 unset values
 
-method=PATCH
-content_type=application/merge-patch+json
-if ! curl -fsS --header @"$header" "$vault_path" >/dev/null; then
-  method=POST
-  content_type=application/json
-fi
-jq -nc \
+payload="$(jq -nc \
   --arg environment "$environment" \
   --arg connections "$connections" \
   --arg spark "$spark" \
@@ -62,11 +53,44 @@ jq -nc \
     JWT_SECRET:$jwt,
     METADATA_CONNECTION:$metadata,
     BROKER_URL:$broker
-  }}' \
-  | curl -fsS --request "$method" \
-      --header @"$header" \
-      --header "Content-Type: $content_type" \
-      --data-binary @- "$vault_path" >/dev/null
+  }}')"
 
 unset environment connections spark execution dbt_cache fernet api_secret jwt metadata broker
+if [ -n "$BAO_SSH" ]; then
+  printf '%s\n%s\n' "$bao_token" "$payload" | ssh -p "$BAO_SSH_PORT" -o BatchMode=yes "$BAO_SSH" '
+    set -euo pipefail
+    IFS= read -r token || [ -n "$token" ]
+    IFS= read -r payload || [ -n "$payload" ]
+    header=$(mktemp)
+    trap '\''shred -u "$header" 2>/dev/null || rm -f "$header"'\'' EXIT
+    chmod 600 "$header"
+    printf "X-Vault-Token: %s\n" "$token" > "$header"
+    unset token
+    url=http://127.0.0.1:8200/v1/secret/data/lab/airflow
+    method=PATCH
+    content_type=application/merge-patch+json
+    if ! curl --connect-timeout 5 --max-time 30 -fsS --header @"$header" "$url" >/dev/null; then
+      method=POST
+      content_type=application/json
+    fi
+    printf "%s" "$payload" | curl --connect-timeout 5 --max-time 30 -fsS \
+      --request "$method" --header @"$header" --header "Content-Type: $content_type" \
+      --data-binary @- "$url" >/dev/null
+  '
+else
+  header="$(mktemp)"
+  trap 'shred -u "$header" 2>/dev/null || rm -f "$header"' EXIT
+  chmod 600 "$header"
+  printf 'X-Vault-Token: %s\n' "$bao_token" > "$header"
+  method=PATCH
+  content_type=application/merge-patch+json
+  if ! curl --connect-timeout 5 --max-time 30 -fsS --header @"$header" "$vault_path" >/dev/null; then
+    method=POST
+    content_type=application/json
+  fi
+  printf '%s' "$payload" | curl --connect-timeout 5 --max-time 30 -fsS \
+    --request "$method" --header @"$header" --header "Content-Type: $content_type" \
+    --data-binary @- "$vault_path" >/dev/null
+fi
+unset bao_token payload
 echo "airflow runtime secrets captured in Vault"
