@@ -16,7 +16,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: airflow
+  ignoreDifferences:
+    - kind: PersistentVolumeClaim
+      name: airflow-dags
+      namespace: airflow
+      jsonPointers:
+        - /spec/volumeName
+    - kind: PersistentVolumeClaim
+      name: airflow-logs
+      namespace: airflow
+      jsonPointers:
+        - /spec/volumeName
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
