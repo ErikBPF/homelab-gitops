@@ -17,9 +17,9 @@ bootstrap:
     kubectl --context {{ctx}} apply -f bootstrap/root-app.yaml
     @echo ":: bootstrapped. 'just password' for the admin pw, 'just ui' for access."
 
-# Force a pull (Argo self-heals on its own; this is for impatience).
-sync app="root":
-    argocd app sync {{app}}
+# Sync one app at an explicitly reviewed Git revision.
+sync revision app="root":
+    argocd app sync {{app}} --revision {{revision}}
 
 # What Argo sees.
 status:

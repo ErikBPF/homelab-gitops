@@ -1,5 +1,5 @@
-# App-of-apps: kubectl apply'd once by `just bootstrap`. Watches the directory
-# of child Application manifests; Argo then reconciles each (sync-wave ordered).
+# App-of-apps: kubectl apply'd once by `just bootstrap`. Root and child
+# Applications stay manual while main is unprotected.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
