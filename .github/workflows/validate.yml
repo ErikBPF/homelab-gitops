@@ -54,13 +54,14 @@ jobs:
               rc=1
             fi
             echo "::endgroup::"
-          done < <(find platform argocd -name Chart.yaml)
+          done < <(find platform argocd apps -name Chart.yaml)
           exit $rc
 
       - name: kubeconform raw manifests (apps / clusters / bootstrap)
         run: |
           kubeconform -strict -summary -ignore-missing-schemas \
-            $(find apps clusters bootstrap -name '*.yaml' 2>/dev/null)
+            $(find apps clusters bootstrap -name '*.yaml' \
+              ! -name Chart.yaml ! -name values.yaml ! -path '*/templates/*' 2>/dev/null)
 
       - name: Enforce manual sync containment
         run: |
