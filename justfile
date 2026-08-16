@@ -17,13 +17,18 @@ bootstrap:
     kubectl --context {{ctx}} apply -f bootstrap/root-app.yaml
     @echo ":: bootstrapped. 'just password' for the admin pw, 'just ui' for access."
 
-# Force a pull (Argo self-heals on its own; this is for impatience).
-sync app="root":
-    argocd app sync {{app}}
+# Sync one app at an explicitly reviewed Git revision.
+sync revision app="root":
+    argocd app sync {{app}} --revision {{revision}}
 
 # What Argo sees.
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
+
+# One-time migration: copy current Helm runtime values into Vault without output.
+# Reads an OpenBao operator token from stdin.
+capture-airflow-runtime-to-vault:
+    scripts/capture-airflow-runtime-to-vault.sh
 
 status-alloy:
     kubectl --context {{ctx}} -n monitoring get pods -l app.kubernetes.io/instance=alloy-metrics -o wide

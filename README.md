@@ -20,8 +20,8 @@ See the implemented record:
   in-cluster telemetry collectors. Disjoint objects — no controller fights.
 - **Argo CD is bootstrapped once** by `just bootstrap` (helm install +
   `kubectl apply` the root app-of-apps), then pulls everything from this repo,
-  including its own chart ("Argo manages Argo"). Daily loop: edit → `git push` →
-  Argo self-heals (or `just sync`).
+  including its own chart ("Argo manages Argo"). Root and child applications
+  stay manual while `main` is unprotected.
 
 ## Layout
 
@@ -41,17 +41,27 @@ mirrors the `datahomelab-gitops` reference — Renovate-friendly.
 ```
 just bootstrap     # helm install argocd + apply root app-of-apps
 just status        # argocd app list
-just sync          # argocd app sync root (force a pull)
 just ui            # how to reach the Argo UI
 ```
+
+Sync the root first, then every child at the same reviewed merge commit:
+
+```bash
+SHA="$(git rev-parse HEAD)" # checked-out reviewed merge commit
+argocd app sync root --revision "$SHA"
+argocd app sync argocd traefik csi-driver-nfs external-secrets kube-state-metrics alloy-metrics keda jaeger otel-collector trace-demo demo airflow --revision "$SHA"
+```
+
+For rollback, set `SHA` to the prior known-good commit and repeat both sync
+commands.
 
 Uses your existing kubeconfig (context `pastelariadev`). The Argo UI is exposed
 via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
 ## Implemented prerequisites
 
-- **external-secrets** → **OpenBao on Discovery** (servarr stack, Vault-compatible
-  API, dedicated AppRole)
+- **external-secrets** → **OpenBao on Discovery** (host service owned by
+  `desktop-nixos`, Vault-compatible API, dedicated AppRole)
   + the `vault-approle` bootstrap Secret reconciled from desktop-nixos sops +
   an ACL grant `kepler -> discovery:8200` (homelab-iac). Wave -3.
 - **csi-driver-nfs** (`nfs-fast` / `nfs-slow`) → kepler must NFS-export an SSD
@@ -61,12 +71,12 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
 ## Current applications
 
-The root app manages 11 child applications (12 Argo Applications including
+The root app manages 12 child applications (13 Argo Applications including
 `root`):
 
 - `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`,
   `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`, `otel-collector`,
-  `trace-demo`, and `demo`.
+  `trace-demo`, `demo`, and `airflow`.
 - Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.
 - ESO reads runtime secrets from OpenBao@Discovery through a dedicated AppRole.
 - Harbor is intentionally **not** an Argo application. It moved to Discovery
@@ -77,10 +87,10 @@ The root app manages 11 child applications (12 Argo Applications including
 
 ## Coupling
 
-`homelab-iac` (tailnet ACL grants) · `servarr/machines/discovery` (OpenBao,
-Prometheus remote_write) · `desktop-nixos` (sops secret seed, `_k3s-node.nix`
+`homelab-iac` (tailnet ACL grants) · `servarr/machines/discovery` (Prometheus
+remote_write consumer) · `desktop-nixos` (OpenBao host service, sops secret seed, `_k3s-node.nix`
 registries.yaml, kubeconfig, bootstrap-secret reconciler). Land the leaf here →
-grant ACL → seed secret → `just sync`.
+grant ACL → seed secret → sync the reviewed revision as shown above.
 
 ## Ops notes (grill follow-ups)
 
@@ -94,9 +104,9 @@ grant ACL → seed secret → `just sync`.
 
 - **Renovate is active** through the fleet shared preset. Chart and Actions
   updates land through PRs after `helm template | kubeconform` validation.
-- **Branch protection / review gate:** Argo auto-syncs `main` (prune + selfHeal),
-  so a bad push deploys cluster-wide. For a review gate, protect `main` (require
-  PR) on GitHub, or set the app `syncPolicy` to manual for the riskier components.
+- **Branch protection / review gate:** every Argo application is manual while
+  `main` is unprotected. Sync root and children at the reviewed commit as shown
+  above. Restore auto-sync only after branch protection is enabled.
 - **alloy-metrics → discovery Prometheus** and the in-cluster log/secret paths
   use discovery's **raw tailnet IP** (`100.76.140.121`) because pods can't resolve
   MagicDNS. Stable, but if discovery's TS IP ever changes, update it in
