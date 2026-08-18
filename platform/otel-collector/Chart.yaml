@@ -4,5 +4,5 @@ description: OpenTelemetry Collector — OTLP ingest → Jaeger (prod-mimic trac
 version: 0.1.0
 dependencies:
   - name: opentelemetry-collector
-    version: 0.169.0 # Renovate-managed (open-telemetry.github.io/opentelemetry-helm-charts)
+    version: 0.170.0 # Renovate-managed (open-telemetry.github.io/opentelemetry-helm-charts)
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
