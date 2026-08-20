@@ -19,7 +19,7 @@ bootstrap:
 
 # Sync one app at an explicitly reviewed Git revision.
 sync revision app="root":
-    argocd app sync {{app}} --revision {{revision}}
+    nix run nixpkgs#argocd -- app sync {{app}} --revision {{revision}}
 
 # What Argo sees.
 status:
