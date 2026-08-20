@@ -1,0 +1,8 @@
+apiVersion: v2
+name: vcluster-pastelariadev
+description: Restricted development vCluster hosted by the stable homelab cluster
+version: 0.1.0
+dependencies:
+  - name: vcluster
+    version: 0.36.1 # Renovate-managed (charts.loft.sh)
+    repository: https://charts.loft.sh

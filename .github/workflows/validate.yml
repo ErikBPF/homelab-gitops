@@ -27,6 +27,9 @@ jobs:
 
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
 
+      - name: Add vCluster chart repository
+        run: helm repo add loft https://charts.loft.sh
+
       - name: Install kubeconform
         env:
           KUBECONFORM_VERSION: "0.8.0"
@@ -67,6 +70,7 @@ jobs:
         run: |
           tests/manual-sync-containment.sh
           tests/airflow-contract.sh
+          tests/pastelariadev-cluster-contract.sh
 
   notify-ci:
     needs: kubeconform

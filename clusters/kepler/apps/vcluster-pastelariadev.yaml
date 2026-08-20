@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vcluster-pastelariadev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+    targetRevision: main
+    path: platform/vcluster-pastelariadev
+    helm:
+      releaseName: pastelariadev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vcluster-pastelariadev
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,9 +1,9 @@
 # homelab-gitops — bootstrap + ops recipes (servarr-style)
-# Uses your existing kubeconfig context for the pastelariadev cluster.
+# Uses your existing kubeconfig context for the stable homelab cluster.
 
 set shell := ["bash", "-uc"]
 
-ctx := "pastelariadev"
+ctx := "homelab"
 ns  := "argocd"
 
 # One-time: install Argo CD (local wrapper chart), then apply the root app-of-apps.
@@ -24,6 +24,22 @@ sync revision app="root":
 # What Argo sees.
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
+
+# Open a shell connected to the development vCluster; exiting stops its proxy.
+connect-pastelariadev:
+    nix run nixpkgs#vcluster -- connect pastelariadev \
+        --namespace vcluster-pastelariadev \
+        --context {{ctx}} \
+        -- bash
+
+# Read-only control-plane, workload, event, and Harbor pull proof for agents.
+diagnose-pastelariadev:
+    kubectl --context {{ctx}} -n vcluster-pastelariadev get statefulset,pods,pvc
+    nix run nixpkgs#vcluster -- connect pastelariadev \
+        --namespace vcluster-pastelariadev \
+        --context {{ctx}} \
+        --background-proxy=false \
+        -- bash -ceu 'kubectl get nodes,pods -A; kubectl get events -A --sort-by=.lastTimestamp | tail -n 30; kubectl wait --for=condition=complete job/harbor-pull-smoke --timeout=2m; test "$(kubectl logs job/harbor-pull-smoke)" = harbor-pull-ok'
 
 # One-time migration: copy current Helm runtime values into Vault without output.
 # Reads an OpenBao operator token from stdin.
