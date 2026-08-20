@@ -16,6 +16,8 @@ grep -Fq 'ctx := "homelab"' justfile
 grep -Fq 'connect pastelariadev' justfile
 grep -Fq 'diagnose-pastelariadev:' justfile
 grep -Fq 'kubectl wait --for=condition=complete job/harbor-pull-smoke' justfile
+grep -Fq 'exec statefulset/argocd-application-controller -- argocd app diff {{app}} --core' justfile
+! grep -Fq 'ServerSideApply=true' "$application"
 
 helm repo add loft https://charts.loft.sh >/dev/null 2>&1 || true
 helm dependency build platform/vcluster-pastelariadev >/dev/null

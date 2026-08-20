@@ -56,7 +56,7 @@ restart-alloy:
     kubectl --context {{ctx}} -n monitoring rollout status deployment/alloy-metrics --timeout=2m
 
 diff app="root":
-    argocd app diff {{app}}
+    kubectl --context {{ctx}} -n {{ns}} exec statefulset/argocd-application-controller -- argocd app diff {{app}} --core
 
 # Validate charts render before pushing (catches bad values locally).
 template component:
