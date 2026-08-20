@@ -27,6 +27,7 @@ helm template pastelariadev platform/vcluster-pastelariadev \
 test "$(yq ea -r 'select(.kind == "ResourceQuota") | .spec.hard."requests.cpu"' "$manifest")" = 1500m
 test "$(yq ea -r 'select(.kind == "LimitRange") | .spec.limits[0].defaultRequest.cpu' "$manifest")" = 100m
 test "$(yq ea -r 'select(.kind == "NetworkPolicy") | .metadata.name' "$manifest" | wc -l)" -ge 2
+test "$(yq ea -r 'select(.kind == "StatefulSet") | .spec.template.spec.containers[] | select(.name == "syncer") | .resources.requests.cpu' "$manifest")" = 50m
 config=$(yq ea -r 'select(.kind == "Secret" and .metadata.name == "vc-config-pastelariadev") | .data."config.yaml"' "$manifest" \
   | base64 --decode)
 grep -Fq 'kind: Job' <<< "$config"
