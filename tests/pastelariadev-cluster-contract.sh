@@ -8,7 +8,7 @@ application=clusters/kepler/apps/vcluster-pastelariadev.yaml
 grep -Fq 'version: 0.36.1' "$chart"
 grep -Fq 'podSecurityStandard: restricted' "$values"
 grep -Fq 'useSecretsForSATokens: true' "$values"
-grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/library/busybox:1.37.0' "$values"
+grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/library/alpine:3.22' "$values"
 grep -Fq 'context: pastelariadev' "$values"
 grep -Fq 'name: vcluster-pastelariadev' "$application"
 grep -Fq 'namespace: vcluster-pastelariadev' "$application"

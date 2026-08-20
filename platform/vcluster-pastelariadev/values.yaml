@@ -79,7 +79,7 @@ vcluster:
                     type: RuntimeDefault
                 containers:
                   - name: pull
-                    image: harbor.homelab.pastelariadev.com/dockerhub/library/busybox:1.37.0
+                    image: harbor.homelab.pastelariadev.com/dockerhub/library/alpine:3.22
                     command: ["sh", "-c", "echo harbor-pull-ok"]
                     resources:
                       requests:
