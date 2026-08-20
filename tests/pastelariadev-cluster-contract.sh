@@ -15,7 +15,8 @@ grep -Fq 'namespace: vcluster-pastelariadev' "$application"
 grep -Fq 'ctx := "homelab"' justfile
 grep -Fq 'connect pastelariadev' justfile
 grep -Fq 'diagnose-pastelariadev:' justfile
-grep -Fq 'kubectl wait --for=condition=complete job/harbor-pull-smoke' justfile
+grep -Fq 'name: harbor-pull-smoke-alpine-3-22' "$values"
+grep -Fq 'kubectl wait --for=condition=complete job/harbor-pull-smoke-alpine-3-22' justfile
 grep -Fq 'exec statefulset/argocd-application-controller -- argocd app diff {{app}} --core' justfile
 ! grep -Fq 'ServerSideApply=true' "$application"
 

@@ -59,7 +59,7 @@ vcluster:
           apiVersion: batch/v1
           kind: Job
           metadata:
-            name: harbor-pull-smoke
+            name: harbor-pull-smoke-alpine-3-22
             namespace: default
           spec:
             activeDeadlineSeconds: 120

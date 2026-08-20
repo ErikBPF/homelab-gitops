@@ -39,7 +39,7 @@ diagnose-pastelariadev:
         --namespace vcluster-pastelariadev \
         --context {{ctx}} \
         --background-proxy=false \
-        -- bash -ceu 'kubectl get nodes,pods -A; kubectl get events -A --sort-by=.lastTimestamp | tail -n 30; kubectl wait --for=condition=complete job/harbor-pull-smoke --timeout=2m; test "$(kubectl logs job/harbor-pull-smoke)" = harbor-pull-ok'
+        -- bash -ceu 'kubectl get nodes,pods -A; kubectl get events -A --sort-by=.lastTimestamp | tail -n 30; kubectl wait --for=condition=complete job/harbor-pull-smoke-alpine-3-22 --timeout=2m; test "$(kubectl logs job/harbor-pull-smoke-alpine-3-22)" = harbor-pull-ok'
 
 # One-time migration: copy current Helm runtime values into Vault without output.
 # Reads an OpenBao operator token from stdin.
