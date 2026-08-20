@@ -19,7 +19,7 @@ bootstrap:
 
 # Sync one app at an explicitly reviewed Git revision.
 sync revision app="root":
-    nix run nixpkgs#argocd -- app sync {{app}} --revision {{revision}}
+    kubectl --context {{ctx}} -n {{ns}} exec statefulset/argocd-application-controller -- argocd app sync {{app}} --core --revision {{revision}}
 
 # What Argo sees.
 status:
