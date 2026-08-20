@@ -16,6 +16,11 @@ grep -Fq 'apiSecretKeySecretName: airflow-api-secret-key' "$values"
 grep -Fq 'jwtSecretName: airflow-jwt-secret' "$values"
 grep -Fq 'name: airflow-runtime' "$values"
 grep -Fq 'podTemplate: |' "$values"
+test "$(helm template airflow apps/airflow --namespace airflow | yq ea -r '
+  select(.kind == "Deployment" and .metadata.name == "airflow-scheduler") |
+  .spec.template.spec.containers[] | select(.name == "scheduler") |
+  .env[] | select(.name == "AIRFLOW__CORE__EXECUTOR") | .value
+' -)" = KubernetesExecutor
 ! grep -Fq 'apache/airflow:' "$values"
 grep -Fq 'key: lab/airflow' "$secrets"
 grep -Fq 'type: kubernetes.io/dockerconfigjson' "$secrets"

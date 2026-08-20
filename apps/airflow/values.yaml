@@ -11,6 +11,10 @@ airflow:
   imagePullSecrets:
     - name: airflow-harbor
 
+  env:
+    - name: AIRFLOW__CORE__EXECUTOR
+      value: KubernetesExecutor
+
   data:
     metadataSecretName: airflow-metadata
     resultBackendSecretName: airflow-metadata
