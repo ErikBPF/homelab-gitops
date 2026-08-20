@@ -4,8 +4,8 @@
 > workloads** (Argo CD) on the kepler k3s cluster. Consumes the k3s substrate from
 > desktop-nixos + secrets via ESO→OpenBao@Discovery.
 
-Production-mimicking platform layer for the **kepler** k3s cluster
-(`pastelariadev`), deployed via **Argo CD** (GitOps). A sister repo of
+Production-mimicking platform layer for the stable **kepler** k3s cluster
+(`homelab`), deployed via **Argo CD** (GitOps). A sister repo of
 `desktop-nixos`, on the **servarr strategy**: a git repo + `just` recipes,
 applied to the cluster — **not** baked into the NixOS flake.
 
@@ -49,14 +49,19 @@ Sync the root first, then every child at the same reviewed merge commit:
 ```bash
 SHA="$(git rev-parse HEAD)" # checked-out reviewed merge commit
 argocd app sync root --revision "$SHA"
-argocd app sync argocd traefik csi-driver-nfs external-secrets kube-state-metrics alloy-metrics keda jaeger otel-collector trace-demo demo airflow --revision "$SHA"
+argocd app sync argocd traefik csi-driver-nfs external-secrets kube-state-metrics alloy-metrics keda jaeger otel-collector vcluster-pastelariadev trace-demo demo airflow --revision "$SHA"
 ```
 
 For rollback, set `SHA` to the prior known-good commit and repeat both sync
 commands.
 
-Uses your existing kubeconfig (context `pastelariadev`). The Argo UI is exposed
+Uses your existing kubeconfig (context `homelab`). The Argo UI is exposed
 via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
+
+`vcluster-pastelariadev` provides the experimental `pastelariadev` context with
+restricted Pod Security, quotas, network isolation, and a bootstrap Job that
+pulls BusyBox through Harbor. Run `just connect-pastelariadev`; keep it running
+and use `kubectl` from the connected shell.
 
 ## Implemented prerequisites
 
@@ -71,12 +76,12 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
 ## Current applications
 
-The root app manages 12 child applications (13 Argo Applications including
+The root app manages 13 child applications (14 Argo Applications including
 `root`):
 
 - `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`,
   `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`, `otel-collector`,
-  `trace-demo`, `demo`, and `airflow`.
+  `vcluster-pastelariadev`, `trace-demo`, `demo`, and `airflow`.
 - Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.
 - ESO reads runtime secrets from OpenBao@Discovery through a dedicated AppRole.
 - Harbor is intentionally **not** an Argo application. It moved to Discovery

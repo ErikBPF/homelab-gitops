@@ -237,5 +237,5 @@ alloy:
               sample_age_limit = "30m"
             }
           }
-          external_labels = { "cluster" = "pastelariadev" }
+          external_labels = { "cluster" = "homelab" }
         }

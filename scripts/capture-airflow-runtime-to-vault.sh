@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-pastelariadev}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-homelab}"
 BAO_API="${BAO_API:-http://discovery:8200/v1}"
 BAO_SSH="${BAO_SSH:-}"
 BAO_SSH_PORT="${BAO_SSH_PORT:-2222}"
