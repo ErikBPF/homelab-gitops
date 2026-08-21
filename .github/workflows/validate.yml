@@ -71,6 +71,7 @@ jobs:
           tests/manual-sync-containment.sh
           tests/airflow-contract.sh
           tests/pastelariadev-cluster-contract.sh
+          tests/core-scheduling.sh
 
   notify-ci:
     needs: kubeconform
