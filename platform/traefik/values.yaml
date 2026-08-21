@@ -6,6 +6,7 @@
 #     + repoint the argocd ingress to traefik.
 # PSA baseline: Traefik runs non-root + drops caps by default → baseline-clean.
 traefik:
+  priorityClassName: homelab-platform-critical
   deployment:
     replicas: 1 # lab; bump for HA later
 

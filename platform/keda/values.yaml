@@ -2,6 +2,7 @@
 # scaler against discovery's external Prometheus (needs a TriggerAuthentication
 # per ScaledObject). CPU/mem scalers wrap the k3s-bundled metrics-server.
 keda:
+  priorityClassName: homelab-platform-critical
   resources:
     operator:
       requests: { cpu: 10m, memory: 64Mi }
