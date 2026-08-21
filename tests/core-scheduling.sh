@@ -16,6 +16,7 @@ for chart in argocd platform/traefik platform/keda; do
     helm dependency build "$chart" >/dev/null
     helm template hardening "$chart" > "$manifest"
   fi
-  test "$(yq ea -r 'select(.kind == "Deployment" or .kind == "StatefulSet") | .spec.template.spec.priorityClassName' "$manifest" | sort -u)" = "$class"
+  test "$(grep -Ec '^kind: (Deployment|StatefulSet|Job)$' "$manifest")" \
+    -eq "$(grep -Ec "priorityClassName: \"?$class\"?$" "$manifest")"
   rm -f "$manifest"
 done
