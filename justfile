@@ -19,7 +19,15 @@ bootstrap:
 
 # Sync one app at an explicitly reviewed Git revision.
 sync revision app="root":
-    kubectl --context {{ctx}} -n {{ns}} exec statefulset/argocd-application-controller -- argocd app sync {{app}} --core --revision {{revision}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pod="argocd-sync-client-$(date +%s)-$$"
+    image="$(kubectl --context {{ctx}} -n {{ns}} get deployment argocd-server -o jsonpath='{.spec.template.spec.containers[0].image}')"
+    test -n "$image"
+    kubectl --context {{ctx}} -n {{ns}} run "$pod" --rm -i --restart=Never \
+        --image="$image" \
+        --overrides='{"spec":{"serviceAccountName":"argocd-application-controller"}}' \
+        --command -- argocd app sync "{{app}}" --core --revision "{{revision}}"
 
 # What Argo sees.
 status:
