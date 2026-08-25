@@ -1,5 +1,5 @@
 # Wave 1: metrics scraper. Makes kube-state-metrics non-inert (grill §8) — scrapes
-# KSM + kubelet cAdvisor and remote_writes to discovery's Prometheus.
+# KSM + kubelet cAdvisor and remote_writes to in-cluster Prometheus.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
