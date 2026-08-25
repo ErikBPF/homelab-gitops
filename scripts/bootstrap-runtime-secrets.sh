@@ -163,12 +163,12 @@ printf '%s\n%s\n' "$bao_token" "$payload" | ssh -p "$BAO_SSH_PORT" -o BatchMode=
   '\'' "$tmp/payload" >"$tmp/complete"
 
   jq -c ".secrets[]" "$tmp/complete" | while IFS= read -r item; do
-    path=$(jq -er ".path" <<<"$item")
-    [[ $path =~ ^(home-services|lab|platform)/[A-Za-z0-9./-]+$ ]]
+    vault_key=$(jq -er ".path" <<<"$item")
+    [[ $vault_key =~ ^(home-services|lab|platform)/[A-Za-z0-9./-]+$ ]]
     jq -c "{data:.data}" <<<"$item" >"$tmp/request"
     curl --connect-timeout 5 --max-time 30 -fsS --request POST \
       --header @"$tmp/header" --header "Content-Type: application/json" \
-      --data-binary @"$tmp/request" "http://127.0.0.1:8200/v1/secret/data/$path" >/dev/null
+      --data-binary @"$tmp/request" "http://127.0.0.1:8200/v1/secret/data/$vault_key" >/dev/null
   done
 '
 
