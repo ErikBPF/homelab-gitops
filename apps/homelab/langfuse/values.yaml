@@ -76,7 +76,7 @@ langfuse:
         tag: 26.4@sha256:c7796a1335d14385c052f10061cf719f4a368a908432ec25980860b1333e9ccd
       storage: {size: 20Gi, className: local-path, accessModes: [ReadWriteOnce]}
       resources:
-        requests: {cpu: 500m, memory: 1Gi}
+        requests: {cpu: 200m, memory: 1Gi}
         limits: {cpu: "2", memory: 3Gi}
     keeper:
       enabled: true
