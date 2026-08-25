@@ -11,5 +11,9 @@ spec:
     targetRevision: main
     path: apps/homelab/langfuse
   destination: {server: https://kubernetes.default.svc, namespace: langfuse}
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions: ['.spec.volumeClaimTemplates[]?.status']
   syncPolicy:
-    syncOptions: [ServerSideApply=true]
+    syncOptions: [ServerSideApply=true, RespectIgnoreDifferences=true]
