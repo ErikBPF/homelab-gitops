@@ -14,6 +14,7 @@ test "$(yq -r '.dependencies[0].version' "$root/platform/monitoring/Chart.yaml")
 test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
+test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.cpu' "$root/platform/monitoring/values.yaml")" = 200m
 test "$(yq -r '.dependencies[0].version' "$root/platform/loki/Chart.yaml")" = 6.51.0
 test "$(yq -r '.loki.deploymentMode' "$root/platform/loki/values.yaml")" = SingleBinary
 test "$(yq -r '.loki.singleBinary.replicas' "$root/platform/loki/values.yaml")" = 1
@@ -37,6 +38,13 @@ for app in uptime-kuma healthchecks scrutiny; do
   python3 "$root/scripts/check-first-wave-resources.py" "$render"
   rm -f "$render"
 done
+
+render=$(mktemp)
+kubectl kustomize "$root/platform/healthchecks" >"$render"
+for probe in readinessProbe livenessProbe; do
+  test "$(yq -r "select(.kind == \"Deployment\") | .spec.template.spec.containers[0].$probe.httpGet.httpHeaders[0].value" "$render")" = healthchecks.homelab.pastelariadev.com
+done
+rm -f "$render"
 
 grep -Fq 'vault-platform' "$root/platform/monitoring/templates/externalsecret.yaml"
 test "$(yq -r 'select(.metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$root/platform/monitoring/templates/networkpolicy.yaml")" = Ingress,Egress
