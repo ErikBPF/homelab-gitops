@@ -134,6 +134,7 @@ payload=$(jq -nc \
 
 printf '%s\n%s\n' "$bao_token" "$payload" | ssh -p "$BAO_SSH_PORT" -o BatchMode=yes "$BAO_SSH" '
   set -euo pipefail
+  export PATH=/run/current-system/sw/bin:/home/erik/.nix-profile/bin:$PATH
   IFS= read -r token || [ -n "$token" ]
   IFS= read -r payload || [ -n "$payload" ]
   tmp=$(mktemp -d)

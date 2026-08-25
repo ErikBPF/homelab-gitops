@@ -44,6 +44,7 @@ grep -Fq 'subjectAltName=DNS:indexer' "$script"
 grep -Fq 'CN=indexer/O=Company/L=California/C=US' "$script"
 grep -Fq 'CN=admin/O=Company/L=California/C=US' "$script"
 grep -Fq 'BAO_SSH' "$script"
+grep -Fq 'PATH=/run/current-system/sw/bin:/home/erik/.nix-profile/bin:$PATH' "$script"
 ! grep -Fq 'set -x' "$script"
 
 grep -Fq 'scripts/bootstrap-runtime-secrets.sh' justfile
