@@ -109,5 +109,9 @@ spec: {type: ClusterIP}
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: dashboard, namespace: wazuh}
+metadata:
+  name: dashboard
+  namespace: wazuh
+  annotations:
+    traefik.ingress.kubernetes.io/service.serverstransport: wazuh-dashboard@kubernetescrd
 spec: {type: ClusterIP}
