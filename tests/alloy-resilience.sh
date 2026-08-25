@@ -5,7 +5,7 @@ values=platform/alloy-metrics/values.yaml
 
 grep -q 'memory: 128Mi' "$values"
 grep -q 'memory: 512Mi' "$values"
-grep -q 'sample_limit.*=.*10000' "$values"
+grep -q 'sample_limit.*=.*15000' "$values"
 grep -q 'sample_limit.*=.*25000' "$values"
 grep -q 'path: /-/ready' "$values"
 grep -q 'sample_age_limit = "30m"' "$values"

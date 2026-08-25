@@ -32,7 +32,7 @@ alloy:
             "job"         = "kube-state-metrics",
           }]
           scrape_interval = "60s"
-          sample_limit    = 10000
+          sample_limit    = 15000
           forward_to      = [prometheus.remote_write.discovery.receiver]
         }
 
