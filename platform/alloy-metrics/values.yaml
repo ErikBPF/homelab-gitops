@@ -1,8 +1,7 @@
 # Single-replica Deployment (NOT a DaemonSet): KSM is a cluster singleton (scrape
 # once, not N×), and one pod scrapes every node's kubelet cAdvisor via the
 # apiserver proxy. Distinct release/SA ("alloy-metrics") from the log DaemonSet
-# ("alloy", Nix). remote_write → discovery Prometheus (raw tailnet IP — pods can't
-# resolve MagicDNS; reachable via kepler's tailscale0 masquerade + the ACL grant).
+# ("alloy", Nix). Remote write stays inside the cluster.
 alloy:
   controller:
     type: deployment
@@ -232,7 +231,7 @@ alloy:
 
         prometheus.remote_write "discovery" {
           endpoint {
-            url = "http://100.76.140.121:9090/api/v1/write"
+            url = "http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
             queue_config {
               sample_age_limit = "30m"
             }
