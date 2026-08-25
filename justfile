@@ -41,6 +41,11 @@ status:
 capture-airflow-runtime-to-vault:
     scripts/capture-airflow-runtime-to-vault.sh
 
+# Recreate first-wave workload values and Wazuh certificates in Vault.
+# Reads an OpenBao operator token from stdin; preserves only shared webhooks.
+bootstrap-runtime-secrets:
+    scripts/bootstrap-runtime-secrets.sh
+
 status-alloy:
     kubectl --context {{ctx}} -n monitoring get pods -l app.kubernetes.io/instance=alloy-metrics -o wide
     kubectl --context {{ctx}} -n monitoring describe pods -l app.kubernetes.io/instance=alloy-metrics

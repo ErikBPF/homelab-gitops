@@ -37,6 +37,7 @@ for contract in \
   tests/langfuse-contract.sh \
   tests/monitoring-contract.sh \
   tests/wazuh-contract.sh \
+  tests/runtime-secret-bootstrap.sh \
   tests/airflow-contract.sh \
   tests/alloy-resilience.sh \
   tests/core-scheduling.sh \
