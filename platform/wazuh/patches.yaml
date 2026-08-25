@@ -30,6 +30,7 @@ spec:
   volumeClaimTemplates:
     - metadata: {name: wazuh-indexer}
       spec:
+        accessModes: [ReadWriteOnce]
         storageClassName: local-path
         resources: {requests: {storage: 30Gi}}
 ---
@@ -51,6 +52,7 @@ spec:
   volumeClaimTemplates:
     - metadata: {name: wazuh-manager-master}
       spec:
+        accessModes: [ReadWriteOnce]
         storageClassName: local-path
         resources: {requests: {storage: 5Gi}}
 ---
@@ -75,6 +77,7 @@ spec:
   volumeClaimTemplates:
     - metadata: {name: wazuh-manager-worker}
       spec:
+        accessModes: [ReadWriteOnce]
         storageClassName: local-path
         resources: {requests: {storage: 5Gi}}
 ---

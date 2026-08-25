@@ -31,5 +31,5 @@ for secret in indexer-certs dashboard-certs wazuh-api-cred wazuh-authd-pass wazu
 done
 test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = wazuh.homelab.pastelariadev.com
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
-yq -e 'select(.kind == "StatefulSet") | .spec.volumeClaimTemplates[].spec.storageClassName == "local-path" and .spec.volumeClaimTemplates[].spec.resources.requests.storage' "$render" >/dev/null
+yq -e 'select(.kind == "StatefulSet") | (.spec.volumeClaimTemplates[].spec.accessModes | join(",")) == "ReadWriteOnce" and .spec.volumeClaimTemplates[].spec.storageClassName == "local-path" and .spec.volumeClaimTemplates[].spec.resources.requests.storage' "$render" >/dev/null
 python3 "$root/scripts/check-first-wave-resources.py" "$render"
