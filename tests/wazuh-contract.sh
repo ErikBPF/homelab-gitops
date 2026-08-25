@@ -8,6 +8,7 @@ trap 'rm -f "$render"' EXIT
 kubectl kustomize "$app" >"$render"
 
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/wazuh.yaml")" = platform
+test "$(yq -r 'select(.metadata.name == "platform") | .spec.namespaceResourceWhitelist[] | select(.group == "traefik.io" and .kind == "ServersTransport") | .kind' "$root/clusters/kepler/apps/projects.yaml")" = ServersTransport
 test "$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/wazuh.yaml")" = '.spec.volumeClaimTemplates[]?.status'
 grep -Fq 'wazuh.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 grep -Fq 'v4.14.7' "$app/UPSTREAM.md"
