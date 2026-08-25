@@ -28,6 +28,12 @@ done
 test "$(yq -r 'select(.metadata.name == "homelab") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "airflow,cognee,demo,langfuse,trace-demo"
 test "$(yq -r 'select(.metadata.name == "home-services") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "changedetection,immich,karakeep"
 
+if grep -R -l '^kind: Namespace$' "$root/apps/homelab" "$root/apps/home-services"; then
+  echo 'lane applications must not own cluster-scoped namespaces' >&2
+  exit 1
+fi
+test "$(yq -r 'select(.kind == "Namespace" and .metadata.name == "demo") | .metadata.labels."pod-security.kubernetes.io/enforce"' "$apps/namespaces.yaml")" = restricted
+
 if yq -r '.. | select(tag == "!!str")' "$projects" | grep -Fxq '*'; then
   echo 'AppProjects must not grant wildcard authority' >&2
   exit 1
@@ -43,6 +49,7 @@ for app in airflow demo trace-demo; do
 done
 
 test "$(yq -r '.spec.destination.namespace' "$apps/trace-demo.yaml")" = trace-demo
+test "$(yq -r '.metadata.namespace' "$root/apps/homelab/trace-demo/deployment.yaml")" = trace-demo
 
 python - "$apps" <<'PY'
 import pathlib

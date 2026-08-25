@@ -13,6 +13,11 @@ grep -Fq 'langfuse.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 
 helm template langfuse "$app" >"$render"
 
+if grep -Eq '^kind: ClusterRole(Binding)?$' "$render"; then
+  echo 'Langfuse rendered cluster-wide RBAC outside the platform lane' >&2
+  exit 1
+fi
+
 for store in postgresql redis clickhouse s3; do
   test "$(yq -r ".langfuse.$store.deploy" "$app/values.yaml")" = true
 done
