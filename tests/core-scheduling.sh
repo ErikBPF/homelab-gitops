@@ -8,7 +8,6 @@ grep -Fq 'value: 100000' argocd/templates/priorityclass.yaml
 grep -Fq "priorityClassName: $class" argocd/values.yaml
 grep -Fq "priorityClassName: $class" platform/traefik/values.yaml
 grep -Fq "priorityClassName: $class" platform/keda/values.yaml
-! grep -Fq "priorityClassName: $class" platform/vcluster-pastelariadev/values.yaml
 
 for chart in argocd platform/traefik platform/keda; do
   manifest=$(mktemp)

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-chart=apps/airflow/Chart.yaml
-values=apps/airflow/values.yaml
-secrets=apps/airflow/templates/externalsecrets.yaml
+chart=apps/homelab/airflow/Chart.yaml
+values=apps/homelab/airflow/values.yaml
+secrets=apps/homelab/airflow/templates/externalsecrets.yaml
 application=clusters/kepler/apps/airflow.yaml
 capture=scripts/capture-airflow-runtime-to-vault.sh
 
@@ -16,7 +16,7 @@ grep -Fq 'apiSecretKeySecretName: airflow-api-secret-key' "$values"
 grep -Fq 'jwtSecretName: airflow-jwt-secret' "$values"
 grep -Fq 'name: airflow-runtime' "$values"
 grep -Fq 'podTemplate: |' "$values"
-test "$(helm template airflow apps/airflow --namespace airflow | yq ea -r '
+test "$(helm template airflow apps/homelab/airflow --namespace airflow | yq ea -r '
   select(.kind == "Deployment" and .metadata.name == "airflow-scheduler") |
   .spec.template.spec.containers[] | select(.name == "scheduler") |
   .env[] | select(.name == "AIRFLOW__CORE__EXECUTOR") | .value

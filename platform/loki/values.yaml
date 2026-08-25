@@ -1,0 +1,57 @@
+loki:
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    image:
+      digest: sha256:cd6e176883a90c21755f0315688668991634143423f75bdedfef41441b0fdc3c
+    commonConfig: {replication_factor: 1}
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index: {prefix: index_, period: 24h}
+    storage: {type: filesystem}
+    limits_config:
+      retention_period: 336h
+      allow_structured_metadata: true
+      discover_log_levels: true
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
+  singleBinary:
+    replicas: 1
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {cpu: "2", memory: 2Gi}
+    persistence:
+      enabled: true
+      storageClass: local-path
+      size: 30Gi
+  backend: {replicas: 0}
+  read: {replicas: 0}
+  write: {replicas: 0}
+  chunksCache: {enabled: false}
+  resultsCache: {enabled: false}
+  lokiCanary: {enabled: false}
+  test: {enabled: false}
+  sidecar:
+    image:
+      sha: 8c06e1ba643a4625de14b2db65c356f5db6b1482a25fce4754380a2936207338
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  gateway:
+    enabled: true
+    image:
+      digest: sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
+    resources:
+      requests: {cpu: 20m, memory: 32Mi}
+      limits: {cpu: 200m, memory: 128Mi}
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      hosts:
+        - host: loki.homelab.pastelariadev.com
+          paths: [{path: /, pathType: Prefix}]

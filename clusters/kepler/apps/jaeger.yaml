@@ -6,7 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: default
+  project: platform
   source:
     repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main

@@ -1,0 +1,105 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: scrutiny}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault-platform}
+  target: {name: scrutiny-secrets}
+  dataFrom: [{extract: {key: platform/scrutiny}}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: scrutiny-influxdb-data}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources: {requests: {storage: 20Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: scrutiny-config}
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-fast
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: scrutiny-influxdb, labels: {app: scrutiny-influxdb}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: scrutiny-influxdb}}
+  template:
+    metadata: {labels: {app: scrutiny-influxdb}}
+    spec:
+      securityContext: {seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: influxdb
+          image: influxdb:2.9@sha256:270145207873eb426e15a211063532fc6f966f4ffb6edf4114ffac83ac4696eb
+          envFrom: [{secretRef: {name: scrutiny-secrets}}]
+          env:
+            - {name: DOCKER_INFLUXDB_INIT_MODE, value: setup}
+            - {name: DOCKER_INFLUXDB_INIT_USERNAME, value: scrutiny}
+            - {name: DOCKER_INFLUXDB_INIT_ORG, value: homelab}
+            - {name: DOCKER_INFLUXDB_INIT_BUCKET, value: scrutiny}
+            - {name: DOCKER_INFLUXDB_INIT_RETENTION, value: 8760h}
+          ports: [{name: influxdb, containerPort: 8086}]
+          volumeMounts: [{name: data, mountPath: /var/lib/influxdb2}]
+          readinessProbe: {httpGet: {path: /health, port: influxdb}, initialDelaySeconds: 15}
+          livenessProbe: {httpGet: {path: /health, port: influxdb}, initialDelaySeconds: 30}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+      volumes: [{name: data, persistentVolumeClaim: {claimName: scrutiny-influxdb-data}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: scrutiny, labels: {app: scrutiny}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: scrutiny}}
+  template:
+    metadata: {labels: {app: scrutiny}}
+    spec:
+      securityContext: {seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: scrutiny
+          image: ghcr.io/analogj/scrutiny:master-web@sha256:192656ce791dc3e5bda7f7bf81cd3cb9f77ab2cde42a9bd0d8cac442b7e8bee1
+          envFrom: [{secretRef: {name: scrutiny-secrets}}]
+          env:
+            - {name: SCRUTINY_WEB_INFLUXDB_HOST, value: scrutiny-influxdb}
+            - {name: SCRUTINY_WEB_INFLUXDB_PORT, value: "8086"}
+            - {name: SCRUTINY_WEB_INFLUXDB_ORG, value: homelab}
+            - {name: SCRUTINY_WEB_INFLUXDB_BUCKET, value: scrutiny}
+          ports: [{name: http, containerPort: 8080}]
+          volumeMounts: [{name: config, mountPath: /opt/scrutiny/config}]
+          readinessProbe: {httpGet: {path: /api/health, port: http}, initialDelaySeconds: 15}
+          livenessProbe: {httpGet: {path: /api/health, port: http}, initialDelaySeconds: 30}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+      volumes: [{name: config, persistentVolumeClaim: {claimName: scrutiny-config}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: scrutiny-influxdb}
+spec:
+  selector: {app: scrutiny-influxdb}
+  ports: [{name: influxdb, port: 8086, targetPort: influxdb}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: scrutiny}
+spec:
+  selector: {app: scrutiny}
+  ports: [{name: http, port: 8080, targetPort: http}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: scrutiny}
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: scrutiny.homelab.pastelariadev.com
+      http:
+        paths: [{path: /, pathType: Prefix, backend: {service: {name: scrutiny, port: {number: 8080}}}}]

@@ -1,0 +1,108 @@
+langfuse:
+  langfuse:
+    features:
+      telemetryEnabled: false
+      signUpDisabled: true
+    salt:
+      secretKeyRef: {name: langfuse-app-secrets, key: SALT}
+    encryptionKey:
+      secretKeyRef: {name: langfuse-app-secrets, key: ENCRYPTION_KEY}
+    nextauth:
+      url: https://langfuse.homelab.pastelariadev.com
+      secret:
+        secretKeyRef: {name: langfuse-app-secrets, key: NEXTAUTH_SECRET}
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {cpu: "2", memory: 2Gi}
+    web:
+      image:
+        tag: 4.16.0@sha256:e8459747001aa00da1bdecdc5d46c48d37c2e9b4c2c99743b27efeb2872e0583
+    worker:
+      image:
+        tag: 4.16.0@sha256:b4490170d5bc18e873f7ca7c3edad5af16022156487a5c47c328d571a9063dc1
+    ingress:
+      enabled: true
+      className: traefik
+      hosts:
+        - host: langfuse.homelab.pastelariadev.com
+          paths: [{path: /, pathType: Prefix}]
+  postgresql:
+    deploy: true
+    auth:
+      username: langfuse
+      database: langfuse
+      existingSecret: langfuse-postgresql-auth
+      secretKeys:
+        userPasswordKey: USERDB_PASSWORD
+        adminPasswordKey: POSTGRES_PASSWORD
+    settings: {existingSecret: langfuse-postgresql-auth}
+    userDatabase: {existingSecret: langfuse-postgresql-auth}
+    image:
+      tag: 18@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941
+    storage: {requestedSize: 20Gi, className: local-path}
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {cpu: "2", memory: 2Gi}
+    initResources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  redis:
+    deploy: true
+    auth:
+      enabled: true
+      username: default
+      existingSecret: langfuse-redis-auth
+      existingSecretPasswordKey: default
+      usersExistingSecret: langfuse-redis-auth
+      aclUsers:
+        default: {permissions: "~* &* +@all"}
+    image:
+      tag: 8.0@sha256:df040a2064bfc4f250954317fc352f9116fec7c857a78374c57ca8195879c814
+    dataStorage: {enabled: true, requestedSize: 2Gi, className: local-path, accessModes: [ReadWriteOnce]}
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+    initResources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  clickhouse:
+    deploy: true
+    crdCheck: false
+    auth: {username: default, existingSecret: langfuse-clickhouse-auth, existingSecretKey: password}
+    cluster:
+      enabled: true
+      replicas: 1
+      image:
+        tag: 26.4@sha256:c7796a1335d14385c052f10061cf719f4a368a908432ec25980860b1333e9ccd
+      storage: {size: 20Gi, className: local-path, accessModes: [ReadWriteOnce]}
+      resources:
+        requests: {cpu: 500m, memory: 1Gi}
+        limits: {cpu: "2", memory: 3Gi}
+    keeper:
+      enabled: true
+      replicas: 1
+      image:
+        tag: 26.4@sha256:3e356a2d04518ec4687275c8c0794985a67ab7a1acf0918c1ff2fcfffa1fd5a5
+      storage: {size: 5Gi, className: local-path, accessModes: [ReadWriteOnce]}
+      resources:
+        requests: {cpu: 100m, memory: 256Mi}
+        limits: {cpu: "1", memory: 1Gi}
+  s3:
+    deploy: true
+    auth:
+      existingSecret: langfuse-s3-auth
+      rootUserSecretKey: accessKey
+      rootPasswordSecretKey: secretKey
+    master:
+      imageOverride: chrislusf/seaweedfs:3.95@sha256:01f6425b35b174a15e41d22700087f8eeff35ed1aec596297dd9122d7525cd69
+    allInOne:
+      s3:
+        existingConfigSecret: langfuse-s3-auth
+        createBucketsHook:
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 128Mi}
+      data: {type: persistentVolumeClaim, size: 20Gi, storageClass: nfs-slow, accessModes: [ReadWriteMany]}
+      resources:
+        requests: {cpu: 100m, memory: 256Mi}
+        limits: {cpu: "1", memory: 1Gi}

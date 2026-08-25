@@ -28,9 +28,10 @@ See the implemented record:
 ```
 bootstrap/root-app.yaml      app-of-apps; kubectl apply'd by `just bootstrap`
 argocd/                      Argo CD self-management (wrapper chart)
-clusters/kepler/apps/        one Argo Application per component (sync-wave ordered)
+clusters/kepler/apps/        explicit Kustomization, AppProjects, and Applications
 platform/<component>/        thin Helm wrapper chart: Chart.yaml (1 dep) + values.yaml
-apps/<workload>/             actual workloads (later)
+apps/homelab/<workload>/     lab, automation, and AI workloads
+apps/home-services/<service> household-facing non-media workloads
 ```
 
 Wrapper-chart convention (Chart.yaml = one pinned dependency + values.yaml)
@@ -48,8 +49,14 @@ Sync the root first, then every child at the same reviewed merge commit:
 
 ```bash
 SHA="$(git rev-parse HEAD)" # checked-out reviewed merge commit
-argocd app sync root --revision "$SHA"
-argocd app sync argocd traefik csi-driver-nfs external-secrets kube-state-metrics alloy-metrics keda jaeger otel-collector vcluster-pastelariadev trace-demo demo airflow --revision "$SHA"
+just retire-vcluster-pastelariadev # one-time: Gemini now owns this context
+just sync "$SHA" root
+for app in argocd csi-driver-nfs traefik external-secrets cert-manager clickhouse-operator \
+  kube-state-metrics keda jaeger alloy-metrics otel-collector monitoring loki \
+  uptime-kuma healthchecks scrutiny wazuh trace-demo demo airflow langfuse \
+  changedetection karakeep immich; do
+  just sync "$SHA" "$app"
+done
 ```
 
 For rollback, set `SHA` to the prior known-good commit and repeat both sync
@@ -57,11 +64,6 @@ commands.
 
 Uses your existing kubeconfig (context `homelab`). The Argo UI is exposed
 via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
-
-`vcluster-pastelariadev` provides the experimental `pastelariadev` context with
-restricted Pod Security, quotas, network isolation, and a bootstrap Job that
-pulls BusyBox through Harbor. Run `just connect-pastelariadev`; keep it running
-and use `kubectl` from the connected shell.
 
 ## Implemented prerequisites
 
@@ -71,17 +73,20 @@ and use `kubectl` from the connected shell.
   an ACL grant `kepler -> discovery:8200` (homelab-iac). Wave -3.
 - **csi-driver-nfs** (`nfs-fast` / `nfs-slow`) → kepler must NFS-export an SSD
   dataset and `/bulk` to the cluster subnet `10.250.0.0/24`. Implemented. Wave -2.
-- **kube-state-metrics** → a scrape→remote_write path to discovery Prometheus
-  through `alloy-metrics`. Implemented. Wave 0.
+- **kube-state-metrics** → scraped by `alloy-metrics`. Its current Discovery
+  write target stays active until the fresh Kubernetes monitoring backend
+  passes the S5/S6 live cutover gates.
 
 ## Current applications
 
-The root app manages 13 child applications (14 Argo Applications including
+The root app manages 24 child applications (25 Argo Applications including
 `root`):
 
-- `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`,
-  `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`, `otel-collector`,
-  `vcluster-pastelariadev`, `trace-demo`, `demo`, and `airflow`.
+- `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`, `cert-manager`,
+  `clickhouse-operator`, `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`,
+  `otel-collector`, `monitoring`, `loki`, `uptime-kuma`, `healthchecks`,
+  `scrutiny`, `wazuh`, `trace-demo`, `demo`, `airflow`, `langfuse`,
+  `changedetection`, `karakeep`, and `immich`.
 - Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.
 - ESO reads runtime secrets from OpenBao@Discovery through a dedicated AppRole.
 - Harbor is intentionally **not** an Argo application. It moved to Discovery
@@ -101,11 +106,10 @@ grant ACL → seed secret → sync the reviewed revision as shown above.
 
 - **Bootstrap credentials are durable (P0 closed 2026-07-15).** `desktop-nixos`
   sops owns the dedicated read-only Argo deploy key and ESO AppRole secret ID.
-  Kepler exposes only those two runtime files read-only to cp-1; a guest timer
-  reconciles `argocd/homelab-gitops-repo` and
-  `external-secrets/vault-approle`. `just test-k3s-bootstrap-recovery` in
-  `desktop-nixos` deletes both exact Secrets and verifies their recreation plus
-  `ClusterSecretStore Ready=True`. Vault remains runtime-secret SSOT.
+  Kepler exposes only the Argo key and ESO AppRole material read-only to cp-1;
+  a guest timer reconciles the repository Secret, the legacy AppRole, and the
+  `platform`, `homelab`, and `home-services` AppRoles. Vault remains the
+  runtime-secret SSOT.
 
 - **Renovate is active** through the fleet shared preset. Chart and Actions
   updates land through PRs after `helm template | kubeconform` validation.

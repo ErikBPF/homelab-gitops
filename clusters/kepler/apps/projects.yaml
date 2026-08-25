@@ -1,0 +1,136 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  sourceRepos:
+    - ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+  destinations:
+    - {server: https://kubernetes.default.svc, namespace: argocd}
+    - {server: https://kubernetes.default.svc, namespace: cert-manager}
+    - {server: https://kubernetes.default.svc, namespace: clickhouse-operator}
+    - {server: https://kubernetes.default.svc, namespace: external-secrets}
+    - {server: https://kubernetes.default.svc, namespace: keda}
+    - {server: https://kubernetes.default.svc, namespace: kube-system}
+    - {server: https://kubernetes.default.svc, namespace: monitoring}
+    - {server: https://kubernetes.default.svc, namespace: observability}
+    - {server: https://kubernetes.default.svc, namespace: traefik}
+    - {server: https://kubernetes.default.svc, namespace: wazuh}
+  clusterResourceWhitelist:
+    - {group: "", kind: Namespace}
+    - {group: admissionregistration.k8s.io, kind: MutatingWebhookConfiguration}
+    - {group: admissionregistration.k8s.io, kind: ValidatingWebhookConfiguration}
+    - {group: apiextensions.k8s.io, kind: CustomResourceDefinition}
+    - {group: apiregistration.k8s.io, kind: APIService}
+    - {group: external-secrets.io, kind: ClusterSecretStore}
+    - {group: networking.k8s.io, kind: IngressClass}
+    - {group: rbac.authorization.k8s.io, kind: ClusterRole}
+    - {group: rbac.authorization.k8s.io, kind: ClusterRoleBinding}
+    - {group: scheduling.k8s.io, kind: PriorityClass}
+    - {group: storage.k8s.io, kind: CSIDriver}
+    - {group: storage.k8s.io, kind: StorageClass}
+  namespaceResourceWhitelist:
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: Endpoints}
+    - {group: "", kind: PersistentVolumeClaim}
+    - {group: "", kind: Secret}
+    - {group: "", kind: Service}
+    - {group: "", kind: ServiceAccount}
+    - {group: apps, kind: DaemonSet}
+    - {group: apps, kind: Deployment}
+    - {group: apps, kind: StatefulSet}
+    - {group: autoscaling, kind: HorizontalPodAutoscaler}
+    - {group: batch, kind: CronJob}
+    - {group: batch, kind: Job}
+    - {group: cert-manager.io, kind: Certificate}
+    - {group: cert-manager.io, kind: Issuer}
+    - {group: external-secrets.io, kind: ExternalSecret}
+    - {group: external-secrets.io, kind: SecretStore}
+    - {group: monitoring.coreos.com, kind: Alertmanager}
+    - {group: monitoring.coreos.com, kind: PodMonitor}
+    - {group: monitoring.coreos.com, kind: Probe}
+    - {group: monitoring.coreos.com, kind: Prometheus}
+    - {group: monitoring.coreos.com, kind: PrometheusRule}
+    - {group: monitoring.coreos.com, kind: ServiceMonitor}
+    - {group: networking.k8s.io, kind: Ingress}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+    - {group: policy, kind: PodDisruptionBudget}
+    - {group: argoproj.io, kind: Application}
+    - {group: argoproj.io, kind: AppProject}
+    - {group: rbac.authorization.k8s.io, kind: Role}
+    - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: homelab
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  sourceRepos:
+    - ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+  destinations:
+    - {server: https://kubernetes.default.svc, namespace: airflow}
+    - {server: https://kubernetes.default.svc, namespace: cognee}
+    - {server: https://kubernetes.default.svc, namespace: demo}
+    - {server: https://kubernetes.default.svc, namespace: langfuse}
+    - {server: https://kubernetes.default.svc, namespace: trace-demo}
+  namespaceResourceWhitelist:
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: PersistentVolumeClaim}
+    - {group: "", kind: Secret}
+    - {group: "", kind: Service}
+    - {group: "", kind: ServiceAccount}
+    - {group: apps, kind: Deployment}
+    - {group: apps, kind: StatefulSet}
+    - {group: autoscaling, kind: HorizontalPodAutoscaler}
+    - {group: batch, kind: CronJob}
+    - {group: batch, kind: Job}
+    - {group: clickhouse.com, kind: ClickHouseCluster}
+    - {group: clickhouse.com, kind: KeeperCluster}
+    - {group: external-secrets.io, kind: ExternalSecret}
+    - {group: external-secrets.io, kind: SecretStore}
+    - {group: keda.sh, kind: ScaledObject}
+    - {group: networking.k8s.io, kind: Ingress}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+    - {group: policy, kind: PodDisruptionBudget}
+    - {group: rbac.authorization.k8s.io, kind: Role}
+    - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: home-services
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  sourceRepos:
+    - ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+  destinations:
+    - {server: https://kubernetes.default.svc, namespace: changedetection}
+    - {server: https://kubernetes.default.svc, namespace: immich}
+    - {server: https://kubernetes.default.svc, namespace: karakeep}
+  namespaceResourceWhitelist:
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: PersistentVolumeClaim}
+    - {group: "", kind: Secret}
+    - {group: "", kind: Service}
+    - {group: "", kind: ServiceAccount}
+    - {group: apps, kind: Deployment}
+    - {group: apps, kind: StatefulSet}
+    - {group: autoscaling, kind: HorizontalPodAutoscaler}
+    - {group: batch, kind: CronJob}
+    - {group: batch, kind: Job}
+    - {group: external-secrets.io, kind: ExternalSecret}
+    - {group: external-secrets.io, kind: SecretStore}
+    - {group: keda.sh, kind: ScaledObject}
+    - {group: networking.k8s.io, kind: Ingress}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+    - {group: policy, kind: PodDisruptionBudget}
+    - {group: rbac.authorization.k8s.io, kind: Role}
+    - {group: rbac.authorization.k8s.io, kind: RoleBinding}

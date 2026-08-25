@@ -1,0 +1,38 @@
+apiVersion: 1
+
+# Compact Discord notifications. Policies group by alertname, so keep each
+# instance to one line and emit shared links once.
+templates:
+  - orgId: 1
+    name: homelab-discord
+    template: |
+      {{ define "homelab.discord.title" -}}
+      {{- if gt (len .Alerts.Firing) 0 -}}
+      FIRING ({{ len .Alerts.Firing }}) · {{ .CommonLabels.alertname }}
+      {{- else -}}
+      RESOLVED ({{ len .Alerts.Resolved }}) · {{ .CommonLabels.alertname }}
+      {{- end -}}
+      {{- end }}
+
+      {{ define "homelab.discord.alert" -}}
+      {{- if eq .Status "firing" }}🔴{{ else }}🟢{{ end }}
+      {{- with .Labels.instance }} **{{ . }}** —{{ end }} {{ .Annotations.summary }}
+      {{- end }}
+
+      {{ define "homelab.discord.message" -}}
+      <@1532710143517659356>
+      {{- range .Alerts.Firing }}
+      {{ template "homelab.discord.alert" . }}
+      {{- end }}
+      {{- range .Alerts.Resolved }}
+      {{ template "homelab.discord.alert" . }}
+      {{- end }}
+      {{- with index .Alerts 0 }}
+      {{- with .DashboardURL }}
+
+      [Dashboard]({{ . }})
+      {{- end }}
+      {{- with .GeneratorURL }} · [Rule]({{ . }})
+      {{- end }}
+      {{- end }}
+      {{- end }}

@@ -6,6 +6,12 @@ set shell := ["bash", "-uc"]
 ctx := "homelab"
 ns  := "argocd"
 
+test:
+    bash scripts/validate.sh
+
+capacity:
+    bash scripts/capacity.sh
+
 # One-time: install Argo CD (local wrapper chart), then apply the root app-of-apps.
 # Argo then reconciles everything in this repo — including its own release.
 bootstrap:
@@ -14,40 +20,21 @@ bootstrap:
     helm dependency update ./argocd
     helm upgrade --install argocd ./argocd \
         --namespace {{ns}} --create-namespace --kube-context {{ctx}} --wait
+    kubectl --context {{ctx}} apply -f clusters/kepler/apps/projects.yaml
     kubectl --context {{ctx}} apply -f bootstrap/root-app.yaml
     @echo ":: bootstrapped. 'just password' for the admin pw, 'just ui' for access."
 
 # Sync one app at an explicitly reviewed Git revision.
 sync revision app="root":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    pod="argocd-sync-client-$(date +%s)-$$"
-    image="$(kubectl --context {{ctx}} -n {{ns}} get deployment argocd-server -o jsonpath='{.spec.template.spec.containers[0].image}')"
-    test -n "$image"
-    kubectl --context {{ctx}} -n {{ns}} run "$pod" --rm -i --restart=Never \
-        --image="$image" \
-        --overrides='{"spec":{"serviceAccountName":"argocd-application-controller"}}' \
-        --command -- argocd app sync "{{app}}" --core --revision "{{revision}}"
+    scripts/sync.sh {{quote(revision)}} {{quote(app)}}
+
+# One-time cutover: remove the retired Kepler work-test vcluster and its resources.
+retire-vcluster-pastelariadev:
+    scripts/retire-vcluster-pastelariadev.sh
 
 # What Argo sees.
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
-
-# Open a shell connected to the development vCluster; exiting stops its proxy.
-connect-pastelariadev:
-    nix run nixpkgs#vcluster -- connect pastelariadev \
-        --namespace vcluster-pastelariadev \
-        --context {{ctx}} \
-        -- bash
-
-# Read-only control-plane, workload, event, and Harbor pull proof for agents.
-diagnose-pastelariadev:
-    kubectl --context {{ctx}} -n vcluster-pastelariadev get statefulset,pods,pvc
-    nix run nixpkgs#vcluster -- connect pastelariadev \
-        --namespace vcluster-pastelariadev \
-        --context {{ctx}} \
-        --background-proxy=false \
-        -- bash -ceu 'kubectl get nodes,pods -A; kubectl get events -A --sort-by=.lastTimestamp | tail -n 30; kubectl wait --for=condition=complete job/harbor-pull-smoke-alpine-3-22 --timeout=2m; test "$(kubectl logs job/harbor-pull-smoke-alpine-3-22)" = harbor-pull-ok'
 
 # One-time migration: copy current Helm runtime values into Vault without output.
 # Reads an OpenBao operator token from stdin.

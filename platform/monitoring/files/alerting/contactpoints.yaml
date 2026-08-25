@@ -1,0 +1,56 @@
+# Grafana unified-alerting contact points (telemetry RFC §2.3).
+# Discord (native integration) replaced ntfy 2026-06-29: ntfy on this host rode
+# SWAG, so a SWAG/ingress outage silenced its own alert. Discord is off-host
+# (discord.com) and survives a local outage. The webhook URL is injected via the
+# DISCORD_WEBHOOK_INCIDENTS env var ($__env{}), sourced from .env (.env.sops).
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: discord
+    receivers:
+      - uid: discord-incidents
+        type: discord
+        settings:
+          url: $__env{DISCORD_WEBHOOK_INCIDENTS}
+          title: '{{ template "homelab.discord.title" . }}'
+          message: '{{ template "homelab.discord.message" . }}'
+          use_discord_username: false
+        disableResolveMessage: false
+      # Grafana's body-only HMAC matches Hermes' generic V1 signature. Do not
+      # add timestampHeader: Grafana and Hermes use incompatible separators.
+      - uid: argus-webhook-incidents
+        type: webhook
+        settings:
+          url: http://hermes-argus:8644/webhooks/grafana-alerts
+          httpMethod: POST
+          hmacConfig:
+            secret: $__env{WEBHOOK_GRAFANA_ALERTS_SECRET}
+            header: X-Webhook-Signature
+        disableResolveMessage: true
+
+  # Lower-priority channel for info-level notifications (fleet observability RFC
+  # fork C: two-channel severity split). Sourced from DISCORD_WEBHOOK_DEPLOYS in
+  # /run/vault-agent/discord.env — the same env file grafana already reads.
+  # PRE-DEPLOY GATE: confirm the monitoring-stack vault-agent template renders
+  # DISCORD_WEBHOOK_DEPLOYS into discord.env.
+  - orgId: 1
+    name: discord-deploys
+    receivers:
+      - uid: discord-deploys
+        type: discord
+        settings:
+          url: $__env{DISCORD_WEBHOOK_DEPLOYS}
+          title: '{{ template "homelab.discord.title" . }}'
+          message: '{{ template "homelab.discord.message" . }}'
+          use_discord_username: false
+        disableResolveMessage: false
+      - uid: argus-webhook-deploys
+        type: webhook
+        settings:
+          url: http://hermes-argus:8644/webhooks/grafana-alerts
+          httpMethod: POST
+          hmacConfig:
+            secret: $__env{WEBHOOK_GRAFANA_ALERTS_SECRET}
+            header: X-Webhook-Signature
+        disableResolveMessage: true

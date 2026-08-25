@@ -1,0 +1,10 @@
+clickhouse-operator-helm:
+  manager:
+    replicas: 1
+    image:
+      digest: sha256:e9be3bb61f14e04526474e36b9dbf5cbd5760b6d42c805a35f90af28ddb9ffc4
+    resources:
+      requests: {cpu: 10m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 128Mi}
+  prometheus:
+    enable: false
