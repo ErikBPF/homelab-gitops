@@ -55,3 +55,6 @@ test ! -e "$tmp/call"
 
 PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/sync.sh "$sha" demo >/dev/null
 test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app sync demo --core --revision $sha"
+
+PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-vcluster-pastelariadev.sh >/dev/null
+test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete vcluster-pastelariadev --core --cascade --yes"

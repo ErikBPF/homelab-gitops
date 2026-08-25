@@ -49,6 +49,7 @@ Sync the root first, then every child at the same reviewed merge commit:
 
 ```bash
 SHA="$(git rev-parse HEAD)" # checked-out reviewed merge commit
+just retire-vcluster-pastelariadev # one-time: Gemini now owns this context
 just sync "$SHA" root
 for app in argocd csi-driver-nfs traefik external-secrets cert-manager clickhouse-operator \
   kube-state-metrics keda jaeger alloy-metrics otel-collector monitoring loki \

@@ -28,6 +28,10 @@ bootstrap:
 sync revision app="root":
     scripts/sync.sh {{quote(revision)}} {{quote(app)}}
 
+# One-time cutover: remove the retired Kepler work-test vcluster and its resources.
+retire-vcluster-pastelariadev:
+    scripts/retire-vcluster-pastelariadev.sh
+
 # What Argo sees.
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
