@@ -43,6 +43,7 @@ for app in airflow demo trace-demo; do
 done
 
 test "$(yq -r '.spec.destination.namespace' "$apps/trace-demo.yaml")" = trace-demo
+test "$(yq -r '.metadata.namespace' "$root/apps/homelab/trace-demo/deployment.yaml")" = trace-demo
 
 python - "$apps" <<'PY'
 import pathlib
