@@ -5,4 +5,8 @@ spec:
   project: platform
   source: {repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git, targetRevision: main, path: platform/wazuh}
   destination: {server: https://kubernetes.default.svc, namespace: wazuh}
-  syncPolicy: {syncOptions: [CreateNamespace=true, ServerSideApply=true]}
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions: ['.spec.volumeClaimTemplates[]?.status']
+  syncPolicy: {syncOptions: [CreateNamespace=true, ServerSideApply=true, RespectIgnoreDifferences=true]}

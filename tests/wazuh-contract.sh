@@ -8,6 +8,7 @@ trap 'rm -f "$render"' EXIT
 kubectl kustomize "$app" >"$render"
 
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/wazuh.yaml")" = platform
+test "$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/wazuh.yaml")" = '.spec.volumeClaimTemplates[]?.status'
 grep -Fq 'wazuh.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 grep -Fq 'v4.14.7' "$app/UPSTREAM.md"
 grep -Fq '14f78b70ba553db2e3c0b3d1c013bde4d306a911' "$app/UPSTREAM.md"
@@ -30,6 +31,7 @@ for secret in indexer-certs dashboard-certs wazuh-api-cred wazuh-authd-pass wazu
   test "$(yq -r "select(.kind == \"ExternalSecret\" and .spec.target.name == \"$secret\") | .spec.secretStoreRef.name" "$render")" = vault-platform
 done
 test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = wazuh.homelab.pastelariadev.com
+test "$(yq -r 'select(.kind == "Service" and .metadata.name == "dashboard") | .spec.type' "$render")" = ClusterIP
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
 yq -e 'select(.kind == "StatefulSet") | (.spec.volumeClaimTemplates[].spec.accessModes | join(",")) == "ReadWriteOnce" and .spec.volumeClaimTemplates[].spec.storageClassName == "local-path" and .spec.volumeClaimTemplates[].spec.resources.requests.storage' "$render" >/dev/null
 python3 "$root/scripts/check-first-wave-resources.py" "$render"

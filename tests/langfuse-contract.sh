@@ -9,6 +9,7 @@ trap 'rm -f "$render"' EXIT
 test "$(yq -r '.dependencies[0].repository' "$app/Chart.yaml")" = https://langfuse.github.io/langfuse-k8s
 test "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" = 2.0.1
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/langfuse.yaml")" = homelab
+test "$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/langfuse.yaml")" = '.spec.volumeClaimTemplates[]?.status'
 grep -Fq 'langfuse.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 
 helm template langfuse "$app" >"$render"
