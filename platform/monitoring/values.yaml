@@ -17,6 +17,7 @@ kube-prometheus-stack:
       kubeSchedulerRecording: false
   prometheusOperator:
     admissionWebhooks: {enabled: false}
+    tls: {enabled: false}
     image:
       sha: 6dbbbbeca6d7b94aa30723bfaa55262e41b9f8c15304c484611c696503840aac
     resources:

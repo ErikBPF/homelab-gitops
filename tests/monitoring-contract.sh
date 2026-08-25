@@ -13,6 +13,7 @@ done
 test "$(yq -r '.dependencies[0].version' "$root/platform/monitoring/Chart.yaml")" = 80.14.4
 test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
+test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.dependencies[0].version' "$root/platform/loki/Chart.yaml")" = 6.51.0
 test "$(yq -r '.loki.deploymentMode' "$root/platform/loki/values.yaml")" = SingleBinary
 test "$(yq -r '.loki.singleBinary.replicas' "$root/platform/loki/values.yaml")" = 1
