@@ -22,6 +22,7 @@ for store in postgresql redis clickhouse s3; do
   test "$(yq -r ".langfuse.$store.deploy" "$app/values.yaml")" = true
 done
 test "$(yq -r '.langfuse.clickhouse.crdCheck' "$app/values.yaml")" = false
+test "$(yq -r '.langfuse.clickhouse.cluster.resources.requests.cpu' "$app/values.yaml")" = 200m
 if grep -Ei '100\.76\.140\.121|192\.168\.10\.230|postgres\.discovery|minio.*kepler' "$render"; then
   echo 'Langfuse rendered a legacy data-service endpoint' >&2
   exit 1
