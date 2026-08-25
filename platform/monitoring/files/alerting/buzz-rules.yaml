@@ -1,0 +1,163 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: buzz
+    folder: Homelab
+    interval: 1m
+    rules:
+      - uid: buzz-relay-down
+        title: Buzz relay unavailable
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Buzz relay metrics are unavailable on Kepler"
+        labels:
+          severity: critical
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: 'up{job="buzz-relay",host="kepler"}'
+          - refId: B
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource: {type: __expr__, uid: __expr__}
+          - refId: C
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions:
+                - evaluator: {type: lt, params: [1]}
+
+      - uid: buzz-backup-stale
+        title: Buzz backup stale
+        condition: C
+        for: 1h
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Buzz Restic backup has not succeeded in over 30 hours"
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: time() - restic_kepler_buzz_last_success_seconds
+          - refId: B
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource: {type: __expr__, uid: __expr__}
+          - refId: C
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions:
+                - evaluator: {type: gt, params: [108000]}
+
+      - uid: buzz-restore-drill-stale
+        title: Buzz restore drill stale
+        condition: C
+        for: 1h
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Buzz restore drill has not passed in over 9 days"
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: time() - restic_kepler_buzz_restore_last_success_seconds
+          - refId: B
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource: {type: __expr__, uid: __expr__}
+          - refId: C
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions:
+                - evaluator: {type: gt, params: [777600]}
+
+      - uid: buzz-offsite-restore-drill-stale
+        title: Buzz offsite restore drill stale
+        condition: C
+        for: 1h
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Buzz offsite restore drill has not passed in over 9 days"
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: time() - restic_kepler_buzz_offsite_restore_last_success_seconds
+          - refId: B
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource: {type: __expr__, uid: __expr__}
+          - refId: C
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions:
+                - evaluator: {type: gt, params: [777600]}

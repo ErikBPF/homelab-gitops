@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+app=$root/apps/homelab/langfuse
+render=$(mktemp)
+trap 'rm -f "$render"' EXIT
+
+test "$(yq -r '.dependencies[0].repository' "$app/Chart.yaml")" = https://langfuse.github.io/langfuse-k8s
+test "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" = 2.0.1
+test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/langfuse.yaml")" = homelab
+grep -Fq 'langfuse.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
+
+helm template langfuse "$app" >"$render"
+
+for store in postgresql redis clickhouse s3; do
+  test "$(yq -r ".langfuse.$store.deploy" "$app/values.yaml")" = true
+done
+test "$(yq -r '.langfuse.clickhouse.crdCheck' "$app/values.yaml")" = false
+if grep -Ei '100\.76\.140\.121|192\.168\.10\.230|postgres\.discovery|minio.*kepler' "$render"; then
+  echo 'Langfuse rendered a legacy data-service endpoint' >&2
+  exit 1
+fi
+
+for secret in langfuse-app-secrets langfuse-postgresql-auth langfuse-redis-auth langfuse-clickhouse-auth langfuse-s3-auth; do
+  test "$(yq -r "select(.kind == \"ExternalSecret\" and .spec.target.name == \"$secret\") | .spec.secretStoreRef.name" "$render")" = vault-homelab
+  test "$(yq -r "select(.kind == \"ExternalSecret\" and .spec.target.name == \"$secret\") | .spec.data[0].remoteRef.key" "$render")" = lab/langfuse
+done
+
+test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = langfuse.homelab.pastelariadev.com
+test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
+for class in local-path nfs-slow; do
+  yq -e "select(.kind == \"PersistentVolumeClaim\" and .spec.storageClassName == \"$class\")" "$render" >/dev/null
+done
+python3 "$root/scripts/check-first-wave-resources.py" "$render"
+python3 - "$render" <<'PY'
+import sys
+
+import yaml
+
+with open(sys.argv[1]) as stream:
+  documents = list(yaml.safe_load_all(stream))
+
+for document in documents:
+    if not document:
+        continue
+    spec = document.get("spec", {})
+    if document.get("kind") == "CronJob":
+        spec = spec.get("jobTemplate", {}).get("spec", {})
+    pod = spec.get("template", {}).get("spec", {})
+    for container in pod.get("initContainers", []) + pod.get("containers", []):
+        image = container.get("image", "")
+        assert "@sha256:" in image, f"mutable image: {image}"
+PY

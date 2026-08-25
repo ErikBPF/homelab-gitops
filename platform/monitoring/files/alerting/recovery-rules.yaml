@@ -1,0 +1,167 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: recovery-health
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: sops-runtime-secrets-missing
+        title: Sops runtime secrets missing
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Discovery or Kepler has not materialized /run/secrets after boot"
+        labels: {severity: critical}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                (count(sops_runtime_secrets_ready{instance=~"discovery|kepler"}) != bool 2)
+                or (min(sops_runtime_secrets_ready{instance=~"discovery|kepler"}) < bool 1)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: vault-agent-renders-stale
+        title: Vault Agent required renders missing or stale
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Discovery Vault Agent renders are missing or older than 15m"
+        labels: {severity: critical}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                (count(vault_agent_required_renders_ready{instance="discovery"}) != bool 1)
+                or (max(vault_agent_required_renders_ready{instance="discovery"}) < bool 1)
+                or (count(vault_agent_render_last_success_seconds{instance="discovery"}) != bool 1)
+                or ((time() - max(vault_agent_render_last_success_seconds{instance="discovery"})) > bool 900)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: litellm-semantic-readiness-failed
+        title: LiteLLM semantic readiness failed
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "LiteLLM DB, ha-agent-qwen4b route, or local completion probe failed"
+        labels: {severity: critical}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                (count(litellm_semantic_ready{instance="discovery"}) != bool 1)
+                or (max(litellm_semantic_ready{instance="discovery"}) < bool 1)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: restic-kepler-offsite-transport-failed
+        title: Kepler offsite Restic transport failed
+        condition: C
+        for: 20m
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: "Kepler cannot query Voyager Restic repository from the backup container"
+        labels: {severity: warning}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                (count(restic_kepler_offsite_transport_ready) != bool 1)
+                or (max(restic_kepler_offsite_transport_ready) < bool 1)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: grafana-notification-delivery-failed
+        title: Grafana notification delivery failed
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: "Grafana failed to deliver at least one alert notification in 15m"
+        labels: {severity: warning}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: sum(increase(grafana_alerting_notification_requests_failed_total[15m]))
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]

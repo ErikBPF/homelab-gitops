@@ -7,13 +7,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  project: default
+  project: homelab
   source:
     repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
-    path: apps/trace-demo
+    path: apps/homelab/trace-demo
   destination:
     server: https://kubernetes.default.svc
-    namespace: observability
-  syncPolicy:
-    syncOptions: [CreateNamespace=true]
+    namespace: trace-demo

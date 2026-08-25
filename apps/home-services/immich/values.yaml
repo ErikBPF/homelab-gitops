@@ -1,0 +1,76 @@
+immich:
+  controllers:
+    main:
+      containers:
+        main:
+          image:
+            tag: v3.0.0@sha256:685ba5c93337058ff8a189d3ed89f0ba470ef966b1c94d2eace1a3d991f9816e
+          env:
+            DB_HOSTNAME: immich-postgres
+            DB_USERNAME: immich
+            DB_DATABASE_NAME: immich
+            DB_PASSWORD:
+              valueFrom: {secretKeyRef: {name: immich-secrets, key: DB_PASSWORD}}
+  immich:
+    metrics: {enabled: false}
+    persistence:
+      library: {existingClaim: immich-library}
+  server:
+    controllers:
+      main:
+        containers:
+          main:
+            resources:
+              requests: {cpu: 200m, memory: 512Mi}
+              limits: {cpu: "2", memory: 2Gi}
+            probes:
+              liveness: {enabled: true}
+              readiness: {enabled: true}
+    ingress:
+      main:
+        enabled: true
+        className: traefik
+        hosts:
+          - host: immich.homelab.pastelariadev.com
+            paths:
+              - path: /
+                service: {identifier: main}
+  machine-learning:
+    controllers:
+      main:
+        containers:
+          main:
+            image:
+              tag: v3.0.0@sha256:5b480e92a2b77618d9ccae8c8110b0eae144ec9daf86715d246ec6d39cb7a553
+            resources:
+              requests: {cpu: 200m, memory: 512Mi}
+              limits: {cpu: "2", memory: 2Gi}
+            probes:
+              liveness: {enabled: true}
+              readiness: {enabled: true}
+    persistence:
+      cache:
+        enabled: true
+        type: persistentVolumeClaim
+        size: 10Gi
+        accessMode: ReadWriteMany
+        storageClass: nfs-fast
+  valkey:
+    enabled: true
+    controllers:
+      main:
+        containers:
+          main:
+            resources:
+              requests: {cpu: 50m, memory: 64Mi}
+              limits: {cpu: 500m, memory: 256Mi}
+            probes:
+              liveness: {enabled: true}
+              readiness: {enabled: true}
+    persistence:
+      data:
+        enabled: true
+        type: persistentVolumeClaim
+        size: 1Gi
+        accessMode: ReadWriteOnce
+        storageClass: local-path

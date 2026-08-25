@@ -6,11 +6,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: default
+  project: homelab
   source:
     repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
-    path: apps/airflow
+    path: apps/homelab/airflow
     helm:
       releaseName: airflow
   destination:
@@ -29,6 +29,5 @@ spec:
         - /spec/volumeName
   syncPolicy:
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
       - RespectIgnoreDifferences=true

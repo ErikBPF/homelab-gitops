@@ -1,0 +1,7 @@
+apiVersion: v2
+name: clickhouse-operator
+version: 0.1.0
+dependencies:
+  - name: clickhouse-operator-helm
+    version: 0.0.5
+    repository: oci://ghcr.io/clickhouse

@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: karakeep
+resources:
+  - upstream/web-deployment.yaml
+  - upstream/web-service.yaml
+  - upstream/chrome-deployment.yaml
+  - upstream/chrome-service.yaml
+  - upstream/meilisearch-deployment.yaml
+  - upstream/meilisearch-service.yaml
+  - upstream/data-pvc.yaml
+  - upstream/meilisearch-pvc.yaml
+  - externalsecret.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: karakeep-configuration
+    literals:
+      - KARAKEEP_VERSION=0.33.2
+      - NEXTAUTH_URL=https://bookmarks.homelab.pastelariadev.com
+      - OPENAI_BASE_URL=https://litellm.homelab.pastelariadev.com/v1
+      - INFERENCE_TEXT_MODEL=qwen-chat
+patches:
+  - path: patches.yaml

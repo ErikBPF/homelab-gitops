@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - projects.yaml
+  - namespaces.yaml
+  - argocd.yaml
+  - cert-manager.yaml
+  - changedetection.yaml
+  - external-secrets.yaml
+  - healthchecks.yaml
+  - immich.yaml
+  - clickhouse-operator.yaml
+  - csi-driver-nfs.yaml
+  - keda.yaml
+  - traefik.yaml
+  - jaeger.yaml
+  - karakeep.yaml
+  - langfuse.yaml
+  - loki.yaml
+  - monitoring.yaml
+  - scrutiny.yaml
+  - kube-state-metrics.yaml
+  - alloy-metrics.yaml
+  - otel-collector.yaml
+  - trace-demo.yaml
+  - uptime-kuma.yaml
+  - wazuh.yaml
+  - demo.yaml
+  - airflow.yaml

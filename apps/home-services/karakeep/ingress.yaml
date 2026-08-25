@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: karakeep, namespace: karakeep}
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: bookmarks.homelab.pastelariadev.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: web, port: {number: 3000}}}

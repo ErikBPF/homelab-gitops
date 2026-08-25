@@ -1,21 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vcluster-pastelariadev
+  name: cert-manager
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "-4"
 spec:
-  project: default
+  project: platform
   source:
     repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
-    path: platform/vcluster-pastelariadev
-    helm:
-      releaseName: pastelariadev
+    path: platform/cert-manager
   destination:
     server: https://kubernetes.default.svc
-    namespace: vcluster-pastelariadev
+    namespace: cert-manager
   syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
