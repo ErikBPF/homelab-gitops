@@ -89,6 +89,9 @@ langfuse:
         limits: {cpu: "1", memory: 1Gi}
   s3:
     deploy: true
+    global:
+      seaweedfs:
+        createClusterRole: false
     auth:
       existingSecret: langfuse-s3-auth
       rootUserSecretKey: accessKey
