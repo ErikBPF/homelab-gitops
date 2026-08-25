@@ -1,8 +1,8 @@
 # homelab-gitops
 
-> **SSOT role (desktop-nixos RFC 2026-06-29):** owns **lab / prod-mimic k8s
-> workloads** (Argo CD) on the kepler k3s cluster. Consumes the k3s substrate from
-> desktop-nixos + secrets via ESO→OpenBao@Discovery.
+> **SSOT role:** owns **non-media home-services and lab / prod-mimic Kubernetes
+> workloads** (Argo CD) on the Kepler k3s cluster. Consumes the k3s substrate
+> from desktop-nixos + secrets via ESO→OpenBao@Discovery.
 
 Production-mimicking platform layer for the stable **kepler** k3s cluster
 (`homelab`), deployed via **Argo CD** (GitOps). A sister repo of
@@ -73,9 +73,9 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
   an ACL grant `kepler -> discovery:8200` (homelab-iac). Wave -3.
 - **csi-driver-nfs** (`nfs-fast` / `nfs-slow`) → kepler must NFS-export an SSD
   dataset and `/bulk` to the cluster subnet `10.250.0.0/24`. Implemented. Wave -2.
-- **kube-state-metrics** → scraped by `alloy-metrics`. Its current Discovery
-  write target stays active until the fresh Kubernetes monitoring backend
-  passes the S5/S6 live cutover gates.
+- **kube-state-metrics** → scraped by `alloy-metrics` into the in-cluster
+  Prometheus backend. The legacy Discovery backend remains active only until
+  the remaining host collectors and external dead-man gate pass.
 
 ## Current applications
 
@@ -97,10 +97,11 @@ The root app manages 24 child applications (25 Argo Applications including
 
 ## Coupling
 
-`homelab-iac` (tailnet ACL grants) · `servarr/machines/discovery` (Prometheus
-remote_write consumer) · `desktop-nixos` (OpenBao host service, sops secret seed, `_k3s-node.nix`
-registries.yaml, kubeconfig, bootstrap-secret reconciler). Land the leaf here →
-grant ACL → seed secret → sync the reviewed revision as shown above.
+`homelab-iac` (tailnet ACL grants) · `servarr/machines/discovery` (SWAG household
+ingress) · `desktop-nixos` (OpenBao host service, sops secret seed,
+`_k3s-node.nix` registries.yaml, kubeconfig, bootstrap-secret reconciler). Land
+the leaf here → grant ACL → seed secret → sync the reviewed revision as shown
+above.
 
 ## Ops notes (grill follow-ups)
 
@@ -116,7 +117,7 @@ grant ACL → seed secret → sync the reviewed revision as shown above.
 - **Branch protection / review gate:** every Argo application is manual while
   `main` is unprotected. Sync root and children at the reviewed commit as shown
   above. Restore auto-sync only after branch protection is enabled.
-- **alloy-metrics → discovery Prometheus** and the in-cluster log/secret paths
-  use discovery's **raw tailnet IP** (`100.76.140.121`) because pods can't resolve
-  MagicDNS. Stable, but if discovery's TS IP ever changes, update it in
-  `platform/alloy-metrics/values.yaml` (and the Nix cluster Alloy / ESO CSS).
+- **Telemetry stays in cluster.** `alloy-metrics` writes to the monitoring
+  namespace Prometheus receiver and cluster log collectors write to Loki's
+  service address. Discovery remains only the household ingress and OpenBao
+  dependency for these paths.
