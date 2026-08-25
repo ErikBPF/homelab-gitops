@@ -31,6 +31,10 @@ for secret in indexer-certs dashboard-certs wazuh-api-cred wazuh-authd-pass wazu
   test "$(yq -r "select(.kind == \"ExternalSecret\" and .spec.target.name == \"$secret\") | .spec.secretStoreRef.name" "$render")" = vault-platform
 done
 test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = wazuh.homelab.pastelariadev.com
+test "$(yq -r 'select(.kind == "Ingress") | .metadata.annotations."traefik.ingress.kubernetes.io/service.serverstransport"' "$render")" = wazuh-dashboard@kubernetescrd
+test "$(yq -r 'select(.kind == "ServersTransport" and .metadata.name == "dashboard") | .spec.serverName' "$render")" = dashboard
+test "$(yq -r 'select(.kind == "ServersTransport" and .metadata.name == "dashboard") | .spec.rootCAs[0].secret' "$render")" = dashboard-certs
+test "$(yq -r 'select(.kind == "ExternalSecret" and .metadata.name == "dashboard-certs") | .spec.target.template.data."ca.crt"' "$render")" = '{{ index . "root-ca.pem" }}'
 test "$(yq -r 'select(.kind == "Service" and .metadata.name == "dashboard") | .spec.type' "$render")" = ClusterIP
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
 yq -e 'select(.kind == "StatefulSet") | (.spec.volumeClaimTemplates[].spec.accessModes | join(",")) == "ReadWriteOnce" and .spec.volumeClaimTemplates[].spec.storageClassName == "local-path" and .spec.volumeClaimTemplates[].spec.resources.requests.storage' "$render" >/dev/null
