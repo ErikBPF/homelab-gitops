@@ -46,6 +46,11 @@ capture-airflow-runtime-to-vault:
 bootstrap-runtime-secrets:
     scripts/bootstrap-runtime-secrets.sh
 
+# Ask ESO to refresh every declared runtime secret immediately.
+reconcile-runtime-secrets:
+    kubectl --context {{ctx}} annotate externalsecrets.external-secrets.io --all --all-namespaces \
+        force-sync="$(date +%s)" --overwrite
+
 status-alloy:
     kubectl --context {{ctx}} -n monitoring get pods -l app.kubernetes.io/instance=alloy-metrics -o wide
     kubectl --context {{ctx}} -n monitoring describe pods -l app.kubernetes.io/instance=alloy-metrics
