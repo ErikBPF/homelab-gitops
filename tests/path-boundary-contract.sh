@@ -33,6 +33,8 @@ if grep -R -l '^kind: Namespace$' "$root/apps/homelab" "$root/apps/home-services
   exit 1
 fi
 test "$(yq -r 'select(.kind == "Namespace" and .metadata.name == "demo") | .metadata.labels."pod-security.kubernetes.io/enforce"' "$apps/namespaces.yaml")" = restricted
+test -z "$(yq -r 'select(.kind == "Namespace" and .metadata.name == "external-secrets") | .metadata.name' "$apps/namespaces.yaml")"
+test "$(yq -r '.spec.syncPolicy.syncOptions[]' "$apps/external-secrets.yaml" | grep -Fx 'CreateNamespace=true')" = 'CreateNamespace=true'
 
 if yq -r '.. | select(tag == "!!str")' "$projects" | grep -Fxq '*'; then
   echo 'AppProjects must not grant wildcard authority' >&2
