@@ -1,0 +1,29 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-cloudflare
+spec:
+  acme:
+    email: erikbogado@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-account
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: monitoring-ingress
+spec:
+  secretName: monitoring-ingress-tls
+  issuerRef:
+    name: letsencrypt-cloudflare
+    kind: Issuer
+  dnsNames:
+    - grafana.homelab.pastelariadev.com
+    - prometheus.homelab.pastelariadev.com

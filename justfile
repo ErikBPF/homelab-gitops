@@ -46,6 +46,11 @@ capture-airflow-runtime-to-vault:
 bootstrap-runtime-secrets:
     scripts/bootstrap-runtime-secrets.sh
 
+# Install the cert-manager Cloudflare DNS-01 token without exposing its value.
+# Reads the token from stdin.
+bootstrap-monitoring-dns01-token:
+    scripts/bootstrap-monitoring-dns01-token.sh
+
 # Ask ESO to refresh every declared runtime secret immediately.
 reconcile-runtime-secrets:
     kubectl --context {{ctx}} annotate externalsecrets.external-secrets.io --all --all-namespaces \
