@@ -46,6 +46,11 @@ capture-airflow-runtime-to-vault:
 bootstrap-runtime-secrets:
     scripts/bootstrap-runtime-secrets.sh
 
+# Rotate only Grafana's admin password; preserves all other monitoring values.
+# Reads an OpenBao operator token from stdin and never prints secret material.
+rotate-grafana-admin-password:
+    scripts/rotate-grafana-admin-password.sh
+
 # Install the cert-manager Cloudflare DNS-01 token without exposing its value.
 # Reads the token from stdin.
 bootstrap-monitoring-dns01-token:
