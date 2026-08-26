@@ -110,9 +110,14 @@ groups:
                 )
                 and on(host)
                 (time() - max by (host) (container_last_seen{host="discovery",name!=""}) <= 120)
-                or (podman_container_state{host="kepler",name=~"postgres|redis"} != 2)
-                or absent(podman_container_state{host="kepler",name="postgres"})
-                or absent(podman_container_state{host="kepler",name="redis"})
+                or (
+                  (
+                    (podman_container_state{host="kepler",name=~"postgres|redis"} != 2)
+                    or absent(podman_container_state{host="kepler",name="postgres"})
+                    or absent(podman_container_state{host="kepler",name="redis"})
+                  )
+                  and on() (max(up{instance="kepler",job="integrations/unix"}) == 1)
+                )
           - refId: B
             relativeTimeRange:
               from: 600
@@ -1940,6 +1945,37 @@ groups:
               instant: true
               datasource: {type: prometheus, uid: prometheus}
               expr: max by (cluster, namespace, deployment) (kube_deployment_status_replicas_unavailable > 0)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: k8s-statefulset-replicas-mismatch
+        title: Kubernetes StatefulSet replicas unavailable
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: "{{ $labels.namespace }}/{{ $labels.statefulset }} has unavailable replicas for 15m"
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: max by (cluster, namespace, statefulset) (kube_statefulset_replicas - kube_statefulset_status_replicas_ready) > 0
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
