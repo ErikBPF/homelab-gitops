@@ -15,13 +15,9 @@ test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.cpu' "$root/platform/monitoring/values.yaml")" = 100m
-federation='.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs[] | select(.job_name == "legacy-monitoring-federation")'
-test "$(yq -r "$federation | .metrics_path" "$root/platform/monitoring/values.yaml")" = /federate
-test "$(yq -r "$federation | .honor_labels" "$root/platform/monitoring/values.yaml")" = true
-test "$(yq -r "$federation | .static_configs[0].targets[0]" "$root/platform/monitoring/values.yaml")" = 100.76.140.121:9090
-grep -Fq '{job="integrations/unix",instance="kepler"}' "$root/platform/monitoring/values.yaml"
-grep -Fq '{job="pangolin-newt",instance="kepler"}' "$root/platform/monitoring/values.yaml"
-grep -Fq '{job=~"adguard|buzz-relay|cloudflared|litellm|llamacpp|node-vanguard|node-voyager|nvidia-gpu|postgres-discovery|postgres-kepler"}' "$root/platform/monitoring/values.yaml"
+! grep -Fq 'legacy-monitoring-federation' "$root/platform/monitoring/values.yaml"
+test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs // "absent"' "$root/platform/monitoring/values.yaml")" = absent
+! grep -Fq 'wazuh_unifi_last_event_seconds' "$root/platform/monitoring/files/alerting/rules.yaml"
 for component in prometheus grafana; do
   test "$(yq -r ".kube-prometheus-stack.$component.ingress.tls[0].secretName" "$root/platform/monitoring/values.yaml")" = monitoring-ingress-tls
 done
