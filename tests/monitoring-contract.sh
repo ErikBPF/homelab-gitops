@@ -15,6 +15,12 @@ test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.cpu' "$root/platform/monitoring/values.yaml")" = 100m
+federation='.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs[] | select(.job_name == "legacy-monitoring-federation")'
+test "$(yq -r "$federation | .metrics_path" "$root/platform/monitoring/values.yaml")" = /federate
+test "$(yq -r "$federation | .honor_labels" "$root/platform/monitoring/values.yaml")" = true
+test "$(yq -r "$federation | .static_configs[0].targets[0]" "$root/platform/monitoring/values.yaml")" = 100.76.140.121:9090
+grep -Fq '{job="integrations/unix",instance="kepler"}' "$root/platform/monitoring/values.yaml"
+grep -Fq '{job=~"adguard|buzz-relay|cloudflared|litellm|llamacpp|node-vanguard|node-voyager|nvidia-gpu|postgres-discovery|postgres-kepler"}' "$root/platform/monitoring/values.yaml"
 test "$(yq -r '.dependencies[0].version' "$root/platform/loki/Chart.yaml")" = 6.51.0
 test "$(yq -r '.loki.deploymentMode' "$root/platform/loki/values.yaml")" = SingleBinary
 test "$(yq -r '.loki.singleBinary.replicas' "$root/platform/loki/values.yaml")" = 1
@@ -53,3 +59,10 @@ for file in contactpoints policies rules storage-rules templates; do
   test -s "$root/platform/monitoring/files/alerting/$file.yaml"
 done
 grep -Fq 'grafana_alert: "1"' "$root/platform/monitoring/templates/grafana-alerting.yaml"
+! grep -Fq 'http://hermes-argus:8644' "$root/platform/monitoring/files/alerting/contactpoints.yaml"
+container_expr=$(yq -r '.groups[].rules[] | select(.uid == "container-critical-down") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
+grep -Fq 'and on() (max(up{instance="kepler",job="integrations/unix"}) == 1)' <<<"$container_expr"
+test "$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mismatch") | .for' "$root/platform/monitoring/files/alerting/rules.yaml")" = 15m
+statefulset_expr=$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mismatch") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
+grep -Fq 'kube_statefulset_status_replicas_ready' <<<"$statefulset_expr"
+grep -Fq 'kube_statefulset_replicas' <<<"$statefulset_expr"
