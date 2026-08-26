@@ -42,20 +42,6 @@ kube-prometheus-stack:
       image:
         sha: 1f0f50f06acaceb0f5670d2c8a658a599affe7b0d8e78b898c1035653849a702
       enableRemoteWriteReceiver: true
-      # ponytail: temporary bridge; remove selectors as each source moves to
-      # native K8s scraping or Alloy remote_write.
-      additionalScrapeConfigs:
-        - job_name: legacy-monitoring-federation
-          honor_labels: true
-          metrics_path: /federate
-          params:
-            "match[]":
-              - '{job=~"adguard|buzz-relay|cloudflared|litellm|llamacpp|node-vanguard|node-voyager|nvidia-gpu|postgres-discovery|postgres-kepler"}'
-              - '{job="integrations/unix",instance="kepler"}'
-              - '{job="pangolin-newt",instance="kepler"}'
-              - '{job="podman",host="kepler"}'
-          static_configs:
-            - targets: [100.76.140.121:9090]
       retention: 30d
       retentionSize: 45GB
       resources:

@@ -99,13 +99,10 @@ groups:
                 uid: prometheus
               expr: >-
                 (
-                  (time() - container_last_seen{host="discovery",name=~"swag|adguard|postgres|loki|prometheus|grafana|vault"} > 120)
+                  (time() - container_last_seen{host="discovery",name=~"swag|adguard|postgres|vault"} > 120)
                   or absent(container_last_seen{host="discovery",name="swag"})
                   or absent(container_last_seen{host="discovery",name="adguard"})
                   or absent(container_last_seen{host="discovery",name="postgres"})
-                  or absent(container_last_seen{host="discovery",name="loki"})
-                  or absent(container_last_seen{host="discovery",name="prometheus"})
-                  or absent(container_last_seen{host="discovery",name="grafana"})
                   or absent(container_last_seen{host="discovery",name="vault"})
                 )
                 and on(host)
@@ -1647,63 +1644,6 @@ groups:
                 - evaluator:
                     type: gt
                     params: [0]
-
-      - uid: security-control-unifi-siem-silent
-        title: UniFi SIEM event stream silent
-        condition: C
-        for: 15m
-        isPaused: false
-        noDataState: Alerting
-        execErrState: Error
-        annotations:
-          summary: "No UniFi CEF event received by Wazuh for >26 hours"
-          event_class: security_log_delivery_failure
-          runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#security-control-telemetry
-        labels:
-          severity: warning
-          category: security
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 900
-              to: 0
-            datasourceUid: prometheus
-            model:
-              refId: A
-              instant: true
-              datasource:
-                type: prometheus
-                uid: prometheus
-              expr: time() - wazuh_unifi_last_event_seconds
-          - refId: B
-            relativeTimeRange:
-              from: 900
-              to: 0
-            datasourceUid: __expr__
-            model:
-              refId: B
-              type: reduce
-              expression: A
-              reducer: last
-              datasource:
-                type: __expr__
-                uid: __expr__
-          - refId: C
-            relativeTimeRange:
-              from: 900
-              to: 0
-            datasourceUid: __expr__
-            model:
-              refId: C
-              type: threshold
-              expression: B
-              datasource:
-                type: __expr__
-                uid: __expr__
-              conditions:
-                - evaluator:
-                    type: gt
-                    params: [93600]
 
   # Kubernetes workload health. Metrics arrive from the cluster Alloy through
   # remote_write, which has shown 5-15 minute lag during reconciliation. Keep
