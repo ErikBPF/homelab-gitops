@@ -9,7 +9,14 @@ kubectl kustomize "$app" >"$render"
 
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/wazuh.yaml")" = platform
 test "$(yq -r 'select(.metadata.name == "platform") | .spec.namespaceResourceWhitelist[] | select(.group == "traefik.io" and .kind == "ServersTransport") | .kind' "$root/clusters/kepler/apps/projects.yaml")" = ServersTransport
-test "$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/wazuh.yaml")" = '.spec.volumeClaimTemplates[]?.status'
+expected_ignored_paths=$(printf '%s\n' \
+  '.spec.template.spec.serviceAccount' \
+  '.spec.volumeClaimTemplates[]?.apiVersion' \
+  '.spec.volumeClaimTemplates[]?.kind' \
+  '.spec.volumeClaimTemplates[]?.spec.volumeMode' \
+  '.spec.volumeClaimTemplates[]?.status' | sort)
+actual_ignored_paths=$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/wazuh.yaml" | sort)
+test "$actual_ignored_paths" = "$expected_ignored_paths"
 grep -Fq 'wazuh.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 grep -Fq 'v4.14.7' "$app/UPSTREAM.md"
 grep -Fq '14f78b70ba553db2e3c0b3d1c013bde4d306a911' "$app/UPSTREAM.md"

@@ -9,7 +9,14 @@ trap 'rm -f "$render"' EXIT
 test "$(yq -r '.dependencies[0].repository' "$app/Chart.yaml")" = https://langfuse.github.io/langfuse-k8s
 test "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" = 2.0.1
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/langfuse.yaml")" = homelab
-test "$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/langfuse.yaml")" = '.spec.volumeClaimTemplates[]?.status'
+expected_ignored_paths=$(printf '%s\n' \
+  '.spec.template.spec.serviceAccount' \
+  '.spec.volumeClaimTemplates[]?.apiVersion' \
+  '.spec.volumeClaimTemplates[]?.kind' \
+  '.spec.volumeClaimTemplates[]?.spec.volumeMode' \
+  '.spec.volumeClaimTemplates[]?.status' | sort)
+actual_ignored_paths=$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/langfuse.yaml" | sort)
+test "$actual_ignored_paths" = "$expected_ignored_paths"
 grep -Fq 'langfuse.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 
 helm template langfuse "$app" >"$render"

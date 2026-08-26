@@ -5,6 +5,12 @@
 # DISCORD_WEBHOOK_INCIDENTS env var ($__env{}), sourced from .env (.env.sops).
 apiVersion: 1
 
+deleteContactPoints:
+  - orgId: 1
+    uid: argus-webhook-incidents
+  - orgId: 1
+    uid: argus-webhook-deploys
+
 contactPoints:
   - orgId: 1
     name: discord
