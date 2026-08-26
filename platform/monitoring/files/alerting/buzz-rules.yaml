@@ -11,7 +11,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Buzz relay metrics are unavailable on Kepler"
         labels:
@@ -50,7 +50,7 @@ groups:
         condition: C
         for: 1h
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Buzz Restic backup has not succeeded in over 30 hours"
         labels:
@@ -89,7 +89,7 @@ groups:
         condition: C
         for: 1h
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Buzz restore drill has not passed in over 9 days"
         labels:
@@ -128,7 +128,7 @@ groups:
         condition: C
         for: 1h
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Buzz offsite restore drill has not passed in over 9 days"
         labels:

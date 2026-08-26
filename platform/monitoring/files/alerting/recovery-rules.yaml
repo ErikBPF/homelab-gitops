@@ -11,7 +11,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Discovery or Kepler has not materialized /run/secrets after boot"
         labels: {severity: critical}
@@ -43,7 +43,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Discovery Vault Agent renders are missing or older than 15m"
         labels: {severity: critical}
@@ -77,7 +77,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "LiteLLM DB, ha-agent-qwen4b route, or local completion probe failed"
         labels: {severity: critical}
@@ -109,7 +109,7 @@ groups:
         condition: C
         for: 20m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Kepler cannot query Voyager Restic repository from the backup container"
         labels: {severity: warning}
@@ -141,7 +141,7 @@ groups:
         condition: C
         for: 0m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Grafana failed to deliver at least one alert notification in 15m"
         labels: {severity: warning}
