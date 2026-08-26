@@ -6,6 +6,9 @@ class=homelab-platform-critical
 grep -Fq "name: $class" argocd/templates/priorityclass.yaml
 grep -Fq 'value: 100000' argocd/templates/priorityclass.yaml
 grep -Fq "priorityClassName: $class" argocd/values.yaml
+test "$(yq -r '.argo-cd.repoServer.livenessProbe.timeoutSeconds' argocd/values.yaml)" = 10
+test "$(yq -r '.argo-cd.repoServer.livenessProbe.failureThreshold' argocd/values.yaml)" = 6
+test "$(yq -r '.argo-cd.repoServer.readinessProbe.timeoutSeconds // 1' argocd/values.yaml)" = 1
 grep -Fq "priorityClassName: $class" platform/traefik/values.yaml
 grep -Fq "priorityClassName: $class" platform/keda/values.yaml
 

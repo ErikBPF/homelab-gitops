@@ -29,6 +29,11 @@ argo-cd:
   repoServer:
     resources:
       requests: { cpu: 10m, memory: 64Mi }
+    # Keep readiness fast, but do not restart a healthy process during brief
+    # node/network stalls. The full liveness check has its own 5s deadline.
+    livenessProbe:
+      timeoutSeconds: 10
+      failureThreshold: 6
 
   redis:
     resources:
