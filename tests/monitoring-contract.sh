@@ -60,6 +60,9 @@ for file in contactpoints policies rules storage-rules templates; do
 done
 grep -Fq 'grafana_alert: "1"' "$root/platform/monitoring/templates/grafana-alerting.yaml"
 ! grep -Fq 'http://hermes-argus:8644' "$root/platform/monitoring/files/alerting/contactpoints.yaml"
+for uid in argus-webhook-incidents argus-webhook-deploys; do
+  yq -e ".deleteContactPoints[] | select(.orgId == 1 and .uid == \"$uid\")" "$root/platform/monitoring/files/alerting/contactpoints.yaml" >/dev/null
+done
 container_expr=$(yq -r '.groups[].rules[] | select(.uid == "container-critical-down") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'and on() (max(up{instance="kepler",job="integrations/unix"}) == 1)' <<<"$container_expr"
 test "$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mismatch") | .for' "$root/platform/monitoring/files/alerting/rules.yaml")" = 15m

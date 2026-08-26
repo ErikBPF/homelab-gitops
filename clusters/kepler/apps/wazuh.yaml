@@ -8,5 +8,10 @@ spec:
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
-      jqPathExpressions: ['.spec.volumeClaimTemplates[]?.status']
+      jqPathExpressions:
+        - .spec.template.spec.serviceAccount
+        - .spec.volumeClaimTemplates[]?.apiVersion
+        - .spec.volumeClaimTemplates[]?.kind
+        - .spec.volumeClaimTemplates[]?.spec.volumeMode
+        - .spec.volumeClaimTemplates[]?.status
   syncPolicy: {syncOptions: [CreateNamespace=true, ServerSideApply=true, RespectIgnoreDifferences=true]}
