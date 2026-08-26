@@ -23,7 +23,7 @@ groups:
         condition: C
         for: 5m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.host }}: named Docker container telemetry is absent or stale — check Alloy/cAdvisor startup"
           runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#container-and-systemd-alerts
@@ -79,7 +79,7 @@ groups:
         condition: C
         for: 5m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.host }}/{{ $labels.name }}: critical container stopped, missing, or stale"
           runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#container-and-systemd-alerts
@@ -150,7 +150,7 @@ groups:
         condition: C
         for: 0m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.host }}/{{ $labels.name }}: >3 restarts in 15 min — crash-loop suspected"
         labels:
@@ -217,7 +217,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "tofu-state restic backup has not succeeded in >30h (or its liveness metric is absent) — check restic-backups-tofu-state.timer/.service on discovery"
         labels:
@@ -275,7 +275,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "OpenBao raft-snapshot backup has not succeeded in >30h (or its liveness metric is absent) — check restic-backups-vault.timer/.service on discovery"
         labels:
@@ -330,7 +330,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "OpenBao restore drill has not passed in >100d (or its liveness metric is absent) — run just openbao-restore-drill"
         labels:
@@ -388,7 +388,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "OpenBao off-site backup has not succeeded in >30h (or its liveness metric is absent) — check the off-site restic-backups-vault leg"
         labels:
@@ -441,7 +441,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Backblaze B2 tofu-state backup has not succeeded in >30h (or its metric is absent) — check restic-backups-tofu-state-b2 on discovery"
         labels:
@@ -494,7 +494,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Backblaze B2 OpenBao backup has not succeeded in >30h (or its metric is absent) — check restic-backups-vault-b2 on discovery"
         labels:
@@ -557,7 +557,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: no host metrics received for >10 min — Alloy stopped or host unreachable"
         labels:
@@ -623,7 +623,7 @@ groups:
         condition: C
         for: 2m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: host has stopped pushing metrics entirely — host down, network partition, or Alloy dead without recovery"
         labels:
@@ -676,7 +676,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: available memory < 5% of total — RAM pressure / OOM risk"
         labels:
@@ -732,7 +732,7 @@ groups:
         condition: C
         for: 0m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: kernel OOM killer fired in the last 10 min — a process was killed for memory exhaustion"
         labels:
@@ -794,7 +794,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }} {{ $labels.mountpoint }}: <20% free and trending to fill within 24h"
         labels:
@@ -854,7 +854,7 @@ groups:
         condition: C
         for: 30m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: 15-min load average exceeds 2x core count — sustained CPU queueing"
         labels:
@@ -913,7 +913,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: sustained swap in+out >500 pages/s for 15m — memory thrash, expect severe slowdown"
         labels:
@@ -974,7 +974,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }} {{ $labels.mountpoint }}: fewer than 5% inodes free — file creation will start failing"
         labels:
@@ -1029,7 +1029,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "AdGuard exporter has been unreachable for 5m — whole-LAN DNS may be unavailable"
         labels:
@@ -1060,7 +1060,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "cloudflared has been unreachable for 10m — public ingress may be unavailable"
         labels:
@@ -1091,7 +1091,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "LiteLLM has been unreachable for 10m — AI routing may be unavailable"
         labels:
@@ -1122,7 +1122,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Fewer than two Pangolin home sites are healthy — remote ingress redundancy is reduced"
         labels:
@@ -1164,7 +1164,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "voyager node_exporter scrape failing or absent for >10 min — offsite DR anchor unreachable (host down, tailnet, or exporter dead)"
         labels:
@@ -1217,7 +1217,7 @@ groups:
         condition: C
         for: 30m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "voyager / is below 15% free — append-only restic repos grow without pruning; run the prune window (docs/reference/voyager-offsite-maintenance.md) or backups start failing"
         labels:
@@ -1282,7 +1282,7 @@ groups:
         condition: C
         for: 1h
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "restic check of the voyager offsite repos has not succeeded in >9 days (or its liveness metric is absent) — check restic-check-voyager.timer/.service on discovery"
         labels:
@@ -1338,7 +1338,7 @@ groups:
         condition: C
         for: 1h
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "a Kepler compose restic backup has not succeeded in >30 hours (or any liveness metric is absent) — inspect the sync stack and Ofelia jobs"
         labels:
@@ -1405,7 +1405,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "OpenBao on discovery is sealed or unreachable — vault-agent renders and lab ESO are stale; run systemctl restart openbao-unseal on discovery (unseal key in sops)"
         labels:
@@ -1474,7 +1474,7 @@ groups:
         condition: C
         for: 10m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: systemd unit {{ $labels.name }} is failed — check `systemctl status {{ $labels.name }}` / `journalctl -u {{ $labels.name }}` on the host"
           runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#container-and-systemd-alerts
@@ -1537,7 +1537,7 @@ groups:
         for: 10m
         isPaused: false
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: {{ $labels.name }} is inactive for >10 min"
           event_class: security_control_inactive
@@ -1594,7 +1594,7 @@ groups:
         for: 10m
         isPaused: false
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.instance }}: Alloy failed or dropped journal entries ({{ $labels.reason }})"
           event_class: security_log_delivery_failure
@@ -1647,8 +1647,8 @@ groups:
 
   # Kubernetes workload health. Metrics arrive from the cluster Alloy through
   # remote_write, which has shown 5-15 minute lag during reconciliation. Keep
-  # these rules at 15m so controller churn does not page; datasource failures
-  # remain visible as evaluation errors rather than false workload incidents.
+  # these rules at 15m so controller churn does not page. Dedicated datasource
+  # health canaries below report query failures without false workload alerts.
   - orgId: 1
     name: kubernetes-health
     folder: Infra Alerts
@@ -1659,7 +1659,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "cluster {{ $labels.cluster }}: node {{ $labels.node }} has remained NotReady for 15m"
         labels:
@@ -1712,7 +1712,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} has remained in CrashLoopBackOff for 15m"
         labels:
@@ -1765,7 +1765,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} has remained Pending for 15m"
         labels:
@@ -1818,7 +1818,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.job_name }} reports a failed job for 15m"
         labels:
@@ -1871,7 +1871,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.deployment }} has unavailable replicas for 15m"
         labels:
@@ -1902,7 +1902,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.statefulset }} has unavailable replicas for 15m"
         labels:
@@ -1933,7 +1933,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} has remained at maximum replicas for 15m"
         labels:
@@ -1964,7 +1964,7 @@ groups:
         condition: C
         for: 15m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Argo CD application {{ $labels.name }} has remained unhealthy or out of sync for 15m"
         labels:
@@ -2000,7 +2000,7 @@ groups:
         condition: C
         for: 0s
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Alloy was OOMKilled in the last 15m"
         labels:
@@ -2031,7 +2031,7 @@ groups:
         condition: C
         for: 0s
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Alloy restarted in the last 15m"
         labels:
@@ -2062,7 +2062,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Alloy has not been ready for 5m"
         labels:
@@ -2093,7 +2093,7 @@ groups:
         condition: C
         for: 10m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Alloy remote-write backlog has grown by >10 samples/s for 10m"
         labels:
@@ -2124,7 +2124,7 @@ groups:
         condition: C
         for: 10m
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Alloy remote-write retries continued for 10m"
         labels:
@@ -2155,7 +2155,7 @@ groups:
         condition: C
         for: 5m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "Fewer than three etcd metrics targets have been up for 5m"
         labels:
@@ -2193,7 +2193,7 @@ groups:
         for: 5m
         isPaused: false
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.host }}: {{ $values.B.Value }} SSH authentication failures from {{ $labels.source_ip }} in five minutes"
           event_class: ssh_authentication_failure_burst
@@ -2227,7 +2227,7 @@ groups:
         for: 0s
         isPaused: false
         noDataState: OK
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "{{ $labels.host }}: {{ $labels.auth_method }} SSH login for {{ $labels.ssh_user }} from non-whitelisted source {{ $labels.source_ip }}{{ with $labels.fingerprint }} using {{ . }}{{ end }}"
           event_class: ssh_non_whitelisted_login
@@ -2254,3 +2254,72 @@ groups:
               expression: B
               datasource: {type: __expr__, uid: __expr__}
               conditions: [{evaluator: {type: gt, params: [0]}}]
+
+  # Ordinary rules keep their last state during backend interruptions. These two
+  # canaries preserve one actionable DatasourceError per backend without turning
+  # a single restart into one error instance per rule.
+  - orgId: 1
+    name: alert-datasource-health
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: datasource-prometheus-health
+        title: Prometheus alert datasource unavailable
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: "Grafana cannot evaluate Prometheus-backed alerts for 2m"
+        labels: {severity: critical}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: vector(0)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: datasource-loki-health
+        title: Loki alert datasource unavailable
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: "Grafana cannot evaluate Loki-backed security alerts for 2m"
+        labels: {severity: warning}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: loki
+            model:
+              refId: A
+              instant: true
+              queryType: instant
+              datasource: {type: loki, uid: loki}
+              expr: 'sum(count_over_time({source=~".+"}[1m]))'
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: lt, params: [0]}}]

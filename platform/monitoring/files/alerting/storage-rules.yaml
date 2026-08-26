@@ -11,7 +11,7 @@ groups:
         condition: C
         for: 15m
         noDataState: Alerting
-        execErrState: Error
+        execErrState: KeepLast
         annotations:
           summary: "discovery {{ $labels.mountpoint }}: less than 15% free"
         labels:

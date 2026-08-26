@@ -78,3 +78,20 @@ test "$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mism
 statefulset_expr=$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mismatch") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'kube_statefulset_status_replicas_ready' <<<"$statefulset_expr"
 grep -Fq 'kube_statefulset_replicas' <<<"$statefulset_expr"
+
+alert_files=(
+  "$root/platform/monitoring/files/alerting/rules.yaml"
+  "$root/platform/monitoring/files/alerting/buzz-rules.yaml"
+  "$root/platform/monitoring/files/alerting/recovery-rules.yaml"
+  "$root/platform/monitoring/files/alerting/storage-rules.yaml"
+)
+unexpected_error_rules=$(yq -r '.groups[].rules[] | select(.uid != "datasource-prometheus-health" and .uid != "datasource-loki-health" and .execErrState != "KeepLast") | .uid' "${alert_files[@]}")
+test -z "$unexpected_error_rules"
+for spec in datasource-prometheus-health:prometheus datasource-loki-health:loki; do
+  uid=${spec%%:*}
+  datasource=${spec#*:}
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .execErrState" "${alert_files[@]}")" = Error
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .for" "${alert_files[@]}")" = 2m
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .data[] | select(.refId == \"A\") | .datasourceUid" "${alert_files[@]}")" = "$datasource"
+done
+test "$(yq -r '.policies[0].group_by | join(",")' "$root/platform/monitoring/files/alerting/policies.yaml")" = grafana_folder,alertname,datasource_uid
