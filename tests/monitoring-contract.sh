@@ -20,7 +20,11 @@ test "$(yq -r "$federation | .metrics_path" "$root/platform/monitoring/values.ya
 test "$(yq -r "$federation | .honor_labels" "$root/platform/monitoring/values.yaml")" = true
 test "$(yq -r "$federation | .static_configs[0].targets[0]" "$root/platform/monitoring/values.yaml")" = 100.76.140.121:9090
 grep -Fq '{job="integrations/unix",instance="kepler"}' "$root/platform/monitoring/values.yaml"
+grep -Fq '{job="pangolin-newt",instance="kepler"}' "$root/platform/monitoring/values.yaml"
 grep -Fq '{job=~"adguard|buzz-relay|cloudflared|litellm|llamacpp|node-vanguard|node-voyager|nvidia-gpu|postgres-discovery|postgres-kepler"}' "$root/platform/monitoring/values.yaml"
+for component in prometheus grafana; do
+  test "$(yq -r ".kube-prometheus-stack.$component.ingress.tls[0].secretName" "$root/platform/monitoring/values.yaml")" = monitoring-ingress-tls
+done
 test "$(yq -r '.dependencies[0].version' "$root/platform/loki/Chart.yaml")" = 6.51.0
 test "$(yq -r '.loki.deploymentMode' "$root/platform/loki/values.yaml")" = SingleBinary
 test "$(yq -r '.loki.singleBinary.replicas' "$root/platform/loki/values.yaml")" = 1
@@ -59,6 +63,15 @@ for file in contactpoints policies rules storage-rules templates; do
   test -s "$root/platform/monitoring/files/alerting/$file.yaml"
 done
 grep -Fq 'grafana_alert: "1"' "$root/platform/monitoring/templates/grafana-alerting.yaml"
+render=$(mktemp)
+helm template monitoring "$root/platform/monitoring" >"$render"
+for kind in Issuer Certificate; do
+  yq -e "select(.kind == \"$kind\")" "$render" >/dev/null
+done
+test "$(yq -r 'select(.kind == "Certificate") | .spec.secretName' "$render")" = monitoring-ingress-tls
+rm -f "$render"
+test -x "$root/scripts/bootstrap-monitoring-dns01-token.sh"
+grep -Fq 'IFS= read -r api_token' "$root/scripts/bootstrap-monitoring-dns01-token.sh"
 ! grep -Fq 'http://hermes-argus:8644' "$root/platform/monitoring/files/alerting/contactpoints.yaml"
 for uid in argus-webhook-incidents argus-webhook-deploys; do
   yq -e ".deleteContactPoints[] | select(.orgId == 1 and .uid == \"$uid\")" "$root/platform/monitoring/files/alerting/contactpoints.yaml" >/dev/null

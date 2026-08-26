@@ -35,6 +35,9 @@ kube-prometheus-stack:
       ingressClassName: traefik
       hosts: [prometheus.homelab.pastelariadev.com]
       paths: [/]
+      tls:
+        - secretName: monitoring-ingress-tls
+          hosts: [prometheus.homelab.pastelariadev.com]
     prometheusSpec:
       image:
         sha: 1f0f50f06acaceb0f5670d2c8a658a599affe7b0d8e78b898c1035653849a702
@@ -49,6 +52,7 @@ kube-prometheus-stack:
             "match[]":
               - '{job=~"adguard|buzz-relay|cloudflared|litellm|llamacpp|node-vanguard|node-voyager|nvidia-gpu|postgres-discovery|postgres-kepler"}'
               - '{job="integrations/unix",instance="kepler"}'
+              - '{job="pangolin-newt",instance="kepler"}'
               - '{job="podman",host="kepler"}'
           static_configs:
             - targets: [100.76.140.121:9090]
@@ -112,6 +116,9 @@ kube-prometheus-stack:
       enabled: true
       ingressClassName: traefik
       hosts: [grafana.homelab.pastelariadev.com]
+      tls:
+        - secretName: monitoring-ingress-tls
+          hosts: [grafana.homelab.pastelariadev.com]
     additionalDataSources:
       - name: Loki
         type: loki
