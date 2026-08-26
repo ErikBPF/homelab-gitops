@@ -17,17 +17,6 @@ contactPoints:
           message: '{{ template "homelab.discord.message" . }}'
           use_discord_username: false
         disableResolveMessage: false
-      # Grafana's body-only HMAC matches Hermes' generic V1 signature. Do not
-      # add timestampHeader: Grafana and Hermes use incompatible separators.
-      - uid: argus-webhook-incidents
-        type: webhook
-        settings:
-          url: http://hermes-argus:8644/webhooks/grafana-alerts
-          httpMethod: POST
-          hmacConfig:
-            secret: $__env{WEBHOOK_GRAFANA_ALERTS_SECRET}
-            header: X-Webhook-Signature
-        disableResolveMessage: true
 
   # Lower-priority channel for info-level notifications (fleet observability RFC
   # fork C: two-channel severity split). Sourced from DISCORD_WEBHOOK_DEPLOYS in
@@ -45,12 +34,3 @@ contactPoints:
           message: '{{ template "homelab.discord.message" . }}'
           use_discord_username: false
         disableResolveMessage: false
-      - uid: argus-webhook-deploys
-        type: webhook
-        settings:
-          url: http://hermes-argus:8644/webhooks/grafana-alerts
-          httpMethod: POST
-          hmacConfig:
-            secret: $__env{WEBHOOK_GRAFANA_ALERTS_SECRET}
-            header: X-Webhook-Signature
-        disableResolveMessage: true
