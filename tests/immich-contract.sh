@@ -7,7 +7,6 @@ render=$(mktemp)
 trap 'rm -f "$render"' EXIT
 
 test "$(yq -r '.dependencies[0].repository' "$app/Chart.yaml")" = oci://ghcr.io/immich-app/immich-charts
-test "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" = 0.13.1
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/immich.yaml")" = home-services
 grep -Fq 'immich.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 

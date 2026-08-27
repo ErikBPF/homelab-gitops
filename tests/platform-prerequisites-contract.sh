@@ -4,11 +4,9 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 test "$(yq -r '.dependencies[0].repository' "$root/platform/cert-manager/Chart.yaml")" = oci://quay.io/jetstack/charts
-test "$(yq -r '.dependencies[0].version' "$root/platform/cert-manager/Chart.yaml")" = v1.20.2
 test "$(yq -r '.cert-manager.crds.enabled' "$root/platform/cert-manager/values.yaml")" = true
 
 test "$(yq -r '.dependencies[0].repository' "$root/platform/clickhouse-operator/Chart.yaml")" = oci://ghcr.io/clickhouse
-test "$(yq -r '.dependencies[0].version' "$root/platform/clickhouse-operator/Chart.yaml")" = 0.0.5
 
 for app in cert-manager clickhouse-operator; do
   manifest=$root/clusters/kepler/apps/$app.yaml

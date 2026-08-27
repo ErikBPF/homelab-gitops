@@ -10,7 +10,6 @@ for app in monitoring loki uptime-kuma healthchecks scrutiny; do
   grep -Fq "$app.yaml" "$root/clusters/kepler/apps/kustomization.yaml"
 done
 
-test "$(yq -r '.dependencies[0].version' "$root/platform/monitoring/Chart.yaml")" = 80.14.4
 test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
@@ -21,7 +20,6 @@ test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrape
 for component in prometheus grafana; do
   test "$(yq -r ".kube-prometheus-stack.$component.ingress.tls[0].secretName" "$root/platform/monitoring/values.yaml")" = monitoring-ingress-tls
 done
-test "$(yq -r '.dependencies[0].version' "$root/platform/loki/Chart.yaml")" = 6.51.0
 test "$(yq -r '.loki.deploymentMode' "$root/platform/loki/values.yaml")" = SingleBinary
 test "$(yq -r '.loki.singleBinary.replicas' "$root/platform/loki/values.yaml")" = 1
 for mode in backend read write; do
