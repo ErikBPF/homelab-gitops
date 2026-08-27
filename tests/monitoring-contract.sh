@@ -10,22 +10,16 @@ for app in monitoring loki uptime-kuma healthchecks scrutiny; do
   grep -Fq "$app.yaml" "$root/clusters/kepler/apps/kustomization.yaml"
 done
 
-test "$(yq -r '.dependencies[0].version' "$root/platform/monitoring/Chart.yaml")" = 80.14.4
 test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.cpu' "$root/platform/monitoring/values.yaml")" = 100m
-federation='.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs[] | select(.job_name == "legacy-monitoring-federation")'
-test "$(yq -r "$federation | .metrics_path" "$root/platform/monitoring/values.yaml")" = /federate
-test "$(yq -r "$federation | .honor_labels" "$root/platform/monitoring/values.yaml")" = true
-test "$(yq -r "$federation | .static_configs[0].targets[0]" "$root/platform/monitoring/values.yaml")" = 100.76.140.121:9090
-grep -Fq '{job="integrations/unix",instance="kepler"}' "$root/platform/monitoring/values.yaml"
-grep -Fq '{job="pangolin-newt",instance="kepler"}' "$root/platform/monitoring/values.yaml"
-grep -Fq '{job=~"adguard|buzz-relay|cloudflared|litellm|llamacpp|node-vanguard|node-voyager|nvidia-gpu|postgres-discovery|postgres-kepler"}' "$root/platform/monitoring/values.yaml"
+! grep -Fq 'legacy-monitoring-federation' "$root/platform/monitoring/values.yaml"
+test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs // "absent"' "$root/platform/monitoring/values.yaml")" = absent
+! grep -Fq 'wazuh_unifi_last_event_seconds' "$root/platform/monitoring/files/alerting/rules.yaml"
 for component in prometheus grafana; do
   test "$(yq -r ".kube-prometheus-stack.$component.ingress.tls[0].secretName" "$root/platform/monitoring/values.yaml")" = monitoring-ingress-tls
 done
-test "$(yq -r '.dependencies[0].version' "$root/platform/loki/Chart.yaml")" = 6.51.0
 test "$(yq -r '.loki.deploymentMode' "$root/platform/loki/values.yaml")" = SingleBinary
 test "$(yq -r '.loki.singleBinary.replicas' "$root/platform/loki/values.yaml")" = 1
 for mode in backend read write; do
@@ -82,3 +76,20 @@ test "$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mism
 statefulset_expr=$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mismatch") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'kube_statefulset_status_replicas_ready' <<<"$statefulset_expr"
 grep -Fq 'kube_statefulset_replicas' <<<"$statefulset_expr"
+
+alert_files=(
+  "$root/platform/monitoring/files/alerting/rules.yaml"
+  "$root/platform/monitoring/files/alerting/buzz-rules.yaml"
+  "$root/platform/monitoring/files/alerting/recovery-rules.yaml"
+  "$root/platform/monitoring/files/alerting/storage-rules.yaml"
+)
+unexpected_error_rules=$(yq -r '.groups[].rules[] | select(.uid != "datasource-prometheus-health" and .uid != "datasource-loki-health" and .execErrState != "KeepLast") | .uid' "${alert_files[@]}")
+test -z "$unexpected_error_rules"
+for spec in datasource-prometheus-health:prometheus datasource-loki-health:loki; do
+  uid=${spec%%:*}
+  datasource=${spec#*:}
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .execErrState" "${alert_files[@]}")" = Error
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .for" "${alert_files[@]}")" = 2m
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .data[] | select(.refId == \"A\") | .datasourceUid" "${alert_files[@]}")" = "$datasource"
+done
+test "$(yq -r '.policies[0].group_by | join(",")' "$root/platform/monitoring/files/alerting/policies.yaml")" = grafana_folder,alertname,datasource_uid
