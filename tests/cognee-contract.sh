@@ -12,7 +12,7 @@ test -f "$application"
 test -f "$image_dir/Dockerfile"
 test -f "$image_dir/sitecustomize.py"
 test -f "$image_workflow"
-grep -Fq 'tests/cognee-contract.sh' "$validate_workflow"
+grep -Fq 'scripts/validate.sh' "$validate_workflow"
 
 grep -Fq 'cognee/cognee:1.4.2@sha256:680cd87732430cf5e52b1ff58ae7ec2ed6ed71a9a32a9e77b8a0627f425cc4c3' "$image_dir/Dockerfile"
 grep -Fq 'cognee_community_hybrid_adapter_falkor-0.4.0-py3-none-any.whl#sha256=99324b2ea8373968053b2d33e82c10730e2d480205e51938b0f97bd222e6c62b' "$image_dir/Dockerfile"
