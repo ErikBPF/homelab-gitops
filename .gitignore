@@ -9,3 +9,4 @@ Chart.lock
 *.swp
 result
 result-*
+/worktrees/
