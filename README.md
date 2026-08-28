@@ -54,7 +54,7 @@ just sync "$SHA" root
 for app in argocd csi-driver-nfs traefik external-secrets cert-manager clickhouse-operator \
   kube-state-metrics keda jaeger alloy-metrics otel-collector monitoring loki \
   uptime-kuma healthchecks scrutiny wazuh trace-demo demo airflow langfuse \
-  changedetection karakeep immich; do
+  changedetection karakeep immich cognee; do
   just sync "$SHA" "$app"
 done
 ```
@@ -79,14 +79,14 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
 ## Current applications
 
-The root app manages 24 child applications (25 Argo Applications including
+The root app manages 25 child applications (26 Argo Applications including
 `root`):
 
 - `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`, `cert-manager`,
   `clickhouse-operator`, `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`,
   `otel-collector`, `monitoring`, `loki`, `uptime-kuma`, `healthchecks`,
   `scrutiny`, `wazuh`, `trace-demo`, `demo`, `airflow`, `langfuse`,
-  `changedetection`, `karakeep`, and `immich`.
+  `changedetection`, `karakeep`, `immich`, and the `cognee` graph+RAG experiment.
 - Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.
 - ESO reads runtime secrets from OpenBao@Discovery through a dedicated AppRole.
 - Harbor is intentionally **not** an Argo application. It moved to Discovery
@@ -117,6 +117,8 @@ above.
 - **Branch protection / review gate:** every Argo application is manual while
   `main` is unprotected. Sync root and children at the reviewed commit as shown
   above. Restore auto-sync only after branch protection is enabled.
+- **Cognee is blocked before first sync.** Publish/sign and digest-pin its image,
+  then apply the reviewed `homelab-iac` key and OpenBao handoff first.
 - **Telemetry stays in cluster.** `alloy-metrics` writes to the monitoring
   namespace Prometheus receiver and cluster log collectors write to Loki's
   service address. Discovery remains only the household ingress and OpenBao

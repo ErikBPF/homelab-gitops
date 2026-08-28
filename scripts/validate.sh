@@ -40,6 +40,7 @@ for contract in \
   tests/runtime-secret-bootstrap.sh \
   tests/grafana-admin-rotation.sh \
   tests/airflow-contract.sh \
+  tests/cognee-contract.sh \
   tests/alloy-resilience.sh \
   tests/core-scheduling.sh \
   tests/demo-keda-ownership.sh \

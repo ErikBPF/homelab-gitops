@@ -1,0 +1,361 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cognee
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cognee-runtime
+  namespace: cognee
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: vault-discovery, kind: ClusterSecretStore }
+  target: { name: cognee-runtime, creationPolicy: Owner, deletionPolicy: Retain }
+  data:
+    - secretKey: POSTGRES_PASSWORD
+      remoteRef: { key: lab/cognee, property: POSTGRES_PASSWORD }
+    - secretKey: LLM_API_KEY
+      remoteRef: { key: lab/cognee-litellm, property: LLM_API_KEY }
+    - secretKey: FASTAPI_USERS_JWT_SECRET
+      remoteRef: { key: lab/cognee, property: FASTAPI_USERS_JWT_SECRET }
+    - secretKey: FASTAPI_USERS_VERIFICATION_TOKEN_SECRET
+      remoteRef: { key: lab/cognee, property: FASTAPI_USERS_VERIFICATION_TOKEN_SECRET }
+    - secretKey: FASTAPI_USERS_RESET_PASSWORD_TOKEN_SECRET
+      remoteRef: { key: lab/cognee, property: FASTAPI_USERS_RESET_PASSWORD_TOKEN_SECRET }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cognee
+  namespace: cognee
+data:
+  HOME: /var/lib/cognee/home
+  ENV: production
+  DEBUG: "false"
+  LOG_LEVEL: INFO
+  CORS_ALLOWED_ORIGINS: https://cognee.k8s.pastelariadev.com
+  DB_PROVIDER: postgres
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: cognee
+  DB_USERNAME: cognee
+  POOL_ARGS: '{"pool_size":5,"max_overflow":5,"pool_pre_ping":true}'
+  VECTOR_DB_PROVIDER: falkor
+  VECTOR_DB_URL: falkordb
+  VECTOR_DB_PORT: "6379"
+  VECTOR_DATASET_DATABASE_HANDLER: falkor_vector_local
+  GRAPH_DATABASE_PROVIDER: falkor
+  GRAPH_DATABASE_URL: falkordb
+  GRAPH_DATABASE_PORT: "6379"
+  GRAPH_DATASET_DATABASE_HANDLER: falkor_graph_local
+  DATA_ROOT_DIRECTORY: /var/lib/cognee/data
+  SYSTEM_ROOT_DIRECTORY: /var/lib/cognee/system
+  CACHE_ROOT_DIRECTORY: /var/lib/cognee/cache
+  CACHING: "true"
+  CACHE_BACKEND: postgres
+  AUTO_FEEDBACK: "false"
+  SESSION_SEARCH_MODE: concurrent
+  DATABASE_MAX_LRU_CACHE_SIZE: "4"
+  DATASET_QUEUE_ENABLED: "true"
+  DATASET_QUEUE_MAX_CONCURRENT: "1"
+  LLM_PROVIDER: openai
+  LLM_MODEL: openai/qwen-chat
+  LLM_ENDPOINT: https://litellm.homelab.pastelariadev.com/v1
+  LLM_MAX_COMPLETION_TOKENS: "8192"
+  LLM_TEMPERATURE: "0.0"
+  LLM_RATE_LIMIT_ENABLED: "true"
+  LLM_RATE_LIMIT_REQUESTS: "30"
+  LLM_RATE_LIMIT_INTERVAL: "60"
+  AUTO_RATE_LIMIT: "true"
+  EMBEDDING_PROVIDER: openai
+  EMBEDDING_MODEL: openai/bge-m3
+  EMBEDDING_ENDPOINT: https://litellm.homelab.pastelariadev.com/v1
+  EMBEDDING_DIMENSIONS: "1024"
+  EMBEDDING_MAX_COMPLETION_TOKENS: "8192"
+  EMBEDDING_BATCH_SIZE: "16"
+  EMBEDDING_MAX_CONCURRENT_DATA_POINTS: "32"
+  HUGGINGFACE_TOKENIZER: BAAI/bge-m3
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  TELEMETRY_DISABLED: "true"
+  ENABLE_AUTO_MIGRATIONS: "true"
+  ENABLE_BACKEND_ACCESS_CONTROL: "true"
+  REQUIRE_AUTHENTICATION: "true"
+  HASH_API_KEY: "true"
+  ACCEPT_LOCAL_FILE_PATH: "false"
+  ALLOW_HTTP_REQUESTS: "false"
+  ALLOW_CYPHER_QUERY: "false"
+  RAISE_INCREMENTAL_LOADING_ERRORS: "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: cognee
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-fast
+  resources: { requests: { storage: 20Gi } }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: cognee
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+          env:
+            - { name: POSTGRES_DB, value: cognee }
+            - { name: POSTGRES_USER, value: cognee }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: cognee-runtime, key: POSTGRES_PASSWORD } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports: [{ name: postgres, containerPort: 5432 }]
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 2Gi }
+          readinessProbe:
+            exec: { command: [pg_isready, -U, cognee, -d, cognee] }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: [pg_isready, -U, cognee, -d, cognee] }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: postgres-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: cognee
+spec:
+  selector: { app: postgres }
+  ports: [{ name: postgres, port: 5432, targetPort: postgres }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: falkordb-data
+  namespace: cognee
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-fast
+  resources: { requests: { storage: 20Gi } }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: falkordb
+  namespace: cognee
+spec:
+  serviceName: falkordb
+  replicas: 1
+  selector: { matchLabels: { app: falkordb } }
+  template:
+    metadata: { labels: { app: falkordb } }
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: falkordb
+          image: falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36
+          env:
+            - { name: BROWSER, value: "0" }
+            - name: REDIS_ARGS
+              value: --appendonly yes --appendfsync everysec --save 900 1 --save 300 10
+          ports: [{ name: redis, containerPort: 6379 }]
+          volumeMounts: [{ name: data, mountPath: /var/lib/falkordb/data }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "2", memory: 4Gi }
+          readinessProbe:
+            exec: { command: [redis-cli, ping] }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: [redis-cli, ping] }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: falkordb-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: falkordb
+  namespace: cognee
+spec:
+  selector: { app: falkordb }
+  ports: [{ name: redis, port: 6379, targetPort: redis }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cognee-data
+  namespace: cognee
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-fast
+  resources: { requests: { storage: 20Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cognee
+  namespace: cognee
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: cognee } }
+  template:
+    metadata: { labels: { app: cognee } }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: cognee
+          # Publish with .github/workflows/cognee-image.yml, then add its digest before sync.
+          image: ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0
+          envFrom:
+            - configMapRef: { name: cognee }
+            - secretRef: { name: cognee-runtime }
+          env:
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: cognee-runtime, key: POSTGRES_PASSWORD } }
+            - name: EMBEDDING_API_KEY
+              valueFrom: { secretKeyRef: { name: cognee-runtime, key: LLM_API_KEY } }
+          ports: [{ name: http, containerPort: 8000 }]
+          volumeMounts: [{ name: data, mountPath: /var/lib/cognee }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { cpu: "2", memory: 4Gi }
+          startupProbe:
+            httpGet: { path: /health, port: http }
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: cognee-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cognee
+  namespace: cognee
+spec:
+  selector: { app: cognee }
+  ports: [{ name: http, port: 80, targetPort: http }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cognee
+  namespace: cognee
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: cognee.k8s.pastelariadev.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: cognee, port: { number: 80 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: cognee }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: cognee, namespace: cognee }
+spec:
+  podSelector: { matchLabels: { app: cognee } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: traefik }
+      ports: [{ protocol: TCP, port: 8000 }]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector: { matchLabels: { app: postgres } }
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+        - podSelector: { matchLabels: { app: falkordb } }
+      ports: [{ protocol: TCP, port: 6379 }]
+    - to:
+        - ipBlock: { cidr: 192.168.10.210/32 }
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: postgres, namespace: cognee }
+spec:
+  podSelector: { matchLabels: { app: postgres } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: cognee } }
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: falkordb, namespace: cognee }
+spec:
+  podSelector: { matchLabels: { app: falkordb } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: cognee } }
+      ports: [{ protocol: TCP, port: 6379 }]
