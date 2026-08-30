@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+refute() {
+  if "$@"; then
+    return 1
+  fi
+}
+
 manifest=apps/cognee/resources.yaml
-application=clusters/kepler/apps/cognee.yaml
 image_dir=apps/cognee/image
 image_workflow=.github/workflows/cognee-image.yml
 validate_workflow=.github/workflows/validate.yml
 
 test -f "$manifest"
-test -f "$application"
+test ! -e clusters/kepler/apps/cognee.yaml
+refute grep -Fq 'cognee.yaml' clusters/kepler/apps/kustomization.yaml
 test -f "$image_dir/Dockerfile"
 test -f "$image_dir/sitecustomize.py"
 test -f "$image_workflow"
@@ -65,13 +71,9 @@ grep -Fq 'matchLabels: { kubernetes.io/metadata.name: traefik }' "$manifest"
 grep -Fq 'cidr: 192.168.10.210/32' "$manifest"
 grep -Fq 'value: --appendonly yes --appendfsync everysec' "$manifest"
 grep -Fq 'command: [redis-cli, ping]' "$manifest"
-! grep -Fq 'matchLabel:' "$manifest"
-! grep -Fq 'cidr: 0.0.0.0/0' "$manifest"
-! grep -Fq 'deepseek-v4-flash' "$manifest"
-! grep -Fq 'GRAPH_DATABASE_PROVIDER: kuzu' "$manifest"
-! grep -Fq 'pip install' "$manifest"
-! grep -Eqi '(password|api.key|jwt.secret):[[:space:]]+[^{$]' "$manifest"
-
-grep -Fq 'path: apps/cognee' "$application"
-grep -Fq 'namespace: cognee' "$application"
-! grep -Eq '^\s+automated:' "$application"
+refute grep -Fq 'matchLabel:' "$manifest"
+refute grep -Fq 'cidr: 0.0.0.0/0' "$manifest"
+refute grep -Fq 'deepseek-v4-flash' "$manifest"
+refute grep -Fq 'GRAPH_DATABASE_PROVIDER: kuzu' "$manifest"
+refute grep -Fq 'pip install' "$manifest"
+refute grep -Eqi '^[[:space:]]*(POSTGRES_PASSWORD|LLM_API_KEY|FASTAPI_USERS_(JWT|VERIFICATION_TOKEN|RESET_PASSWORD_TOKEN)_SECRET):[[:space:]]+[^{$]' "$manifest"
