@@ -36,6 +36,10 @@ retire-vcluster-pastelariadev:
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide
 
+# Value-free active Grafana inventory. Fails if Kubernetes or Grafana is unavailable.
+grafana-alert-status:
+    scripts/grafana-alert-status.sh
+
 # One-time migration: copy current Helm runtime values into Vault without output.
 # Reads an OpenBao operator token from stdin.
 capture-airflow-runtime-to-vault:

@@ -17,6 +17,13 @@ test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.resources.reques
 ! grep -Fq 'legacy-monitoring-federation' "$root/platform/monitoring/values.yaml"
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs // "absent"' "$root/platform/monitoring/values.yaml")" = absent
 ! grep -Fq 'wazuh_unifi_last_event_seconds' "$root/platform/monitoring/files/alerting/rules.yaml"
+yq -e '.deleteRules[] | select(.orgId == 1 and .uid == "security-control-unifi-siem-silent")' "$root/platform/monitoring/files/alerting/rules.yaml" >/dev/null
+if yq -r '.groups[].rules[] | select(.labels.category == "security") | .annotations.summary' \
+  "$root/platform/monitoring/files/alerting/rules.yaml" | \
+  grep -Eq '\$labels\.(source_ip|ssh_user|auth_method|fingerprint)|\$values\.'; then
+  echo "security alert summaries expose event values" >&2
+  exit 1
+fi
 for component in prometheus grafana; do
   test "$(yq -r ".kube-prometheus-stack.$component.ingress.tls[0].secretName" "$root/platform/monitoring/values.yaml")" = monitoring-ingress-tls
 done

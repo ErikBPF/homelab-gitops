@@ -1,14 +1,15 @@
 apiVersion: 1
 
 # Tombstone: removing a rule from `groups` does NOT delete it from Grafana's DB
-# (file-provisioned alerting is not pruned on reload). disk-fill-24h
-# (discovery-only) is retired in favour of host-disk-fill-fleet, which covers the
-# same mounts plus kepler's pools.
+# (file-provisioned alerting is not pruned on reload). Retired rules stay listed
+# here so a restored Grafana database converges to the same source state.
 deleteRules:
   - orgId: 1
     uid: disk-fill-24h
   - orgId: 1
     uid: netbird-relay-scrape-down
+  - orgId: 1
+    uid: security-control-unifi-siem-silent
 
 groups:
   # Compose container health. Discovery exports Docker metrics through cAdvisor;
@@ -2195,7 +2196,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "{{ $labels.host }}: {{ $values.B.Value }} SSH authentication failures from {{ $labels.source_ip }} in five minutes"
+          summary: "{{ $labels.host }}: SSH authentication failure burst detected"
           event_class: ssh_authentication_failure_burst
           runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#ssh-security-monitoring
         labels: {severity: warning, category: security}
@@ -2229,7 +2230,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "{{ $labels.host }}: {{ $labels.auth_method }} SSH login for {{ $labels.ssh_user }} from non-whitelisted source {{ $labels.source_ip }}{{ with $labels.fingerprint }} using {{ . }}{{ end }}"
+          summary: "{{ $labels.host }}: SSH login from a non-whitelisted source detected"
           event_class: ssh_non_whitelisted_login
           runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#ssh-security-monitoring
         labels: {severity: warning, category: security}
