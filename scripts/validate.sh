@@ -4,6 +4,8 @@ set -euo pipefail
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 
+helm repo add authentik https://charts.goauthentik.io >/dev/null 2>&1 || true
+
 while IFS= read -r chart; do
   dir=$(dirname "$chart")
   helm dependency build "$dir" >/dev/null
@@ -31,6 +33,7 @@ for contract in \
   tests/resource-contract.sh \
   tests/platform-prerequisites-contract.sh \
   tests/lane-secretstore-contract.sh \
+  tests/authentik-contract.sh \
   tests/changedetection-contract.sh \
   tests/karakeep-contract.sh \
   tests/immich-contract.sh \

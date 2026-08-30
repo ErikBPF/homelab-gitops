@@ -10,6 +10,7 @@ spec:
     - ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
   destinations:
     - {server: https://kubernetes.default.svc, namespace: argocd}
+    - {server: https://kubernetes.default.svc, namespace: authentik}
     - {server: https://kubernetes.default.svc, namespace: cert-manager}
     - {server: https://kubernetes.default.svc, namespace: clickhouse-operator}
     - {server: https://kubernetes.default.svc, namespace: external-secrets}
@@ -62,6 +63,7 @@ spec:
     - {group: argoproj.io, kind: AppProject}
     - {group: rbac.authorization.k8s.io, kind: Role}
     - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+    - {group: traefik.io, kind: Middleware}
     - {group: traefik.io, kind: ServersTransport}
 ---
 apiVersion: argoproj.io/v1alpha1

@@ -4,6 +4,7 @@ resources:
   - projects.yaml
   - namespaces.yaml
   - argocd.yaml
+  - authentik.yaml
   - cert-manager.yaml
   - changedetection.yaml
   - external-secrets.yaml
