@@ -10,6 +10,7 @@ test "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" = 2026.5.6
 test "$(yq -r '.dependencies[0].repository' "$app/Chart.yaml")" = https://charts.goauthentik.io
 grep -Fq 'authentik.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/authentik.yaml")" = platform
+test "$(yq -r '.metadata.annotations."argocd.argoproj.io/compare-options"' "$root/clusters/kepler/apps/authentik.yaml")" = ServerSideDiff=true
 test "$(yq -r 'select(.kind == "Namespace" and .metadata.name == "authentik") | .metadata.name' "$root/clusters/kepler/apps/namespaces.yaml")" = authentik
 
 helm repo add authentik https://charts.goauthentik.io >/dev/null 2>&1 || true
