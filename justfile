@@ -32,6 +32,10 @@ sync revision app="root":
 retire-vcluster-pastelariadev:
     scripts/retire-vcluster-pastelariadev.sh
 
+# Failed P0 gate rollback: remove the unready Cognee canary and its empty resources.
+retire-cognee-canary:
+    scripts/retire-cognee-canary.sh
+
 # What Argo sees.
 status:
     kubectl --context {{ctx}} -n {{ns}} get applications -o wide

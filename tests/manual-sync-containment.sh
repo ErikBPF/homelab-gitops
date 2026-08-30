@@ -58,3 +58,7 @@ test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd
 
 PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-vcluster-pastelariadev.sh >/dev/null
 test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete vcluster-pastelariadev --core --cascade --yes"
+
+grep -Fq 'scripts/retire-cognee-canary.sh' justfile
+PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-cognee-canary.sh >/dev/null
+test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete cognee --core --cascade --yes"
