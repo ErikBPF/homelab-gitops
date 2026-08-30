@@ -30,6 +30,7 @@ spec:
         - name: postgres
           image: docker.io/library/postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
           env:
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
             - {name: POSTGRES_USER, value: authentik}
             - {name: POSTGRES_DB, value: authentik}
             - {name: POSTGRES_INITDB_ARGS, value: --data-checksums}
