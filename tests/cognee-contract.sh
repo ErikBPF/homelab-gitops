@@ -28,7 +28,7 @@ grep -Fq 'packages: write' "$image_workflow"
 grep -Fq 'cosign sign --yes' "$image_workflow"
 grep -Fq 'cosign verify --certificate-identity' "$image_workflow"
 grep -Fq 'Refuse mutable tag overwrite' "$image_workflow"
-grep -Fq 'ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0' "$manifest"
+grep -Fq 'ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0-batch1' "$manifest"
 grep -Fq 'pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
 grep -Fq 'falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
@@ -55,6 +55,7 @@ for setting in \
   'HOME: /var/lib/cognee/home' \
   'EMBEDDING_MODEL: openai/bge-m3' \
   'EMBEDDING_DIMENSIONS: "1024"' \
+  'EMBEDDING_BATCH_SIZE: "32"' \
   'HUGGINGFACE_TOKENIZER: BAAI/bge-m3' \
   'TELEMETRY_DISABLED: "true"' \
   'HF_HUB_OFFLINE: "1"'; do

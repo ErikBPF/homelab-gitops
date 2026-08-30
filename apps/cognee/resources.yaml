@@ -73,7 +73,7 @@ data:
   EMBEDDING_ENDPOINT: https://litellm.homelab.pastelariadev.com/v1
   EMBEDDING_DIMENSIONS: "1024"
   EMBEDDING_MAX_COMPLETION_TOKENS: "8192"
-  EMBEDDING_BATCH_SIZE: "16"
+  EMBEDDING_BATCH_SIZE: "32"
   EMBEDDING_MAX_CONCURRENT_DATA_POINTS: "32"
   HUGGINGFACE_TOKENIZER: BAAI/bge-m3
   HF_HUB_OFFLINE: "1"
@@ -247,7 +247,7 @@ spec:
       containers:
         - name: cognee
           # Publish with .github/workflows/cognee-image.yml, then add its digest before sync.
-          image: ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0
+          image: ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0-batch1
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }
