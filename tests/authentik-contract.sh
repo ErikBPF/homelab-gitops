@@ -54,5 +54,8 @@ for workload in authentik-server authentik-worker authentik-postgresql; do
 done
 
 test "$(yq -r '.authentik.postgresql.enabled' "$app/values.yaml")" = false
-grep -Fq 'name: authentik-bootstrap' "$app/values.yaml"
+if yq -e 'select(.kind == "Deployment") | .spec.template.spec.containers[0].envFrom[]? | select(.secretRef.name == "authentik-bootstrap")' "$render" >/dev/null 2>&1; then
+  echo 'Authentik still depends on its first-start bootstrap Secret' >&2
+  exit 1
+fi
 test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "authentik-postgresql") | .spec.template.spec.containers[0].env[] | select(.name == "PGDATA") | .value' "$render")" = /var/lib/postgresql/data/pgdata
