@@ -11,10 +11,5 @@ spec:
     targetRevision: main
     path: platform/authentik
   destination: {server: https://kubernetes.default.svc, namespace: authentik}
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      name: authentik-postgresql
-      jsonPointers: [/spec/volumeClaimTemplates/0/status]
   syncPolicy:
     syncOptions: [ServerSideApply=true]
