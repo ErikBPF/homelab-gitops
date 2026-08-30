@@ -27,4 +27,3 @@ resources:
   - wazuh.yaml
   - demo.yaml
   - airflow.yaml
-  - cognee.yaml
