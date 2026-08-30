@@ -50,3 +50,4 @@ done
 
 test "$(yq -r '.authentik.postgresql.enabled' "$app/values.yaml")" = false
 grep -Fq 'name: authentik-bootstrap' "$app/values.yaml"
+test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "authentik-postgresql") | .spec.template.spec.containers[0].env[] | select(.name == "PGDATA") | .value' "$render")" = /var/lib/postgresql/data/pgdata
