@@ -33,6 +33,7 @@ done
 
 test "$(yq -r 'select(.kind == "ExternalSecret") | .spec.secretStoreRef.name' "$render")" = vault-platform
 test "$(yq -r 'select(.kind == "ExternalSecret") | .spec.dataFrom[0].extract.key' "$render")" = platform/authentik
+test "$(yq -r 'select(.kind == "Deployment" and .metadata.name == "authentik-server") | .spec.template.spec.containers[0].env[] | select(.name == "AUTHENTIK_POSTGRESQL__HOST") | .value' "$render")" = authentik-postgresql
 test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = authentik.homelab.pastelariadev.com
 test "$(yq -r 'select(.kind == "Middleware") | .spec.ipAllowList.sourceRange | join(",")' "$render")" = 192.168.10.210/32,100.76.140.121/32
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
