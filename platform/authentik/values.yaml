@@ -5,6 +5,10 @@ authentik:
       digest: sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
     envFrom:
       - secretRef: {name: authentik-bootstrap}
+    env:
+      - {name: AUTHENTIK_POSTGRESQL__HOST, value: authentik-postgresql}
+      - {name: AUTHENTIK_POSTGRESQL__NAME, value: authentik}
+      - {name: AUTHENTIK_POSTGRESQL__USER, value: authentik}
     securityContext:
       runAsNonRoot: true
       runAsUser: 1000
@@ -14,10 +18,6 @@ authentik:
   authentik:
     existingSecret: {secretName: authentik-runtime}
     error_reporting: {enabled: false, send_pii: false}
-    postgresql:
-      host: authentik-postgresql
-      name: authentik
-      user: authentik
   server:
     replicas: 1
     automountServiceAccountToken: false
