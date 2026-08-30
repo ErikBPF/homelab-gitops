@@ -246,8 +246,8 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: cognee
-          # Publish with .github/workflows/cognee-image.yml, then add its digest before sync.
-          image: ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0-batch1
+          # Built and published by cognee-homelab; GitOps only selects the release tag.
+          image: harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch1
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }

@@ -15,20 +15,11 @@ validate_workflow=.github/workflows/validate.yml
 test -f "$manifest"
 test ! -e clusters/kepler/apps/cognee.yaml
 refute grep -Fq 'cognee.yaml' clusters/kepler/apps/kustomization.yaml
-test -f "$image_dir/Dockerfile"
-test -f "$image_dir/sitecustomize.py"
-test -f "$image_workflow"
+test ! -e "$image_dir"
+test ! -e "$image_workflow"
 grep -Fq 'scripts/validate.sh' "$validate_workflow"
 
-grep -Fq 'cognee/cognee:1.4.2@sha256:680cd87732430cf5e52b1ff58ae7ec2ed6ed71a9a32a9e77b8a0627f425cc4c3' "$image_dir/Dockerfile"
-grep -Fq 'cognee_community_hybrid_adapter_falkor-0.4.0-py3-none-any.whl#sha256=99324b2ea8373968053b2d33e82c10730e2d480205e51938b0f97bd222e6c62b' "$image_dir/Dockerfile"
-grep -Fq 'import cognee_community_hybrid_adapter_falkor.register' "$image_dir/sitecustomize.py"
-grep -Fq 'workflow_dispatch:' "$image_workflow"
-grep -Fq 'packages: write' "$image_workflow"
-grep -Fq 'cosign sign --yes' "$image_workflow"
-grep -Fq 'cosign verify --certificate-identity' "$image_workflow"
-grep -Fq 'Refuse mutable tag overwrite' "$image_workflow"
-grep -Fq 'ghcr.io/erikbpf/cognee-falkor:1.4.2-adapter0.4.0-batch1' "$manifest"
+grep -Fq 'harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch1' "$manifest"
 grep -Fq 'pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
 grep -Fq 'falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
