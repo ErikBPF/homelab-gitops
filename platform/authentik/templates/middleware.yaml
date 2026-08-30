@@ -1,8 +1,0 @@
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata: {name: authentik-swag-only}
-spec:
-  ipAllowList:
-    sourceRange:
-      - 192.168.10.210/32
-      - 100.76.140.121/32

@@ -35,7 +35,11 @@ test "$(yq -r 'select(.kind == "ExternalSecret") | .spec.secretStoreRef.name' "$
 test "$(yq -r 'select(.kind == "ExternalSecret") | .spec.dataFrom[0].extract.key' "$render")" = platform/authentik
 test "$(yq -r 'select(.kind == "Deployment" and .metadata.name == "authentik-server") | .spec.template.spec.containers[0].env[] | select(.name == "AUTHENTIK_POSTGRESQL__HOST") | .value' "$render")" = authentik-postgresql
 test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = authentik.homelab.pastelariadev.com
-test "$(yq -r 'select(.kind == "Middleware") | .spec.ipAllowList.sourceRange | join(",")' "$render")" = 192.168.10.210/32,100.76.140.121/32
+if yq -e 'select(.kind == "Middleware")' "$render" >/dev/null 2>&1; then
+  echo 'Authentik rendered a source-IP middleware behind a source-hiding L4 proxy' >&2
+  exit 1
+fi
+! yq -e 'select(.kind == "Ingress") | .metadata.annotations."traefik.ingress.kubernetes.io/router.middlewares"' "$render" >/dev/null 2>&1
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "authentik-server-ingress") | .spec.podSelector.matchLabels."app.kubernetes.io/component"' "$render")" = server
 test "$(yq -r 'select(.kind == "ServiceMonitor") | .metadata.name' "$render" | grep -v '^---$' | sort -u)" = $'authentik-server\nauthentik-worker'

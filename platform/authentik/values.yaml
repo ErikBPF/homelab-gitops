@@ -35,8 +35,6 @@ authentik:
     ingress:
       enabled: true
       ingressClassName: traefik
-      annotations:
-        traefik.ingress.kubernetes.io/router.middlewares: authentik-authentik-swag-only@kubernetescrd
       hosts: [authentik.homelab.pastelariadev.com]
   worker:
     replicas: 1
