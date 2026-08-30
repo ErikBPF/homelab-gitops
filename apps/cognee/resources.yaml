@@ -24,6 +24,24 @@ spec:
     - secretKey: FASTAPI_USERS_RESET_PASSWORD_TOKEN_SECRET
       remoteRef: { key: lab/cognee, property: FASTAPI_USERS_RESET_PASSWORD_TOKEN_SECRET }
 ---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cognee-harbor
+  namespace: cognee
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: vault-discovery, kind: ClusterSecretStore }
+  target:
+    name: cognee-harbor
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    template: { type: kubernetes.io/dockerconfigjson }
+  data:
+    # ponytail: reuse the library robot for this canary; provision pull-only if retained.
+    - secretKey: .dockerconfigjson
+      remoteRef: { key: lab/cognee, property: HARBOR_DOCKERCONFIGJSON }
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -62,7 +80,9 @@ data:
   LLM_PROVIDER: openai
   LLM_MODEL: openai/qwen-chat
   LLM_ENDPOINT: https://litellm.homelab.pastelariadev.com/v1
-  LLM_MAX_COMPLETION_TOKENS: "8192"
+  LLM_MAX_COMPLETION_TOKENS: "4096"
+  LLM_ARGS: '{"max_tokens":4096,"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}}'
+  LLM_INSTRUCTOR_MODE: json_mode
   LLM_TEMPERATURE: "0.0"
   LLM_RATE_LIMIT_ENABLED: "true"
   LLM_RATE_LIMIT_REQUESTS: "30"
@@ -238,6 +258,7 @@ spec:
   template:
     metadata: { labels: { app: cognee } }
     spec:
+      imagePullSecrets: [{ name: cognee-harbor }]
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -247,7 +268,7 @@ spec:
       containers:
         - name: cognee
           # Built and published by cognee-homelab; GitOps only selects the release tag.
-          image: harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch1
+          image: harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch2
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }

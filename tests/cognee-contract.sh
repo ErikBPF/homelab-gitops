@@ -19,7 +19,7 @@ test ! -e "$image_dir"
 test ! -e "$image_workflow"
 grep -Fq 'scripts/validate.sh' "$validate_workflow"
 
-grep -Fq 'harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch1' "$manifest"
+grep -Fq 'harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch2' "$manifest"
 grep -Fq 'pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
 grep -Fq 'falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
@@ -42,6 +42,8 @@ for setting in \
   'AUTO_FEEDBACK: "false"' \
   'DATASET_QUEUE_MAX_CONCURRENT: "1"' \
   'LLM_MODEL: openai/qwen-chat' \
+  'LLM_MAX_COMPLETION_TOKENS: "4096"' \
+  'LLM_INSTRUCTOR_MODE: json_mode' \
   'LLM_RATE_LIMIT_REQUESTS: "30"' \
   'HOME: /var/lib/cognee/home' \
   'EMBEDDING_MODEL: openai/bge-m3' \
@@ -53,7 +55,13 @@ for setting in \
   grep -Fq "$setting" "$manifest"
 done
 
+grep -Fq 'LLM_ARGS: '\''{"max_tokens":4096,"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}}'\''' "$manifest"
+
 grep -Fq 'key: lab/cognee' "$manifest"
+grep -Fq 'name: cognee-harbor' "$manifest"
+grep -Fq 'type: kubernetes.io/dockerconfigjson' "$manifest"
+grep -Fq 'property: HARBOR_DOCKERCONFIGJSON' "$manifest"
+grep -Fq 'imagePullSecrets: [{ name: cognee-harbor }]' "$manifest"
 grep -Fq 'host: cognee.k8s.pastelariadev.com' "$manifest"
 grep -Fq 'readinessProbe:' "$manifest"
 grep -Fq 'startupProbe:' "$manifest"
