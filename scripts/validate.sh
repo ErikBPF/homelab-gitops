@@ -36,6 +36,7 @@ for contract in \
   tests/immich-contract.sh \
   tests/langfuse-contract.sh \
   tests/monitoring-contract.sh \
+  tests/grafana-alert-status.sh \
   tests/wazuh-contract.sh \
   tests/runtime-secret-bootstrap.sh \
   tests/grafana-admin-rotation.sh \
