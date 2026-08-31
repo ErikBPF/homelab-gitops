@@ -15,6 +15,7 @@ validate_workflow=.github/workflows/validate.yml
 
 test -f "$manifest"
 test -f "$application"
+refute grep -Fq 'kind: Namespace' "$manifest"
 grep -Fq 'cognee.yaml' clusters/kepler/apps/kustomization.yaml
 test ! -e "$image_dir"
 test ! -e "$image_workflow"
