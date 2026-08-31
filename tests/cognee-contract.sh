@@ -92,6 +92,13 @@ done
 grep -Fq 'bootstrap-cognee-runtime:' justfile
 grep -Fq 'cognee-backup:' justfile
 grep -Fq 'cognee-restore-drill' justfile
+grep -Fq 'pg_isready -h 127.0.0.1' scripts/cognee-restore-drill.sh
+grep -Fq 'pg_restore -h 127.0.0.1 -U restore -d restore --no-owner' scripts/cognee-restore-drill.sh
+grep -Fq 'psql -h 127.0.0.1' scripts/cognee-restore-drill.sh
+grep -Fq -- '--loadmodule /var/lib/falkordb/bin/falkordb.so' scripts/cognee-restore-drill.sh
+grep -Fq 'for _ in $(seq 1 30)' scripts/cognee-restore-drill.sh
+grep -Fq 'cat /tmp/redis.log >&2' scripts/cognee-restore-drill.sh
+refute grep -Fq -- '--daemonize yes' scripts/cognee-restore-drill.sh
 
 rules=platform/monitoring/files/alerting/rules.yaml
 for uid in cognee-api-unavailable cognee-pvc-high cognee-backup-stale; do

@@ -19,10 +19,17 @@ cleanup
 kubectl --context "$context" -n "$namespace" run cognee-restore-postgres --restart=Never --image="$pg_image" \
   --env=POSTGRES_PASSWORD=restore-only --env=POSTGRES_DB=restore --env=POSTGRES_USER=restore >/dev/null
 kubectl --context "$context" -n "$namespace" wait --for=condition=Ready pod/cognee-restore-postgres --timeout=2m >/dev/null
-kubectl --context "$context" -n "$namespace" exec -i cognee-restore-postgres -- \
-  pg_restore -U restore -d restore --clean --if-exists <"$backup/postgres.dump"
+for _ in $(seq 1 60); do
+  kubectl --context "$context" -n "$namespace" exec cognee-restore-postgres -- \
+    pg_isready -h 127.0.0.1 -U restore -d restore >/dev/null 2>&1 && break
+  sleep 2
+done
 kubectl --context "$context" -n "$namespace" exec cognee-restore-postgres -- \
-  psql -U restore -d restore -Atc 'select count(*) from information_schema.tables' >/dev/null
+  pg_isready -h 127.0.0.1 -U restore -d restore >/dev/null
+kubectl --context "$context" -n "$namespace" exec -i cognee-restore-postgres -- \
+  pg_restore -h 127.0.0.1 -U restore -d restore --no-owner --clean --if-exists <"$backup/postgres.dump"
+kubectl --context "$context" -n "$namespace" exec cognee-restore-postgres -- \
+  psql -h 127.0.0.1 -U restore -d restore -Atc 'select count(*) from information_schema.tables' >/dev/null
 
 kubectl --context "$context" -n "$namespace" run cognee-restore-falkor --restart=Never --image="$falkor_image" \
   --command -- sleep 600 >/dev/null
@@ -30,7 +37,9 @@ kubectl --context "$context" -n "$namespace" wait --for=condition=Ready pod/cogn
 kubectl --context "$context" -n "$namespace" exec -i cognee-restore-falkor -- \
   sh -c 'cat > /tmp/dump.rdb' <"$backup/falkordb.rdb"
 kubectl --context "$context" -n "$namespace" exec cognee-restore-falkor -- redis-check-rdb /tmp/dump.rdb >/dev/null
+# The loop expands inside the restore pod, not in this operator shell.
+# shellcheck disable=SC2016
 kubectl --context "$context" -n "$namespace" exec cognee-restore-falkor -- \
-  sh -c 'redis-server --daemonize yes --dir /tmp --dbfilename dump.rdb && redis-cli ping | grep -Fx PONG' >/dev/null
+  sh -c 'redis-server --dir /tmp --dbfilename dump.rdb --loadmodule /var/lib/falkordb/bin/falkordb.so >/tmp/redis.log 2>&1 & for _ in $(seq 1 30); do redis-cli ping 2>/dev/null | grep -Fx PONG && exit 0; sleep 1; done; cat /tmp/redis.log >&2; exit 1' >/dev/null
 
 echo "Cognee restore drill passed: $backup"
