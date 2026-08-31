@@ -23,6 +23,8 @@ spec:
       remoteRef: { key: lab/cognee, property: FASTAPI_USERS_VERIFICATION_TOKEN_SECRET }
     - secretKey: FASTAPI_USERS_RESET_PASSWORD_TOKEN_SECRET
       remoteRef: { key: lab/cognee, property: FASTAPI_USERS_RESET_PASSWORD_TOKEN_SECRET }
+    - secretKey: COGNEE_INGEST_PASSWORD
+      remoteRef: { key: lab/cognee, property: COGNEE_INGEST_PASSWORD }
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -268,7 +270,7 @@ spec:
       containers:
         - name: cognee
           # Built and published by cognee-homelab; GitOps only selects the release tag.
-          image: harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch2
+          image: harbor.homelab.pastelariadev.com/library/cognee-homelab@sha256:ba77e587c6c8f2e035fbfc24576c27b22c1fda045cf50cd5beaddd7bf4efbc93
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }

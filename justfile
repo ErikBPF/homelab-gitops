@@ -59,6 +59,16 @@ bootstrap-runtime-secrets:
 rotate-grafana-admin-password:
     scripts/rotate-grafana-admin-password.sh
 
+# Create/refresh Cognee's Harbor robot and runtime values. Root token on stdin.
+bootstrap-cognee-runtime:
+    scripts/bootstrap-cognee-runtime.sh
+
+cognee-backup:
+    scripts/cognee-backup.sh
+
+cognee-restore-drill backup="":
+    scripts/cognee-restore-drill.sh {{quote(backup)}}
+
 # Install the cert-manager Cloudflare DNS-01 token without exposing its value.
 # Reads the token from stdin.
 bootstrap-monitoring-dns01-token:

@@ -8,18 +8,19 @@ refute() {
 }
 
 manifest=apps/cognee/resources.yaml
+application=clusters/kepler/apps/cognee.yaml
 image_dir=apps/cognee/image
 image_workflow=.github/workflows/cognee-image.yml
 validate_workflow=.github/workflows/validate.yml
 
 test -f "$manifest"
-test ! -e clusters/kepler/apps/cognee.yaml
-refute grep -Fq 'cognee.yaml' clusters/kepler/apps/kustomization.yaml
+test -f "$application"
+grep -Fq 'cognee.yaml' clusters/kepler/apps/kustomization.yaml
 test ! -e "$image_dir"
 test ! -e "$image_workflow"
 grep -Fq 'scripts/validate.sh' "$validate_workflow"
 
-grep -Fq 'harbor.homelab.pastelariadev.com/library/cognee-homelab:1.4.2-adapter0.4.0-batch2' "$manifest"
+grep -Eq 'harbor\.homelab\.pastelariadev\.com/library/cognee-homelab@sha256:[0-9a-f]{64}' "$manifest"
 grep -Fq 'pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
 grep -Fq 'falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
@@ -58,6 +59,8 @@ done
 grep -Fq 'LLM_ARGS: '\''{"max_tokens":4096,"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}}'\''' "$manifest"
 
 grep -Fq 'key: lab/cognee' "$manifest"
+grep -Fq 'secretKey: COGNEE_INGEST_PASSWORD' "$manifest"
+grep -Fq 'property: COGNEE_INGEST_PASSWORD' "$manifest"
 grep -Fq 'name: cognee-harbor' "$manifest"
 grep -Fq 'type: kubernetes.io/dockerconfigjson' "$manifest"
 grep -Fq 'property: HARBOR_DOCKERCONFIGJSON' "$manifest"
@@ -77,3 +80,19 @@ refute grep -Fq 'deepseek-v4-flash' "$manifest"
 refute grep -Fq 'GRAPH_DATABASE_PROVIDER: kuzu' "$manifest"
 refute grep -Fq 'pip install' "$manifest"
 refute grep -Eqi '^[[:space:]]*(POSTGRES_PASSWORD|LLM_API_KEY|FASTAPI_USERS_(JWT|VERIFICATION_TOKEN|RESET_PASSWORD_TOKEN)_SECRET):[[:space:]]+[^{$]' "$manifest"
+
+grep -Fq 'path: apps/cognee' "$application"
+grep -Fq 'namespace: cognee' "$application"
+refute grep -Eq '^[[:space:]]+automated:' "$application"
+
+for script in scripts/bootstrap-cognee-runtime.sh scripts/cognee-backup.sh scripts/cognee-restore-drill.sh; do
+  test -x "$script"
+done
+grep -Fq 'bootstrap-cognee-runtime:' justfile
+grep -Fq 'cognee-backup:' justfile
+grep -Fq 'cognee-restore-drill' justfile
+
+rules=platform/monitoring/files/alerting/rules.yaml
+for uid in cognee-api-unavailable cognee-pvc-high cognee-backup-stale; do
+  yq -e ".groups[].rules[] | select(.uid == \"$uid\")" "$rules" >/dev/null
+done

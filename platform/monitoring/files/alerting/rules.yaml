@@ -2324,3 +2324,68 @@ groups:
               expression: B
               datasource: {type: __expr__, uid: __expr__}
               conditions: [{evaluator: {type: lt, params: [0]}}]
+
+  - orgId: 1
+    name: cognee
+    folder: Infra Alerts
+    interval: 5m
+    rules:
+      - uid: cognee-api-unavailable
+        title: Cognee API unavailable
+        condition: C
+        for: 10m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations: {summary: "Cognee has no available API replica for 10m"}
+        labels: {severity: warning}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: prometheus
+            model: {refId: A, instant: true, datasource: {type: prometheus, uid: prometheus}, expr: 'clamp_min(1 - max(kube_deployment_status_replicas_available{namespace="cognee",deployment="cognee"}), 0)'}
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
+
+      - uid: cognee-pvc-high
+        title: Cognee PVC usage high
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations: {summary: "{{ $labels.persistentvolumeclaim }} is over 85% full"}
+        labels: {severity: warning}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model: {refId: A, instant: true, datasource: {type: prometheus, uid: prometheus}, expr: 'kubelet_volume_stats_used_bytes{namespace="cognee"} / kubelet_volume_stats_capacity_bytes{namespace="cognee"} > 0.85'}
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
+
+      - uid: cognee-backup-stale
+        title: Cognee backup stale
+        condition: C
+        for: 15m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations: {summary: "Cognee logical backup has not succeeded in over 30h"}
+        labels: {severity: warning}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 21600, to: 0}
+            datasourceUid: prometheus
+            model: {refId: A, instant: true, datasource: {type: prometheus, uid: prometheus}, expr: 'time() - max(kube_configmap_created{namespace="cognee",configmap=~"cognee-backup-[0-9]+"})'}
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [108000]}}]}

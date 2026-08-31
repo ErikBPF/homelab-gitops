@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cognee
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: homelab
+  source:
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+    targetRevision: main
+    path: apps/cognee
+    directory: { recurse: true }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cognee
+  syncPolicy:
+    syncOptions: [ServerSideApply=true]
