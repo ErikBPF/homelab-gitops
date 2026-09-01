@@ -51,3 +51,4 @@ fi
 grep -Eq '^capacity:' "$root/justfile"
 grep -Fq 'kubectl --context "$context" top nodes' "$root/scripts/capacity.sh"
 grep -Fq 'ssh -p 2222' "$root/scripts/capacity.sh"
+grep -Fq 'strategy: {type: Recreate}' "$root/platform/scrutiny/resources.yaml"

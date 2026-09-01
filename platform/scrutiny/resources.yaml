@@ -28,6 +28,7 @@ kind: Deployment
 metadata: {name: scrutiny-influxdb, labels: {app: scrutiny-influxdb}}
 spec:
   replicas: 1
+  strategy: {type: Recreate}
   selector: {matchLabels: {app: scrutiny-influxdb}}
   template:
     metadata: {labels: {app: scrutiny-influxdb}}
