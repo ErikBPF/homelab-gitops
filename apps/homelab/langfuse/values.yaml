@@ -16,9 +16,11 @@ langfuse:
       limits: {cpu: "2", memory: 2Gi}
     web:
       image:
+        repository: harbor.homelab.pastelariadev.com/langfuse/langfuse/langfuse
         tag: 4.16.0@sha256:e8459747001aa00da1bdecdc5d46c48d37c2e9b4c2c99743b27efeb2872e0583
     worker:
       image:
+        repository: harbor.homelab.pastelariadev.com/langfuse/langfuse/langfuse-worker
         tag: 4.16.0@sha256:b4490170d5bc18e873f7ca7c3edad5af16022156487a5c47c328d571a9063dc1
     ingress:
       enabled: true
@@ -38,6 +40,8 @@ langfuse:
     settings: {existingSecret: langfuse-postgresql-auth}
     userDatabase: {existingSecret: langfuse-postgresql-auth}
     image:
+      registry: harbor.homelab.pastelariadev.com
+      repository: dockerhub/library/postgres
       tag: 18@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941
     storage: {requestedSize: 20Gi, className: local-path}
     resources:
@@ -57,6 +61,8 @@ langfuse:
       aclUsers:
         default: {permissions: "~* &* +@all"}
     image:
+      registry: harbor.homelab.pastelariadev.com
+      repository: dockerhub/valkey/valkey
       tag: 8.0@sha256:df040a2064bfc4f250954317fc352f9116fec7c857a78374c57ca8195879c814
     dataStorage: {enabled: true, requestedSize: 2Gi, className: local-path, accessModes: [ReadWriteOnce]}
     resources:
@@ -73,6 +79,7 @@ langfuse:
       enabled: true
       replicas: 1
       image:
+        repository: harbor.homelab.pastelariadev.com/dockerhub/clickhouse/clickhouse-server
         tag: 26.4@sha256:c7796a1335d14385c052f10061cf719f4a368a908432ec25980860b1333e9ccd
       storage: {size: 20Gi, className: local-path, accessModes: [ReadWriteOnce]}
       resources:
@@ -82,6 +89,7 @@ langfuse:
       enabled: true
       replicas: 1
       image:
+        repository: harbor.homelab.pastelariadev.com/dockerhub/clickhouse/clickhouse-keeper
         tag: 26.4@sha256:3e356a2d04518ec4687275c8c0794985a67ab7a1acf0918c1ff2fcfffa1fd5a5
       storage: {size: 5Gi, className: local-path, accessModes: [ReadWriteOnce]}
       resources:
@@ -97,7 +105,7 @@ langfuse:
       rootUserSecretKey: accessKey
       rootPasswordSecretKey: secretKey
     master:
-      imageOverride: chrislusf/seaweedfs:3.95@sha256:01f6425b35b174a15e41d22700087f8eeff35ed1aec596297dd9122d7525cd69
+      imageOverride: harbor.homelab.pastelariadev.com/dockerhub/chrislusf/seaweedfs:3.95@sha256:01f6425b35b174a15e41d22700087f8eeff35ed1aec596297dd9122d7525cd69
     allInOne:
       s3:
         existingConfigSecret: langfuse-s3-auth

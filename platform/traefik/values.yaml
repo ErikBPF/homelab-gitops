@@ -6,6 +6,11 @@
 #     + repoint the argocd ingress to traefik.
 # PSA baseline: Traefik runs non-root + drops caps by default → baseline-clean.
 traefik:
+  image:
+    registry: harbor.homelab.pastelariadev.com
+    repository: dockerhub/library/traefik
+    tag: v3.7.11
+    digest: sha256:5203c3f39ca70de6790d964624e042463ffbd57715bc82be155cf224c0dd5144
   priorityClassName: homelab-platform-critical
   deployment:
     replicas: 1 # lab; bump for HA later

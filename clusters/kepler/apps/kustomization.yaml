@@ -20,6 +20,8 @@ resources:
   - loki.yaml
   - monitoring.yaml
   - scrutiny.yaml
+  - spark-operator.yaml
+  - yunikorn.yaml
   - kube-state-metrics.yaml
   - alloy-metrics.yaml
   - otel-collector.yaml

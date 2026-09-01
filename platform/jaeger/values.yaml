@@ -13,6 +13,12 @@ jaeger:
     resources:
       requests: { cpu: 25m, memory: 128Mi }
       limits: { memory: 512Mi }
+  jaeger:
+    image:
+      registry: harbor.homelab.pastelariadev.com
+      repository: dockerhub/jaegertracing/jaeger
+      tag: 2.20.0
+      digest: sha256:46a886260e04002d8f45e213fc39063fa11a50446048fdaa64786fc0840cb9f8
   # all-in-one bundles these — disable the split production components
   agent:
     enabled: false

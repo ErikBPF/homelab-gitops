@@ -18,8 +18,11 @@ spec:
     - {server: https://kubernetes.default.svc, namespace: kube-system}
     - {server: https://kubernetes.default.svc, namespace: monitoring}
     - {server: https://kubernetes.default.svc, namespace: observability}
+    - {server: https://kubernetes.default.svc, namespace: spark-operator}
+    - {server: https://kubernetes.default.svc, namespace: spark-jobs}
     - {server: https://kubernetes.default.svc, namespace: traefik}
     - {server: https://kubernetes.default.svc, namespace: wazuh}
+    - {server: https://kubernetes.default.svc, namespace: yunikorn}
   clusterResourceWhitelist:
     - {group: "", kind: Namespace}
     - {group: admissionregistration.k8s.io, kind: MutatingWebhookConfiguration}

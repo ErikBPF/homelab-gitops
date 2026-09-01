@@ -1,0 +1,18 @@
+spark-operator:
+  image:
+    registry: harbor.homelab.pastelariadev.com/ghcr
+    repository: kubeflow/spark-operator/controller
+    tag: 2.4.0@sha256:067ee9171ac3d9f2b83199cba9a87d4f069ad8453088f07657569f188e0251b4
+  controller:
+    batchScheduler: {enable: true, default: yunikorn}
+    replicas: 1
+    resources:
+      requests: {cpu: 250m, memory: 512Mi}
+      limits: {cpu: 500m, memory: 1Gi}
+  spark:
+    jobNamespaces: [spark-jobs]
+  webhook:
+    enable: true
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 250m, memory: 256Mi}
