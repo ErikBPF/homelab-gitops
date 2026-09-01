@@ -29,6 +29,7 @@ for contract in \
   tests/manual-sync-containment.sh \
   tests/operational-context.sh \
   tests/first-wave-image-pins.py \
+  tests/harbor-runtime-images.py \
   tests/path-boundary-contract.sh \
   tests/resource-contract.sh \
   tests/platform-prerequisites-contract.sh \

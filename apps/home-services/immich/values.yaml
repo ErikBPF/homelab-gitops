@@ -20,6 +20,8 @@ immich:
       main:
         containers:
           main:
+            image:
+              repository: harbor.homelab.pastelariadev.com/ghcr/immich-app/immich-server
             resources:
               requests: {cpu: 200m, memory: 512Mi}
               limits: {cpu: "2", memory: 2Gi}
@@ -41,6 +43,7 @@ immich:
         containers:
           main:
             image:
+              repository: harbor.homelab.pastelariadev.com/ghcr/immich-app/immich-machine-learning
               tag: v3.0.0@sha256:5b480e92a2b77618d9ccae8c8110b0eae144ec9daf86715d246ec6d39cb7a553
             resources:
               requests: {cpu: 200m, memory: 512Mi}
@@ -61,6 +64,8 @@ immich:
       main:
         containers:
           main:
+            image:
+              repository: harbor.homelab.pastelariadev.com/dockerhub/valkey/valkey
             resources:
               requests: {cpu: 50m, memory: 64Mi}
               limits: {cpu: 500m, memory: 256Mi}

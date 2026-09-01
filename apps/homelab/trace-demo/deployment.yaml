@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: telemetrygen
-          image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
+          image: harbor.homelab.pastelariadev.com/ghcr/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest@sha256:8ec53f721410fafe6e1a0577729e9226c699af3c1727031b46774aad3f9fa5f4
           args:
             - traces
             - --otlp-endpoint=otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317

@@ -134,7 +134,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: postgres
-          image: pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+          image: harbor.homelab.pastelariadev.com/dockerhub/pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
           env:
             - { name: POSTGRES_DB, value: cognee }
             - { name: POSTGRES_USER, value: cognee }
@@ -200,7 +200,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: falkordb
-          image: falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36
+          image: harbor.homelab.pastelariadev.com/dockerhub/falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36
           env:
             - { name: BROWSER, value: "0" }
             - name: REDIS_ARGS

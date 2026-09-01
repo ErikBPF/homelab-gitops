@@ -3,6 +3,13 @@
 # apiserver proxy. Distinct release/SA ("alloy-metrics") from the log DaemonSet
 # ("alloy", Nix). Remote write stays inside the cluster.
 alloy:
+  image:
+    registry: harbor.homelab.pastelariadev.com/dockerhub
+    digest: sha256:0f4434c92b3e6cdac38bb129b344e1790c246f7b6e2eaffcc16a5fa363240e33
+  configReloader:
+    image:
+      registry: harbor.homelab.pastelariadev.com/quay
+
   controller:
     type: deployment
     replicas: 1

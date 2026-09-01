@@ -13,10 +13,10 @@ spec:
         - name: increase-the-vm-max-map-count
           $patch: delete
         - name: volume-mount-hack
-          image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          image: harbor.homelab.pastelariadev.com/dockerhub/library/busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
       containers:
         - name: wazuh-indexer
-          image: wazuh/wazuh-indexer:4.14.7@sha256:66b7640cce54f5f20a65e8320601b4570a1306d9f9b334d30bcaa324720a517c
+          image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-indexer:4.14.7@sha256:66b7640cce54f5f20a65e8320601b4570a1306d9f9b334d30bcaa324720a517c
           resources:
             requests: {cpu: 500m, memory: 1Gi}
             limits: {cpu: "2", memory: 3Gi}
@@ -43,7 +43,7 @@ spec:
       securityContext: {fsGroup: 101, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: wazuh-manager
-          image: wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
+          image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
           resources:
             requests: {cpu: 200m, memory: 512Mi}
             limits: {cpu: "1", memory: 2Gi}
@@ -66,7 +66,7 @@ spec:
       securityContext: {fsGroup: 101, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: wazuh-manager
-          image: wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
+          image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
           resources:
             requests: {cpu: 200m, memory: 512Mi}
             limits: {cpu: "1", memory: 2Gi}
@@ -90,7 +90,7 @@ spec:
       securityContext: {seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: wazuh-dashboard
-          image: wazuh/wazuh-dashboard:4.14.7@sha256:eeff857a664b3c09d3df4407b8749a351f321e4f366ca60ea1dffaa76f2146a7
+          image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-dashboard:4.14.7@sha256:eeff857a664b3c09d3df4407b8749a351f321e4f366ca60ea1dffaa76f2146a7
           resources:
             requests: {cpu: 100m, memory: 256Mi}
             limits: {cpu: "1", memory: 1Gi}

@@ -1,4 +1,6 @@
 cert-manager:
+  imageRegistry: harbor.homelab.pastelariadev.com/quay
+  imageNamespace: jetstack
   crds:
     enabled: true
   image:

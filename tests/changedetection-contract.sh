@@ -9,7 +9,7 @@ test "$(yq -r '.spec.source.path' "$root/clusters/kepler/apps/changedetection.ya
 grep -Fq 'changedetection.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 
 image=$(yq -r '.spec.template.spec.containers[0].image' "$app/deployment.yaml")
-[[ $image == ghcr.io/dgtlmoon/changedetection.io:0.55.7@sha256:* ]]
+[[ $image == harbor.homelab.pastelariadev.com/ghcr/dgtlmoon/changedetection.io:0.55.7@sha256:* ]]
 test "$(yq -r '.spec.storageClassName' "$app/pvc.yaml")" = nfs-fast
 test "$(yq -r '.spec.resources.requests.storage' "$app/pvc.yaml")" = 5Gi
 test "$(yq -r '.spec.rules[0].host' "$app/ingress.yaml")" = changedetection.homelab.pastelariadev.com

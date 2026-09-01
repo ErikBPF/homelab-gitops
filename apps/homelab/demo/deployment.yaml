@@ -13,7 +13,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: podinfo
-          image: ghcr.io/stefanprodan/podinfo:6.7.1
+          image: harbor.homelab.pastelariadev.com/ghcr/stefanprodan/podinfo:6.7.1@sha256:862ca45e61b32392f7941a1bdfdbe5ff8b6899070135f1bdca1c287d0057fc94
           env:
             - name: PODINFO_UI_MESSAGE
               valueFrom: { secretKeyRef: { name: demo-secret, key: message } }

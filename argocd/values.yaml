@@ -4,6 +4,9 @@ argo-cd:
   global:
     domain: argocd.k8s.pastelariadev.com
     priorityClassName: homelab-platform-critical
+    image:
+      repository: harbor.homelab.pastelariadev.com/quay/argoproj/argocd
+      tag: v3.5.1@sha256:0deb1a1c917629b960ead995ae3b6069450a866992676599658687ef9a641ee8
 
   configs:
     params:
@@ -36,6 +39,9 @@ argo-cd:
       failureThreshold: 6
 
   redis:
+    image:
+      repository: harbor.homelab.pastelariadev.com/dockerhub/library/redis
+      tag: 8.6.4-alpine@sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763
     resources:
       requests: { cpu: 10m, memory: 32Mi }
 
