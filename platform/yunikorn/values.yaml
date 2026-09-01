@@ -1,0 +1,35 @@
+yunikorn:
+  image:
+    repository: harbor.homelab.pastelariadev.com/dockerhub/apache/yunikorn
+    tag: scheduler-1.7.0@sha256:3af01500fdfa57d0c8f59f7997c6dce54df17225172cc8f04f33de0026d43f49
+    pullPolicy: IfNotPresent
+  pluginImage:
+    repository: harbor.homelab.pastelariadev.com/dockerhub/apache/yunikorn
+    pullPolicy: IfNotPresent
+  admissionController:
+    image:
+      repository: harbor.homelab.pastelariadev.com/dockerhub/apache/yunikorn
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+  embedAdmissionController: false
+  web:
+    image:
+      repository: harbor.homelab.pastelariadev.com/dockerhub/apache/yunikorn
+      tag: web-1.7.0@sha256:fd3f8afd7a7856e0ccc5826c2a5098ee3c9b1b61cb7fc148975e0e79cade97c5
+      pullPolicy: IfNotPresent
+  yunikornDefaults:
+    admissionController.filtering.processNamespaces: ^spark-jobs$
+    service.placeholderImage: harbor.homelab.pastelariadev.com/k8s/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+    queues.yaml: |
+      partitions:
+        - name: default
+          placementrules:
+            - name: provided
+              create: false
+          queues:
+            - name: root
+              submitacl: "*"
+              queues:
+                - name: main
+                  properties:
+                    application.sort.policy: fifo

@@ -41,7 +41,7 @@ if yq -r '.. | select(tag == "!!str")' "$projects" | grep -Fxq '*'; then
   exit 1
 fi
 
-for app in argocd alloy-metrics csi-driver-nfs external-secrets jaeger keda kube-state-metrics otel-collector traefik; do
+for app in argocd alloy-metrics csi-driver-nfs external-secrets jaeger keda kube-state-metrics otel-collector spark-operator traefik yunikorn; do
   test "$(yq -r '.spec.project' "$apps/$app.yaml")" = platform
 done
 

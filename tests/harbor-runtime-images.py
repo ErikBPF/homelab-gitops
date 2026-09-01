@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import pathlib
 import subprocess
 
@@ -7,7 +8,17 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 HARBOR = "harbor.homelab.pastelariadev.com/"
-COVERED = ("docker.io/", "ghcr.io/", "quay.io/", "lscr.io/")
+COVERED = (
+    "docker.io/",
+    "docker.langfuse.com/",
+    "docker.risingwave.com/",
+    "ghcr.io/",
+    "index.docker.io/",
+    "quay.io/",
+    "registry-1.docker.io/",
+    "lscr.io/",
+    "registry.k8s.io/",
+)
 COMPONENTS = (
     "argocd",
     "apps/cognee",
@@ -16,17 +27,27 @@ COMPONENTS = (
     "apps/home-services/karakeep",
     "apps/homelab/airflow",
     "apps/homelab/demo",
+    "apps/homelab/langfuse",
     "apps/homelab/trace-demo",
     "platform/alloy-metrics",
     "platform/authentik",
     "platform/cert-manager",
     "platform/clickhouse-operator",
+    "platform/csi-driver-nfs",
+    "platform/external-secrets",
     "platform/healthchecks",
+    "platform/jaeger",
+    "platform/keda",
+    "platform/kube-state-metrics",
     "platform/loki",
     "platform/monitoring",
+    "platform/otel-collector",
+    "platform/spark-operator",
     "platform/scrutiny",
+    "platform/traefik",
     "platform/uptime-kuma",
     "platform/wazuh",
+    "platform/yunikorn",
 )
 
 
@@ -39,10 +60,16 @@ def images(value):
     elif isinstance(value, list):
         for child in value:
             yield from images(child)
+    elif isinstance(value, str) and value.lstrip().startswith(("{", "[")):
+        try:
+            yield from images(json.loads(value))
+        except json.JSONDecodeError:
+            pass
 
 
 def documents(component):
     path = ROOT / component
+    assert path.exists(), f"missing Harbor-controlled component: {component}"
     if (path / "Chart.yaml").exists():
         output = subprocess.check_output(["helm", "template", path.name, path], text=True)
     elif (path / "kustomization.yaml").exists():
@@ -72,6 +99,10 @@ for component in COMPONENTS:
                 f"{component}: {image}"
                 for image in images(document)
                 if external_covered(image)
+                or (image.startswith(HARBOR) and "@sha256:" not in image)
             )
 
 assert not violations, "runtime images bypass Harbor:\n" + "\n".join(sorted(set(violations)))
+
+yunikorn = yaml.safe_load((ROOT / "platform/yunikorn/values.yaml").read_text())
+assert "@sha256:" in yunikorn["yunikorn"]["yunikornDefaults"]["service.placeholderImage"]

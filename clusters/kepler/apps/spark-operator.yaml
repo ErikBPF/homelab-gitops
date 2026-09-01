@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spark-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/client-side-apply-migration-manager: helm
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: platform
+  source:
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+    targetRevision: main
+    path: platform/spark-operator
+  destination: {server: https://kubernetes.default.svc, namespace: spark-operator}
+  syncPolicy:
+    syncOptions: [ServerSideApply=true]

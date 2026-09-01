@@ -1,0 +1,7 @@
+apiVersion: v2
+name: spark-operator-lab
+version: 0.1.0
+dependencies:
+  - name: spark-operator
+    version: 2.4.0
+    repository: https://kubeflow.github.io/spark-operator

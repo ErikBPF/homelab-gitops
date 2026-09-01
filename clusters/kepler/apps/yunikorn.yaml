@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: yunikorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/client-side-apply-migration-manager: helm
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+    targetRevision: main
+    path: platform/yunikorn
+  destination: {server: https://kubernetes.default.svc, namespace: yunikorn}
+  syncPolicy:
+    syncOptions: [ServerSideApply=true]

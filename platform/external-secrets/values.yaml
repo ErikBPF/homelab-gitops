@@ -1,11 +1,16 @@
 # Lab sizing — tiny requests.
 external-secrets:
   installCRDs: true
+  image: &external-secrets-image
+    repository: harbor.homelab.pastelariadev.com/ghcr/external-secrets/external-secrets
+    tag: v2.9.0@sha256:44eb290f1c7f5d8f4eec2168cea4a6cfbc72a955c6781eb835e1c40700475dbd
   resources:
     requests: { cpu: 10m, memory: 32Mi }
   webhook:
+    image: *external-secrets-image
     resources:
       requests: { cpu: 10m, memory: 32Mi }
   certController:
+    image: *external-secrets-image
     resources:
       requests: { cpu: 10m, memory: 32Mi }
