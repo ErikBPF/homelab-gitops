@@ -495,8 +495,10 @@ data:
     kubectl -n cognee exec pod/falkordb-0 -- redis-cli SAVE >/dev/null
     kubectl -n cognee exec pod/falkordb-0 -- sh -c \
       'cat /var/lib/falkordb/data/dump.rdb' >"$target/falkordb.rdb"
-    sha256sum "$target/postgres.dump" "$target/falkordb.rdb" \
-      "$target/postgres-counts.tsv" "$target/falkor-counts.tsv" >"$target/SHA256SUMS"
+    (
+      cd "$target"
+      sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv >SHA256SUMS
+    )
 
     marker=cognee-backup-$(date -u +%s)
     kubectl -n cognee create configmap "$marker" --from-literal=backup="$stamp" --dry-run=client -o yaml \

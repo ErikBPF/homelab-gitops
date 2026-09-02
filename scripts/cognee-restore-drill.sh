@@ -34,7 +34,10 @@ if [[ -z $backup ]]; then
   done
   backup=$staging
 fi
-sha256sum -c "$backup/SHA256SUMS" >/dev/null
+(
+  cd "$backup"
+  sha256sum -c SHA256SUMS >/dev/null
+)
 
 kubectl --context "$context" -n "$namespace" run cognee-restore-postgres --restart=Never --image="$pg_image" \
   --env=POSTGRES_PASSWORD=restore-only --env=POSTGRES_DB=restore --env=POSTGRES_USER=restore >/dev/null
