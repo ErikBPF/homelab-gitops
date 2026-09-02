@@ -58,6 +58,8 @@ for expected in \
   'cognee-backup-canary' \
   'RecoveryCanary' \
   'GRAPH.DELETE cognee-backup-canary' \
+  'cd "$target"' \
+  'sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv' \
   '/backups/cognee' \
   'harbor.homelab.pastelariadev.com/dockerhub/bitnami/kubectl:'; do
   grep -Fq "$expected" "$manifest"
@@ -136,6 +138,8 @@ grep -Fq -- '--loadmodule /var/lib/falkordb/bin/falkordb.so' scripts/cognee-rest
 grep -Fq 'for _ in $(seq 1 30)' scripts/cognee-restore-drill.sh
 grep -Fq 'cat /tmp/redis.log >&2' scripts/cognee-restore-drill.sh
 grep -Fq 'securityContext:{runAsNonRoot:true,runAsUser:1000,runAsGroup:100,fsGroup:100' scripts/cognee-restore-drill.sh
+grep -Fq 'cd "$backup"' scripts/cognee-restore-drill.sh
+grep -Fq 'sha256sum -c SHA256SUMS' scripts/cognee-restore-drill.sh
 refute grep -Fq -- '--daemonize yes' scripts/cognee-restore-drill.sh
 grep -Fq 'postgres-counts.tsv' scripts/cognee-restore-drill.sh
 grep -Fq 'falkor-counts.tsv' scripts/cognee-restore-drill.sh
