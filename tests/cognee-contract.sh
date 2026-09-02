@@ -90,6 +90,7 @@ for setting in \
   'EMBEDDING_MODEL: openai/bge-m3' \
   'EMBEDDING_DIMENSIONS: "1024"' \
   'EMBEDDING_BATCH_SIZE: "32"' \
+  'LITELLM_DROP_PARAMS: "true"' \
   'HUGGINGFACE_TOKENIZER: BAAI/bge-m3' \
   'TELEMETRY_DISABLED: "true"' \
   'HF_HUB_OFFLINE: "1"'; do
