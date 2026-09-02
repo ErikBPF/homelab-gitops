@@ -28,8 +28,12 @@ grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/pgvector/pgvector:pg18@sha2
 grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
 test "$(grep -Fc 'kind: PersistentVolumeClaim' "$manifest")" -eq 4
+test "$(grep -Ec '^kind: PersistentVolume$' "$manifest")" -eq 1
 for expected in \
   'name: cognee-backups' \
+  'persistentVolumeReclaimPolicy: Retain' \
+  'path: /fast/k8s/cognee-backups' \
+  'volumeName: cognee-backups' \
   'kind: CronJob' \
   'name: cognee-backup' \
   'timeZone: America/Sao_Paulo' \

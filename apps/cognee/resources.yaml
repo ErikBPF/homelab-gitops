@@ -381,13 +381,28 @@ spec:
       ports: [{ protocol: TCP, port: 6379 }]
 ---
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cognee-backups
+spec:
+  capacity: { storage: 20Gi }
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions: [nfsvers=4.2, hard]
+  nfs:
+    server: 10.250.0.1
+    path: /fast/k8s/cognee-backups
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: cognee-backups
   namespace: cognee
 spec:
-  accessModes: [ReadWriteOnce]
-  storageClassName: nfs-fast
+  accessModes: [ReadWriteMany]
+  storageClassName: ""
+  volumeName: cognee-backups
   resources: { requests: { storage: 20Gi } }
 ---
 apiVersion: v1
