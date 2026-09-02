@@ -365,6 +365,7 @@ spec:
   ingress:
     - from:
         - podSelector: { matchLabels: { app: cognee } }
+        - podSelector: { matchLabels: { app: cognee-backup } }
       ports: [{ protocol: TCP, port: 5432 }]
 ---
 apiVersion: networking.k8s.io/v1
@@ -376,4 +377,182 @@ spec:
   ingress:
     - from:
         - podSelector: { matchLabels: { app: cognee } }
+        - podSelector: { matchLabels: { app: cognee-backup } }
+      ports: [{ protocol: TCP, port: 6379 }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cognee-backups
+  namespace: cognee
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-fast
+  resources: { requests: { storage: 20Gi } }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: cognee-backup, namespace: cognee }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: cognee-backup, namespace: cognee }
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, create, patch]
+  - apiGroups: [apps]
+    resources: [deployments, deployments/scale]
+    verbs: [get, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: cognee-backup, namespace: cognee }
+subjects:
+  - { kind: ServiceAccount, name: cognee-backup, namespace: cognee }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: cognee-backup }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: cognee-backup-script, namespace: cognee }
+data:
+  backup.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    root=/backups/cognee
+    retention_days=${COGNEE_BACKUP_RETENTION_DAYS:-14}
+    [[ $retention_days =~ ^[0-9]+$ ]] || { echo "invalid retention" >&2; exit 2; }
+    stamp=$(date -u +%Y%m%dT%H%M%SZ)
+    target=$root/$stamp
+    mkdir -p "$target"
+    chmod 700 "$root" "$target"
+    replicas=$(kubectl -n cognee get deployment cognee -o jsonpath='{.spec.replicas}')
+
+    cleanup() {
+      set +e
+      kubectl -n cognee exec statefulset/postgres -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
+        -c 'drop table if exists cognee_backup_canary' >/dev/null
+      kubectl -n cognee exec statefulset/falkordb -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null
+      kubectl -n cognee scale deployment cognee --replicas="$replicas" >/dev/null
+    }
+    trap cleanup EXIT
+
+    kubectl -n cognee scale deployment cognee --replicas=0 >/dev/null
+    kubectl -n cognee wait --for=delete pod -l app=cognee --timeout=2m >/dev/null
+    kubectl -n cognee exec statefulset/postgres -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
+      -c "create table if not exists cognee_backup_canary (id text primary key); truncate cognee_backup_canary; insert into cognee_backup_canary values ('$stamp')" >/dev/null
+    kubectl -n cognee exec statefulset/falkordb -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null 2>&1 || true
+    kubectl -n cognee exec statefulset/falkordb -- redis-cli GRAPH.QUERY cognee-backup-canary \
+      "CREATE (:RecoveryCanary {id:'$stamp'})-[:RESTORES]->(:RecoveryTarget {id:'$stamp'})" >/dev/null
+
+    : >"$target/postgres-counts.tsv"
+    for table in cognee_backup_canary datasets users acls; do
+      exists=$(kubectl -n cognee exec statefulset/postgres -- psql -At -U cognee -d cognee \
+        -c "select to_regclass('public.$table') is not null")
+      if [[ $exists == t ]]; then
+        count=$(kubectl -n cognee exec statefulset/postgres -- psql -At -U cognee -d cognee \
+          -c "select count(*) from $table")
+        printf '%s\t%s\n' "$table" "$count" >>"$target/postgres-counts.tsv"
+      fi
+    done
+
+    : >"$target/falkor-counts.tsv"
+    while IFS= read -r graph; do
+      [[ -n $graph ]] || continue
+      nodes=$(kubectl -n cognee exec statefulset/falkordb -- redis-cli --raw GRAPH.QUERY "$graph" \
+        'MATCH (n) RETURN count(n)' | sed -n '2p')
+      edges=$(kubectl -n cognee exec statefulset/falkordb -- redis-cli --raw GRAPH.QUERY "$graph" \
+        'MATCH ()-[r]->() RETURN count(r)' | sed -n '2p')
+      printf '%s\t%s\t%s\n' "$graph" "$nodes" "$edges" >>"$target/falkor-counts.tsv"
+    done < <(kubectl -n cognee exec statefulset/falkordb -- redis-cli --raw GRAPH.LIST)
+
+    kubectl -n cognee exec statefulset/postgres -- pg_dump -Fc -U cognee cognee >"$target/postgres.dump"
+    kubectl -n cognee exec statefulset/falkordb -- redis-cli SAVE >/dev/null
+    kubectl -n cognee exec statefulset/falkordb -- sh -c \
+      'cat /var/lib/falkordb/data/dump.rdb' >"$target/falkordb.rdb"
+    sha256sum "$target/postgres.dump" "$target/falkordb.rdb" \
+      "$target/postgres-counts.tsv" "$target/falkor-counts.tsv" >"$target/SHA256SUMS"
+
+    marker=cognee-backup-$(date -u +%s)
+    kubectl -n cognee create configmap "$marker" --from-literal=backup="$stamp" --dry-run=client -o yaml \
+      | kubectl -n cognee label -f - cognee.pastelariadev.com/backup=success --local -o yaml \
+      | kubectl -n cognee apply -f - >/dev/null
+    find "$root" -mindepth 1 -maxdepth 1 -type d -mtime "+$retention_days" -exec rm -rf -- {} +
+    echo "$target"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: cognee-backup, namespace: cognee }
+spec:
+  schedule: "15 3 * * *"
+  timeZone: America/Sao_Paulo
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 900
+      template:
+        metadata: { labels: { app: cognee-backup } }
+        spec:
+          serviceAccountName: cognee-backup
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: backup
+              image: harbor.homelab.pastelariadev.com/dockerhub/bitnami/kubectl:latest@sha256:65447dcbb2813878e22265949a4ba4cca02f8d008ff3fe66a25354b511f28015
+              command: [/bin/bash, /scripts/backup.sh]
+              env:
+                - { name: COGNEE_BACKUP_RETENTION_DAYS, value: "14" }
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+                - { name: script, mountPath: /scripts, readOnly: true }
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities: { drop: ["ALL"] }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { cpu: 500m, memory: 512Mi }
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: cognee-backups }
+            - name: script
+              configMap:
+                name: cognee-backup-script
+                defaultMode: 0555
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: cognee-backup, namespace: cognee }
+spec:
+  podSelector: { matchLabels: { app: cognee-backup } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - ipBlock: { cidr: 10.43.0.1/32 }
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+        - podSelector: { matchLabels: { app: postgres } }
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+        - podSelector: { matchLabels: { app: falkordb } }
       ports: [{ protocol: TCP, port: 6379 }]

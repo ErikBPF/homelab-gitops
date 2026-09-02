@@ -24,8 +24,27 @@ grep -Fq 'scripts/validate.sh' "$validate_workflow"
 grep -Eq 'harbor\.homelab\.pastelariadev\.com/library/cognee-homelab@sha256:[0-9a-f]{64}' "$manifest"
 grep -Fq 'pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
 grep -Fq 'falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
+grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
+grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
-test "$(grep -Fc 'kind: PersistentVolumeClaim' "$manifest")" -eq 3
+test "$(grep -Fc 'kind: PersistentVolumeClaim' "$manifest")" -eq 4
+for expected in \
+  'name: cognee-backups' \
+  'kind: CronJob' \
+  'name: cognee-backup' \
+  'timeZone: America/Sao_Paulo' \
+  'concurrencyPolicy: Forbid' \
+  'schedule: "15 3 * * *"' \
+  'COGNEE_BACKUP_RETENTION_DAYS' \
+  'value: "14"' \
+  'cognee-backup-script' \
+  'cognee-backup-canary' \
+  'RecoveryCanary' \
+  'GRAPH.DELETE cognee-backup-canary' \
+  '/backups/cognee' \
+  'harbor.homelab.pastelariadev.com/dockerhub/bitnami/kubectl:'; do
+  grep -Fq "$expected" "$manifest"
+done
 
 for setting in \
   'DB_PROVIDER: postgres' \
@@ -99,6 +118,10 @@ grep -Fq -- '--loadmodule /var/lib/falkordb/bin/falkordb.so' scripts/cognee-rest
 grep -Fq 'for _ in $(seq 1 30)' scripts/cognee-restore-drill.sh
 grep -Fq 'cat /tmp/redis.log >&2' scripts/cognee-restore-drill.sh
 refute grep -Fq -- '--daemonize yes' scripts/cognee-restore-drill.sh
+grep -Fq 'postgres-counts.tsv' scripts/cognee-restore-drill.sh
+grep -Fq 'falkor-counts.tsv' scripts/cognee-restore-drill.sh
+grep -Fq 'cognee-backup-canary' scripts/cognee-restore-drill.sh
+grep -Fq 'create job --from=cronjob/cognee-backup' scripts/cognee-backup.sh
 
 rules=platform/monitoring/files/alerting/rules.yaml
 for uid in cognee-api-unavailable cognee-pvc-high cognee-backup-stale; do
