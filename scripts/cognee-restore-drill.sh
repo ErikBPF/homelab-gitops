@@ -21,7 +21,8 @@ if [[ -z $backup ]]; then
   staging=$(mktemp -d)
   jq -n --arg name "$helper" --arg image "$helper_image" '{
     apiVersion:"v1",kind:"Pod",metadata:{name:$name},spec:{restartPolicy:"Never",
-      containers:[{name:"reader",image:$image,command:["sleep","600"],volumeMounts:[{name:"backups",mountPath:"/backups",readOnly:true}]}],
+      securityContext:{runAsNonRoot:true,runAsUser:1000,runAsGroup:100,fsGroup:100,seccompProfile:{type:"RuntimeDefault"}},
+      containers:[{name:"reader",image:$image,command:["sleep","600"],securityContext:{allowPrivilegeEscalation:false,capabilities:{drop:["ALL"]}},volumeMounts:[{name:"backups",mountPath:"/backups",readOnly:true}]}],
       volumes:[{name:"backups",persistentVolumeClaim:{claimName:"cognee-backups"}}]}}
   ' | kubectl --context "$context" -n "$namespace" apply -f - >/dev/null
   kubectl --context "$context" -n "$namespace" wait --for=condition=Ready "pod/$helper" --timeout=2m >/dev/null

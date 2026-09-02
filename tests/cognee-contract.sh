@@ -135,6 +135,7 @@ grep -Fq 'psql -h 127.0.0.1' scripts/cognee-restore-drill.sh
 grep -Fq -- '--loadmodule /var/lib/falkordb/bin/falkordb.so' scripts/cognee-restore-drill.sh
 grep -Fq 'for _ in $(seq 1 30)' scripts/cognee-restore-drill.sh
 grep -Fq 'cat /tmp/redis.log >&2' scripts/cognee-restore-drill.sh
+grep -Fq 'securityContext:{runAsNonRoot:true,runAsUser:1000,runAsGroup:100,fsGroup:100' scripts/cognee-restore-drill.sh
 refute grep -Fq -- '--daemonize yes' scripts/cognee-restore-drill.sh
 grep -Fq 'postgres-counts.tsv' scripts/cognee-restore-drill.sh
 grep -Fq 'falkor-counts.tsv' scripts/cognee-restore-drill.sh
