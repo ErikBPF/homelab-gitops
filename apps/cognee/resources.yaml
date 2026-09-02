@@ -569,6 +569,11 @@ spec:
         - ipBlock: { cidr: 10.43.0.1/32 }
       ports: [{ protocol: TCP, port: 443 }]
     - to:
+        - ipBlock: { cidr: 10.250.0.11/32 }
+        - ipBlock: { cidr: 10.250.0.12/32 }
+        - ipBlock: { cidr: 10.250.0.13/32 }
+      ports: [{ protocol: TCP, port: 6443 }]
+    - to:
         - podSelector: { matchLabels: { app: postgres } }
       ports: [{ protocol: TCP, port: 5432 }]
     - to:

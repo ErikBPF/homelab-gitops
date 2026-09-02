@@ -36,6 +36,10 @@ for expected in \
   'persistentVolumeReclaimPolicy: Retain' \
   'driver: nfs.csi.k8s.io' \
   'share: /fast/k8s/cognee-backups' \
+  'cidr: 10.250.0.11/32' \
+  'cidr: 10.250.0.12/32' \
+  'cidr: 10.250.0.13/32' \
+  'protocol: TCP, port: 6443' \
   'volumeName: cognee-backups' \
   'runAsUser: 1000' \
   'runAsGroup: 100' \
