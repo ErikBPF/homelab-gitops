@@ -8,6 +8,7 @@ refute() {
 }
 
 manifest=apps/cognee/resources.yaml
+projects=clusters/kepler/apps/projects.yaml
 application=clusters/kepler/apps/cognee.yaml
 image_dir=apps/cognee/image
 image_workflow=.github/workflows/cognee-image.yml
@@ -29,6 +30,7 @@ grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/falkordb/falkordb-server:v4
 grep -Fq 'storageClassName: nfs-fast' "$manifest"
 test "$(grep -Fc 'kind: PersistentVolumeClaim' "$manifest")" -eq 4
 test "$(grep -Ec '^kind: PersistentVolume$' "$manifest")" -eq 1
+yq -e 'select(.kind == "AppProject" and .metadata.name == "homelab") | .spec.clusterResourceWhitelist[] | select(.group == "" and .kind == "PersistentVolume")' "$projects" >/dev/null
 for expected in \
   'name: cognee-backups' \
   'persistentVolumeReclaimPolicy: Retain' \
