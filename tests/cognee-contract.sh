@@ -34,7 +34,8 @@ yq -e 'select(.kind == "AppProject" and .metadata.name == "homelab") | .spec.clu
 for expected in \
   'name: cognee-backups' \
   'persistentVolumeReclaimPolicy: Retain' \
-  'path: /fast/k8s/cognee-backups' \
+  'driver: nfs.csi.k8s.io' \
+  'share: /fast/k8s/cognee-backups' \
   'volumeName: cognee-backups' \
   'runAsUser: 1000' \
   'runAsGroup: 100' \
