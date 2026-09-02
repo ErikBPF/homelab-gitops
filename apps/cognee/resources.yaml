@@ -455,27 +455,27 @@ data:
 
     cleanup() {
       set +e
-      kubectl -n cognee exec statefulset/postgres -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
+      kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
         -c 'drop table if exists cognee_backup_canary' >/dev/null
-      kubectl -n cognee exec statefulset/falkordb -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null
+      kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null
       kubectl -n cognee scale deployment cognee --replicas="$replicas" >/dev/null
     }
     trap cleanup EXIT
 
     kubectl -n cognee scale deployment cognee --replicas=0 >/dev/null
     kubectl -n cognee wait --for=delete pod -l app=cognee --timeout=2m >/dev/null
-    kubectl -n cognee exec statefulset/postgres -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
+    kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
       -c "create table if not exists cognee_backup_canary (id text primary key); truncate cognee_backup_canary; insert into cognee_backup_canary values ('$stamp')" >/dev/null
-    kubectl -n cognee exec statefulset/falkordb -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null 2>&1 || true
-    kubectl -n cognee exec statefulset/falkordb -- redis-cli GRAPH.QUERY cognee-backup-canary \
+    kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null 2>&1 || true
+    kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.QUERY cognee-backup-canary \
       "CREATE (:RecoveryCanary {id:'$stamp'})-[:RESTORES]->(:RecoveryTarget {id:'$stamp'})" >/dev/null
 
     : >"$target/postgres-counts.tsv"
     for table in cognee_backup_canary datasets users acls; do
-      exists=$(kubectl -n cognee exec statefulset/postgres -- psql -At -U cognee -d cognee \
+      exists=$(kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
         -c "select to_regclass('public.$table') is not null")
       if [[ $exists == t ]]; then
-        count=$(kubectl -n cognee exec statefulset/postgres -- psql -At -U cognee -d cognee \
+        count=$(kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
           -c "select count(*) from $table")
         printf '%s\t%s\n' "$table" "$count" >>"$target/postgres-counts.tsv"
       fi
@@ -484,16 +484,16 @@ data:
     : >"$target/falkor-counts.tsv"
     while IFS= read -r graph; do
       [[ -n $graph ]] || continue
-      nodes=$(kubectl -n cognee exec statefulset/falkordb -- redis-cli --raw GRAPH.QUERY "$graph" \
+      nodes=$(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.QUERY "$graph" \
         'MATCH (n) RETURN count(n)' | sed -n '2p')
-      edges=$(kubectl -n cognee exec statefulset/falkordb -- redis-cli --raw GRAPH.QUERY "$graph" \
+      edges=$(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.QUERY "$graph" \
         'MATCH ()-[r]->() RETURN count(r)' | sed -n '2p')
       printf '%s\t%s\t%s\n' "$graph" "$nodes" "$edges" >>"$target/falkor-counts.tsv"
-    done < <(kubectl -n cognee exec statefulset/falkordb -- redis-cli --raw GRAPH.LIST)
+    done < <(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.LIST)
 
-    kubectl -n cognee exec statefulset/postgres -- pg_dump -Fc -U cognee cognee >"$target/postgres.dump"
-    kubectl -n cognee exec statefulset/falkordb -- redis-cli SAVE >/dev/null
-    kubectl -n cognee exec statefulset/falkordb -- sh -c \
+    kubectl -n cognee exec pod/postgres-0 -- pg_dump -Fc -U cognee cognee >"$target/postgres.dump"
+    kubectl -n cognee exec pod/falkordb-0 -- redis-cli SAVE >/dev/null
+    kubectl -n cognee exec pod/falkordb-0 -- sh -c \
       'cat /var/lib/falkordb/data/dump.rdb' >"$target/falkordb.rdb"
     sha256sum "$target/postgres.dump" "$target/falkordb.rdb" \
       "$target/postgres-counts.tsv" "$target/falkor-counts.tsv" >"$target/SHA256SUMS"

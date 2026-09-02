@@ -40,6 +40,8 @@ for expected in \
   'cidr: 10.250.0.12/32' \
   'cidr: 10.250.0.13/32' \
   'protocol: TCP, port: 6443' \
+  'kubectl -n cognee exec pod/postgres-0' \
+  'kubectl -n cognee exec pod/falkordb-0' \
   'volumeName: cognee-backups' \
   'runAsUser: 1000' \
   'runAsGroup: 100' \
@@ -60,6 +62,7 @@ for expected in \
   'harbor.homelab.pastelariadev.com/dockerhub/bitnami/kubectl:'; do
   grep -Fq "$expected" "$manifest"
 done
+refute grep -Fq 'kubectl -n cognee exec statefulset/' "$manifest"
 
 for setting in \
   'DB_PROVIDER: postgres' \
