@@ -34,6 +34,10 @@ for expected in \
   'persistentVolumeReclaimPolicy: Retain' \
   'path: /fast/k8s/cognee-backups' \
   'volumeName: cognee-backups' \
+  'runAsUser: 1000' \
+  'runAsGroup: 100' \
+  'fsGroup: 100' \
+  'chmod 770 "$root" "$target"' \
   'kind: CronJob' \
   'name: cognee-backup' \
   'timeZone: America/Sao_Paulo' \

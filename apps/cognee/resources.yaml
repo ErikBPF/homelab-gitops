@@ -447,7 +447,7 @@ data:
     stamp=$(date -u +%Y%m%dT%H%M%SZ)
     target=$root/$stamp
     mkdir -p "$target"
-    chmod 700 "$root" "$target"
+    chmod 770 "$root" "$target"
     replicas=$(kubectl -n cognee get deployment cognee -o jsonpath='{.spec.replicas}')
 
     cleanup() {
@@ -522,9 +522,9 @@ spec:
           restartPolicy: Never
           securityContext:
             runAsNonRoot: true
-            runAsUser: 1001
-            runAsGroup: 1001
-            fsGroup: 1001
+            runAsUser: 1000
+            runAsGroup: 100
+            fsGroup: 100
             seccompProfile: { type: RuntimeDefault }
           containers:
             - name: backup
