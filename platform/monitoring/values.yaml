@@ -8,6 +8,8 @@ kube-prometheus-stack:
   kubeScheduler: {enabled: false}
   defaultRules:
     create: true
+    disabled:
+      PrometheusNotConnectedToAlertmanagers: true
     rules:
       alertmanager: false
       etcd: false
@@ -15,6 +17,12 @@ kube-prometheus-stack:
       kubeProxy: false
       kubeSchedulerAlerting: false
       kubeSchedulerRecording: false
+  kubelet:
+    serviceMonitor:
+      # `up` is synthetic, so its cluster label must come from target relabeling.
+      relabelings:
+        - targetLabel: cluster
+          replacement: homelab
   prometheusOperator:
     admissionWebhooks: {enabled: false}
     tls: {enabled: false}

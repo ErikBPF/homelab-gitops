@@ -14,6 +14,9 @@ test "$(yq -r '.kube-prometheus-stack.kubeStateMetrics.enabled' "$root/platform/
 test "$(yq -r '.kube-prometheus-stack.nodeExporter.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheusOperator.tls.enabled' "$root/platform/monitoring/values.yaml")" = false
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.cpu' "$root/platform/monitoring/values.yaml")" = 100m
+test "$(yq -r '.kube-prometheus-stack.defaultRules.disabled.PrometheusNotConnectedToAlertmanagers' "$root/platform/monitoring/values.yaml")" = true
+test "$(yq -r '.kube-prometheus-stack.defaultRules.disabled.KubeletDown // false' "$root/platform/monitoring/values.yaml")" = false
+test "$(yq -r '.kube-prometheus-stack.kubelet.serviceMonitor.relabelings[] | select(.targetLabel == "cluster") | .replacement' "$root/platform/monitoring/values.yaml")" = homelab
 ! grep -Fq 'legacy-monitoring-federation' "$root/platform/monitoring/values.yaml"
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs // "absent"' "$root/platform/monitoring/values.yaml")" = absent
 ! grep -Fq 'wazuh_unifi_last_event_seconds' "$root/platform/monitoring/files/alerting/rules.yaml"
@@ -38,6 +41,13 @@ for app in monitoring loki; do
   python3 "$root/scripts/check-first-wave-resources.py" "$render"
   rm -f "$render"
 done
+
+render=$(mktemp)
+helm template monitoring "$root/platform/monitoring" >"$render"
+! yq -e 'select(.kind == "PrometheusRule") | .spec.groups[].rules[]? | select(.alert == "PrometheusNotConnectedToAlertmanagers")' "$render" >/dev/null 2>&1
+yq -e 'select(.kind == "PrometheusRule") | .spec.groups[].rules[]? | select(.alert == "KubeletDown")' "$render" >/dev/null
+test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitoring-kube-prometheus-kubelet") | .spec.endpoints[] | select(.path == null) | .relabelings[] | select(.targetLabel == "cluster") | .replacement' "$render")" = homelab
+rm -f "$render"
 
 for app in uptime-kuma healthchecks scrutiny; do
   render=$(mktemp)
@@ -83,6 +93,16 @@ test "$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mism
 statefulset_expr=$(yq -r '.groups[].rules[] | select(.uid == "k8s-statefulset-replicas-mismatch") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'kube_statefulset_status_replicas_ready' <<<"$statefulset_expr"
 grep -Fq 'kube_statefulset_replicas' <<<"$statefulset_expr"
+
+host_absence_expr=$(yq -r '.groups[].rules[] | select(.uid == "host-metrics-absent") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
+grep -Fq 'instance="apollo"' <<<"$host_absence_expr"
+test "$(yq -r '.groups[].rules[] | select(.uid == "apollo-k3s-readiness") | .for' "$root/platform/monitoring/files/alerting/rules.yaml")" = 10m
+test "$(yq -r '.groups[].rules[] | select(.uid == "apollo-k3s-readiness") | .labels.severity' "$root/platform/monitoring/files/alerting/rules.yaml")" = warning
+apollo_expr=$(yq -r '.groups[].rules[] | select(.uid == "apollo-k3s-readiness") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
+grep -Fq 'apollo_k3s_ready_nodes{instance="apollo"}) < bool 5' <<<"$apollo_expr"
+grep -Fq 'apollo_k3s_probe_last_success_seconds{instance="apollo"}) > bool 300' <<<"$apollo_expr"
+grep -Fq 'absent_over_time(apollo_k3s_probe_last_success_seconds{instance="apollo"}[5m])' <<<"$apollo_expr"
+test "$(grep -c 'uid: host-systemd-unit-failed' "$root/platform/monitoring/files/alerting/rules.yaml")" -eq 1
 
 alert_files=(
   "$root/platform/monitoring/files/alerting/rules.yaml"
