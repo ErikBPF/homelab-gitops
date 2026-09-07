@@ -22,6 +22,9 @@ kube-prometheus-stack:
       # `up` is synthetic, so its cluster label must come from target relabeling.
       relabelings:
         - action: replace
+          sourceLabels: [__metrics_path__]
+          targetLabel: metrics_path
+        - action: replace
           targetLabel: cluster
           replacement: homelab
   prometheusOperator:
