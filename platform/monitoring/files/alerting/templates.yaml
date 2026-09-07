@@ -1,14 +1,15 @@
 apiVersion: 1
 
-# Compact Discord notifications. Policies group by alertname, so keep each
-# instance to one line and emit shared links once.
+# Curated summaries only: never dump labels, ValueString, or evaluation errors.
+# ponytail: four firing + two resolved instances fit Discord; use Rule for the
+# complete group. Revisit the cap if normal groups need more detail.
 templates:
   - orgId: 1
     name: homelab-discord
     template: |
       {{ define "homelab.discord.title" -}}
       {{- if gt (len .Alerts.Firing) 0 -}}
-      FIRING ({{ len .Alerts.Firing }}) · {{ .CommonLabels.alertname }}
+      FIRING ({{ len .Alerts.Firing }}){{ if .Alerts.Resolved }} · RESOLVED ({{ len .Alerts.Resolved }}){{ end }} · {{ .CommonLabels.alertname }}
       {{- else -}}
       RESOLVED ({{ len .Alerts.Resolved }}) · {{ .CommonLabels.alertname }}
       {{- end -}}
@@ -16,23 +17,38 @@ templates:
 
       {{ define "homelab.discord.alert" -}}
       {{- if eq .Status "firing" }}🔴{{ else }}🟢{{ end }}
-      {{- with .Labels.instance }} **{{ . }}** —{{ end }} {{ .Annotations.summary }}
+      {{- with .Labels.severity }} {{ . }}{{ end }}
+      {{- with .Labels.cluster }} · {{ printf "%.40s" . }}{{ end }}
+      {{- with or .Labels.host .Labels.instance }} · **{{ printf "%.60s" . }}**{{ end }}
+      {{- with .Labels.datasource_uid }} · {{ printf "%.40s" . }}{{ end }}
+      {{ if eq .Status "resolved" }}Previous condition: {{ end }}{{ with .Annotations.summary }}{{ printf "%.300s" . }}{{ if gt (len .) 300 }}…{{ end }}{{ else }}Summary unavailable; inspect rule evaluation.{{ end }}
+      {{- if not .StartsAt.IsZero }} · since {{ .StartsAt.UTC.Format "2006-01-02 15:04 MST" }}{{ end }}
+      {{- if and (eq .Status "resolved") (not .EndsAt.IsZero) }} · ended {{ .EndsAt.UTC.Format "2006-01-02 15:04 MST" }}{{ end }}
       {{- end }}
 
       {{ define "homelab.discord.message" -}}
       <@1532710143517659356>
-      {{- range .Alerts.Firing }}
+      {{- range $i, $alert := .Alerts.Firing }}{{ if lt $i 4 }}
       {{ template "homelab.discord.alert" . }}
-      {{- end }}
-      {{- range .Alerts.Resolved }}
+      {{- end }}{{ end }}
+      {{- range $i, $alert := .Alerts.Resolved }}{{ if lt $i 2 }}
       {{ template "homelab.discord.alert" . }}
+      {{- end }}{{ end }}
+      {{- if or (gt (len .Alerts.Firing) 4) (gt (len .Alerts.Resolved) 2) }}
+      Additional instances omitted; open Rule for the complete group.
       {{- end }}
-      {{- with index .Alerts 0 }}
+      {{- if .Alerts.Resolved }}
+      Resolved means Grafana stopped firing; verify recovery and telemetry in the rule history.
+      {{- end }}
+
+      [Response guide / owners](https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md)
+      {{- with .CommonAnnotations.runbook_url }} · [Runbook]({{ . }}){{ end }}
+      {{- if .Alerts }}{{ with index .Alerts 0 }}
       {{- with .DashboardURL }}
 
       [Dashboard]({{ . }})
       {{- end }}
       {{- with .GeneratorURL }} · [Rule]({{ . }})
-      {{- end }}
+      {{- end }}{{ end }}
       {{- end }}
       {{- end }}

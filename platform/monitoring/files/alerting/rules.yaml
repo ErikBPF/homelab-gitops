@@ -110,7 +110,7 @@ groups:
                 (time() - max by (host) (container_last_seen{host="discovery",name!=""}) <= 120)
                 or (
                   (
-                    (podman_container_state{host="kepler",name=~"postgres|redis"} != 2)
+                    (podman_container_state{host="kepler",name=~"postgres|redis"} != bool 2)
                     or absent(podman_container_state{host="kepler",name="postgres"})
                     or absent(podman_container_state{host="kepler",name="redis"})
                   )
@@ -333,7 +333,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "OpenBao restore drill has not passed in >100d (or its liveness metric is absent) — run just openbao-restore-drill"
+          summary: "OpenBao restore drill has not passed in >100d or its metric is missing — inspect its timer and last result, then follow the desktop-nixos isolated restore procedure"
         labels:
           severity: warning
         data:
@@ -612,7 +612,8 @@ groups:
       # while other hosts keep the query non-empty. This rule closes that hole
       # with absent_over_time per ALWAYS-ON host. Workstations (pathfinder,
       # laptop) are excluded — they power off legitimately. voyager has its own
-      # scrape-down rule; discovery monitoring itself is the accepted SPOF.
+      # scrape-down rule. Monitoring now runs on Kepler, so Discovery's
+      # disappearance is independently observable too.
       # 20m window tolerates the observed 5-15m remote_write lag. Watches `up`
       # (not node_uname_info) so it doesn't double-fire with host-alloy-down
       # when an exporter scrape fails while Alloy still pushes: up present ⇒
@@ -645,6 +646,7 @@ groups:
                 absent_over_time(up{instance="kepler",job="integrations/unix"}[20m])
                 or absent_over_time(up{instance="orion",job="integrations/unix"}[20m])
                 or absent_over_time(up{instance="apollo",job="integrations/unix"}[20m])
+                or absent_over_time(up{instance="discovery",job="integrations/unix"}[20m])
           - refId: B
             relativeTimeRange:
               from: 1500
@@ -755,7 +757,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.05
+              expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < bool 0.05
           - refId: B
             relativeTimeRange:
               from: 1800
@@ -1055,7 +1057,7 @@ groups:
                 uid: prometheus
               expr: >-
                 node_filesystem_files_free{fstype!~"tmpfs|overlay|squashfs|ramfs|nsfs"}
-                / node_filesystem_files < 0.05
+                / node_filesystem_files < bool 0.05
           - refId: B
             relativeTimeRange:
               from: 1800
@@ -1281,7 +1283,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "voyager / is below 15% free — append-only restic repos grow without pruning; run the prune window (docs/reference/voyager-offsite-maintenance.md) or backups start failing"
+          summary: "voyager / is below 15% free — inspect filesystem and Restic repository usage, then follow desktop-nixos docs/reference/voyager-offsite-maintenance.md"
         labels:
           severity: warning
         data:
@@ -1298,7 +1300,7 @@ groups:
                 uid: prometheus
               expr: >-
                 node_filesystem_avail_bytes{job="node-voyager",mountpoint="/",fstype!~"tmpfs|overlay|squashfs|ramfs|nsfs|vfat"}
-                / node_filesystem_size_bytes < 0.15
+                / node_filesystem_size_bytes < bool 0.15
           - refId: B
             relativeTimeRange:
               from: 21600
@@ -1402,7 +1404,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "a Kepler compose restic backup has not succeeded in >30 hours (or any liveness metric is absent) — inspect the sync stack and Ofelia jobs"
+          summary: "Kepler {{ $labels.backup }} backup has not succeeded in >30h or its metric is missing — inspect the sync stack and Ofelia jobs"
         labels:
           severity: warning
         data:
@@ -1418,9 +1420,9 @@ groups:
                 type: prometheus
                 uid: prometheus
               expr: >-
-                (count({__name__=~"restic_kepler_(postgres|configs|offsite)_last_success_seconds"}) != bool 3)
-                +
-                (min({__name__=~"restic_kepler_(postgres|configs|offsite)_last_success_seconds"}) < bool time() - 108000)
+                label_replace((time() - restic_kepler_postgres_last_success_seconds{instance="kepler"} > bool 108000) or absent(restic_kepler_postgres_last_success_seconds{instance="kepler"}), "backup", "postgres", "", "")
+                or label_replace((time() - restic_kepler_configs_last_success_seconds{instance="kepler"} > bool 108000) or absent(restic_kepler_configs_last_success_seconds{instance="kepler"}), "backup", "configs", "", "")
+                or label_replace((time() - restic_kepler_offsite_last_success_seconds{instance="kepler"} > bool 108000) or absent(restic_kepler_offsite_last_success_seconds{instance="kepler"}), "backup", "offsite", "", "")
           - refId: B
             relativeTimeRange:
               from: 21600
@@ -1469,7 +1471,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "OpenBao on discovery is sealed or unreachable — vault-agent renders and lab ESO are stale; run systemctl restart openbao-unseal on discovery (unseal key in sops)"
+          summary: "OpenBao on discovery is sealed or unreachable — inspect health and openbao-unseal.service, then follow the desktop-nixos recovery runbook"
         labels:
           severity: critical
         data:
@@ -1619,7 +1621,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: max by (instance, name) (node_systemd_unit_state{name=~"(auditd|fail2ban)\\.service",state="active"}) == 0
+              expr: max by (instance, name) (node_systemd_unit_state{name=~"(auditd|fail2ban)\\.service",state="active"}) == bool 0
           - refId: B
             relativeTimeRange:
               from: 900
@@ -1738,7 +1740,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: max by (cluster, node) (kube_node_status_condition{condition="Ready",status="true"} == 0)
+              expr: max by (cluster, node) (kube_node_status_condition{condition="Ready",status="true"} == bool 0)
           - refId: B
             relativeTimeRange:
               from: 1200
@@ -1882,7 +1884,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "{{ $labels.namespace }}/{{ $labels.job_name }} reports a failed job for 15m"
+          summary: "{{ $labels.namespace }}/{{ $labels.job_name }} has a terminal Failed condition for 15m"
         labels:
           severity: warning
         data:
@@ -1897,7 +1899,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: max by (cluster, namespace, job_name) (kube_job_status_failed > 0)
+              expr: max by (cluster, namespace, job_name) (kube_job_failed{condition="true"} == 1)
           - refId: B
             relativeTimeRange:
               from: 1200
@@ -2028,7 +2030,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "Argo CD application {{ $labels.name }} has remained unhealthy or out of sync for 15m"
+          summary: "Argo CD {{ $labels.cluster }}/{{ $labels.namespace }}/{{ $labels.name }}: health={{ $labels.health_status }}, sync={{ $labels.sync_status }} for 15m"
         labels:
           severity: warning
         data:
@@ -2064,7 +2066,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "Alloy was OOMKilled in the last 15m"
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }}: Alloy restarted in the last 15m with latest termination reason OOMKilled"
         labels:
           severity: critical
         data:
@@ -2075,7 +2077,12 @@ groups:
               refId: A
               instant: true
               datasource: {type: prometheus, uid: prometheus}
-              expr: max by (cluster, namespace, pod, container) (max_over_time(kube_pod_container_status_last_terminated_reason{namespace="monitoring",container="alloy",reason="OOMKilled"}[15m]))
+              expr: >-
+                max by (cluster, namespace, pod, container) (
+                  (kube_pod_container_status_last_terminated_reason{namespace="monitoring",container="alloy",reason="OOMKilled"} == 1)
+                  and on (cluster, namespace, pod, container, uid)
+                  (increase(kube_pod_container_status_restarts_total{namespace="monitoring",container="alloy"}[15m]) > 0)
+                )
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
@@ -2126,7 +2133,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "Alloy has not been ready for 5m"
+          summary: "{{ $labels.namespace }}/{{ $labels.pod }}: Alloy has not been ready for 5m"
         labels:
           severity: critical
         data:
@@ -2137,7 +2144,7 @@ groups:
               refId: A
               instant: true
               datasource: {type: prometheus, uid: prometheus}
-              expr: 1 - max by (cluster, namespace) (kube_pod_container_status_ready{namespace="monitoring",container="alloy"})
+              expr: 1 - max by (cluster, namespace, pod, container) (kube_pod_container_status_ready{namespace="monitoring",container="alloy"})
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}

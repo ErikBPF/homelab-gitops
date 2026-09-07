@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 
 helm repo add authentik https://charts.goauthentik.io >/dev/null 2>&1 || true
@@ -40,6 +40,8 @@ for contract in \
   tests/immich-contract.sh \
   tests/langfuse-contract.sh \
   tests/monitoring-contract.sh \
+  tests/monitoring-promql.py \
+  tests/grafana-alert-template_test.go \
   tests/grafana-alert-status.sh \
   tests/wazuh-contract.sh \
   tests/runtime-secret-bootstrap.sh \
@@ -52,6 +54,7 @@ for contract in \
   tests/repository-transport.sh; do
   case "$contract" in
     *.py) python3 "$contract" ;;
+    *.go) go test "$contract" ;;
     *) bash "$contract" ;;
   esac
 done
