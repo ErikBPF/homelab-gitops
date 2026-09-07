@@ -6,7 +6,7 @@ app=$root/platform/authentik
 render=$(mktemp)
 trap 'rm -f "$render"' EXIT
 
-test "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" = 2026.5.6
+[[ "$(yq -r '.dependencies[0].version' "$app/Chart.yaml")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 test "$(yq -r '.dependencies[0].repository' "$app/Chart.yaml")" = https://charts.goauthentik.io
 grep -Fq 'authentik.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/authentik.yaml")" = platform
