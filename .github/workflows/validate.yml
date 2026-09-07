@@ -41,6 +41,20 @@ jobs:
       - name: Install manifest-test dependencies
         run: python -m pip install --disable-pip-version-check PyYAML==6.0.3
 
+      - name: Install PromQL test tool
+        env:
+          PROMETHEUS_VERSION: "3.14.0"
+          PROMETHEUS_SHA256: "f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d"
+        run: |
+          archive="$RUNNER_TEMP/prometheus.tar.gz"
+          curl -fsSL \
+            "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" \
+            -o "$archive"
+          echo "${PROMETHEUS_SHA256}  ${archive}" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" \
+            "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+          sudo install "$RUNNER_TEMP/prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool" /usr/local/bin/
+
       - name: Render and validate desired state
         run: scripts/validate.sh
 
