@@ -72,6 +72,38 @@ groups:
               datasource: {type: __expr__, uid: __expr__}
               conditions: [{evaluator: {type: gt, params: [0]}}]
 
+      - uid: openbao-authenticated-probe-failed
+        title: OpenBao authenticated probe failed or stale
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: "Discovery OpenBao authenticated request failed, or probe evidence is missing/older than 10m — inspect openbao-seal-probe, vault-agent and audit ownership through desktop-nixos diagnostics"
+        labels: {severity: critical, instance: discovery}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                ((min(openbao_authenticated_probe_success{instance="discovery"}) != bool 1) or vector(1))
+                + (((time() - max(openbao_authenticated_probe_timestamp_seconds{instance="discovery"})) > bool 600) or vector(1))
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
       - uid: litellm-semantic-readiness-failed
         title: LiteLLM semantic readiness failed
         condition: C
