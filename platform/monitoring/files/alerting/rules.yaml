@@ -641,7 +641,10 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: absent_over_time(up{instance="kepler",job="integrations/unix"}[20m]) or absent_over_time(up{instance="orion",job="integrations/unix"}[20m])
+              expr: >-
+                absent_over_time(up{instance="kepler",job="integrations/unix"}[20m])
+                or absent_over_time(up{instance="orion",job="integrations/unix"}[20m])
+                or absent_over_time(up{instance="apollo",job="integrations/unix"}[20m])
           - refId: B
             relativeTimeRange:
               from: 1500
@@ -658,6 +661,64 @@ groups:
           - refId: C
             relativeTimeRange:
               from: 1500
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+
+      - uid: apollo-k3s-readiness
+        title: Apollo k3s readiness degraded or stale
+        condition: C
+        for: 10m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: "Apollo: fewer than five k3s nodes are ready or the readiness probe is stale — run `just diagnose-apollo-worklab`"
+          runbook_url: https://github.com/ErikBPF/homelab/blob/main/docs/apollo-work-lab-one-pager.md#operator-entry-points
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (min by (instance) (apollo_k3s_ready_nodes{instance="apollo"}) < bool 5)
+                + (time() - max by (instance) (apollo_k3s_probe_last_success_seconds{instance="apollo"}) > bool 300)
+                or absent_over_time(apollo_k3s_ready_nodes{instance="apollo"}[5m])
+                or absent_over_time(apollo_k3s_probe_last_success_seconds{instance="apollo"}[5m])
+          - refId: B
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 900
               to: 0
             datasourceUid: __expr__
             model:
