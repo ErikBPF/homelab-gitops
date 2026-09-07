@@ -89,6 +89,24 @@ for uid, metrics in readiness.items():
     if uid == "vault-agent-renders-stale":
         alert_case(uid, "healthy unchanged old file", {**metrics, 'vault_agent_render_last_success_seconds{instance="discovery"}': -1000}, 0)
 
+# Authenticated request success and producer liveness are separate evidence.
+probe_success = 'openbao_authenticated_probe_success{instance="discovery"}'
+probe_timestamp = 'openbao_authenticated_probe_timestamp_seconds{instance="discovery"}'
+for name, success, timestamp, expected in [
+    ("healthy", 1, 600, 0),
+    ("authentication or audit failure", 0, 600, 1),
+    ("missing result", None, 600, 1),
+    ("missing timestamp", 1, None, 1),
+    ("all metrics missing", None, None, 1),
+    ("ten-minute boundary", 1, 0, 0),
+    ("stalled successful probe", 1, -1, 1),
+]:
+    alert_case("openbao-authenticated-probe-failed", name,
+               {metric: value for metric, value in [(probe_success, success), (probe_timestamp, timestamp)]
+                if value is not None}, expected)
+assert all_rules["openbao-authenticated-probe-failed"]["for"] == "5m"
+assert all_rules["openbao-authenticated-probe-failed"]["labels"]["instance"] == "discovery"
+
 for uid, metric in [
     ("k8s-node-not-ready", 'kube_node_status_condition{cluster="homelab",node="cp-1",condition="Ready",status="true"}'),
     ("security-control-systemd-inactive", 'node_systemd_unit_state{instance="discovery",name="auditd.service",state="active"}'),
