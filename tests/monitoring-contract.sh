@@ -47,6 +47,8 @@ helm template monitoring "$root/platform/monitoring" >"$render"
 ! yq -e 'select(.kind == "PrometheusRule") | .spec.groups[].rules[]? | select(.alert == "PrometheusNotConnectedToAlertmanagers")' "$render" >/dev/null 2>&1
 yq -e 'select(.kind == "PrometheusRule") | .spec.groups[].rules[]? | select(.alert == "KubeletDown")' "$render" >/dev/null
 test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitoring-kube-prometheus-kubelet") | .spec.endpoints[] | select(.path == null) | .relabelings[] | select(.targetLabel == "cluster") | .replacement' "$render")" = homelab
+test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitoring-kube-prometheus-kubelet") | .spec.endpoints[] | select(.path == null) | .relabelings[] | select(.targetLabel == "cluster") | .action' "$render")" = replace
+test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitoring-kube-prometheus-kubelet") | .spec.endpoints[] | select(.path == null) | .relabelings[] | select(.targetLabel == "metrics_path" and .action == "replace") | .sourceLabels[]' "$render")" = __metrics_path__
 rm -f "$render"
 
 for app in uptime-kuma healthchecks scrutiny; do
