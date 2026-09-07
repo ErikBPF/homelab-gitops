@@ -111,7 +111,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "LiteLLM DB, ha-agent-qwen4b route, or local completion probe failed"
+          summary: "LiteLLM DB, qwen-chat route, or local completion probe failed"
         labels: {severity: critical}
         data:
           - refId: A
