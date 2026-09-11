@@ -25,7 +25,7 @@ groups:
               datasource: {type: prometheus, uid: prometheus}
               expr: >-
                 (count(sops_runtime_secrets_ready{instance=~"discovery|kepler"}) != bool 2)
-                or (min(sops_runtime_secrets_ready{instance=~"discovery|kepler"}) < bool 1)
+                + (min(sops_runtime_secrets_ready{instance=~"discovery|kepler"}) < bool 1)
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
@@ -38,14 +38,16 @@ groups:
               datasource: {type: __expr__, uid: __expr__}
               conditions: [{evaluator: {type: gt, params: [0]}}]
 
+      # The producer last_success metric is file mtime. Unchanged secret
+      # content keeps its mtime; it is not renderer liveness.
       - uid: vault-agent-renders-stale
-        title: Vault Agent required renders missing or stale
+        title: Vault Agent required renders missing
         condition: C
         for: 5m
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "Discovery Vault Agent renders are missing or older than 15m"
+          summary: "Discovery Vault Agent required renders are missing — inspect vault-agent.service and the required render health probe"
         labels: {severity: critical}
         data:
           - refId: A
@@ -57,9 +59,39 @@ groups:
               datasource: {type: prometheus, uid: prometheus}
               expr: >-
                 (count(vault_agent_required_renders_ready{instance="discovery"}) != bool 1)
-                or (max(vault_agent_required_renders_ready{instance="discovery"}) < bool 1)
-                or (count(vault_agent_render_last_success_seconds{instance="discovery"}) != bool 1)
-                or ((time() - max(vault_agent_render_last_success_seconds{instance="discovery"})) > bool 900)
+                + (max(vault_agent_required_renders_ready{instance="discovery"}) < bool 1)
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: openbao-authenticated-probe-failed
+        title: OpenBao authenticated probe failed or stale
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: "Discovery OpenBao authenticated request failed, or probe evidence is missing/older than 10m — inspect openbao-seal-probe, vault-agent and audit ownership through desktop-nixos diagnostics"
+        labels: {severity: critical, instance: discovery}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                ((min(openbao_authenticated_probe_success{instance="discovery"}) != bool 1) or vector(1))
+                + (((time() - max(openbao_authenticated_probe_timestamp_seconds{instance="discovery"})) > bool 600) or vector(1))
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
@@ -79,7 +111,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "LiteLLM DB, ha-agent-qwen4b route, or local completion probe failed"
+          summary: "LiteLLM DB, qwen-chat route, or local completion probe failed"
         labels: {severity: critical}
         data:
           - refId: A
@@ -91,7 +123,7 @@ groups:
               datasource: {type: prometheus, uid: prometheus}
               expr: >-
                 (count(litellm_semantic_ready{instance="discovery"}) != bool 1)
-                or (max(litellm_semantic_ready{instance="discovery"}) < bool 1)
+                + (max(litellm_semantic_ready{instance="discovery"}) < bool 1)
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
@@ -123,7 +155,7 @@ groups:
               datasource: {type: prometheus, uid: prometheus}
               expr: >-
                 (count(restic_kepler_offsite_transport_ready) != bool 1)
-                or (max(restic_kepler_offsite_transport_ready) < bool 1)
+                + (max(restic_kepler_offsite_transport_ready) < bool 1)
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}

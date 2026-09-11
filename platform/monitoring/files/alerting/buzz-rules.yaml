@@ -52,7 +52,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "Buzz Restic backup has not succeeded in over 30 hours"
+          summary: "Kepler Buzz backup is overdue (>30h) or its metric is missing{{ with $values.B }} — observed age {{ humanizeDuration .Value }}{{ end }}"
         labels:
           severity: warning
         data:
@@ -91,7 +91,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "Buzz restore drill has not passed in over 9 days"
+          summary: "Kepler Buzz local restore verification is overdue (>9d) or its metric is missing{{ with $values.B }} — observed age {{ humanizeDuration .Value }}{{ end }}"
         labels:
           severity: warning
         data:
@@ -130,7 +130,7 @@ groups:
         noDataState: Alerting
         execErrState: KeepLast
         annotations:
-          summary: "Buzz offsite restore drill has not passed in over 9 days"
+          summary: "Kepler Buzz offsite restore verification is overdue (>9d) or its metric is missing{{ with $values.B }} — observed age {{ humanizeDuration .Value }}{{ end }}"
         labels:
           severity: warning
         data:
