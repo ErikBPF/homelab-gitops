@@ -2,7 +2,7 @@ spark-operator:
   image:
     registry: harbor.homelab.pastelariadev.com/ghcr
     repository: kubeflow/spark-operator/controller
-    tag: 2.4.0@sha256:067ee9171ac3d9f2b83199cba9a87d4f069ad8453088f07657569f188e0251b4
+    tag: 2.5.2@sha256:57e146696e49ea1ef3cc199097dabff3d570d9638dc33155b9170293081c49c7
   controller:
     batchScheduler: {enable: true, default: yunikorn}
     replicas: 1
