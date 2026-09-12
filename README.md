@@ -45,18 +45,11 @@ just status        # argocd app list
 just ui            # how to reach the Argo UI
 ```
 
-Sync the root first, then every child at the same reviewed merge commit:
+Sync the root first at the reviewed merge commit:
 
 ```bash
 SHA="$(git rev-parse HEAD)" # checked-out reviewed merge commit
-just retire-vcluster-pastelariadev # one-time: Gemini now owns this context
 just sync "$SHA" root
-for app in argocd csi-driver-nfs traefik external-secrets cert-manager clickhouse-operator \
-  kube-state-metrics keda jaeger alloy-metrics otel-collector monitoring loki \
-  uptime-kuma healthchecks scrutiny wazuh trace-demo demo airflow langfuse \
-  changedetection karakeep immich cognee; do
-  just sync "$SHA" "$app"
-done
 ```
 
 `just sync` submits an operation through the Kubernetes API using your selected
@@ -64,6 +57,17 @@ context; it does not wait for completion. Check the application's
 `status.operationState` and `just status` for successful completion, the requested
 revision, and health before proceeding. An active operation is rejected; a
 resource-version precondition prevents overwriting a concurrent request.
+
+After root completion, select one reviewed child at a time and check its
+operation result, revision, and health before selecting the next:
+
+```sh
+app=jaeger # example; choose the application being updated
+just sync "$SHA" "$app"
+```
+
+One-time retirements and applications with unmet prerequisites are separate
+operations, not part of a routine update.
 
 For rollback, set `SHA` to the prior known-good commit and repeat both sync
 commands.
