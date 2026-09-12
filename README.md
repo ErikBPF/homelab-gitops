@@ -59,6 +59,12 @@ for app in argocd csi-driver-nfs traefik external-secrets cert-manager clickhous
 done
 ```
 
+`just sync` submits an operation through the Kubernetes API using your selected
+context; it does not wait for completion. Check the application's
+`status.operationState` and `just status` for successful completion, the requested
+revision, and health before proceeding. An active operation is rejected; a
+resource-version precondition prevents overwriting a concurrent request.
+
 For rollback, set `SHA` to the prior known-good commit and repeat both sync
 commands.
 
