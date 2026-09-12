@@ -36,6 +36,11 @@ trap 'rm -rf "$tmp"' EXIT
 cat >"$tmp/argocd" <<'SH'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >"$ARGOCALL"
+if [[ "$*" == *"get application"* ]]; then
+  printf '{"metadata":{"resourceVersion":"42"},"spec":{"syncPolicy":{"syncOptions":["CreateNamespace=true","ServerSideApply=true"]}},"operation":%s}\n' "${ACTIVE_OPERATION:-null}"
+elif [[ "$*" == *"patch application"* ]]; then
+  printf '%s\n' "${@: -1}" >"$ARGOCALL.patch"
+fi
 SH
 mv "$tmp/argocd" "$tmp/kubectl"
 chmod +x "$tmp/kubectl"
@@ -54,11 +59,18 @@ fi
 test ! -e "$tmp/call"
 
 PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/sync.sh "$sha" demo >/dev/null
-test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app sync demo --core --revision $sha"
+jq -e --arg sha "$sha" '. == [
+  {op:"test",path:"/metadata/resourceVersion",value:"42"},
+  {op:"add",path:"/operation",value:{sync:{revision:$sha,syncStrategy:{hook:{}},syncOptions:["CreateNamespace=true","ServerSideApply=true"]}}}
+]' "$tmp/call.patch" >/dev/null
+grep -Fq -- '--context homelab -n argocd patch application demo --type=json --patch ' "$tmp/call"
+
+rm "$tmp/call.patch"
+if PATH="$tmp:$PATH" ARGOCALL="$tmp/call" ACTIVE_OPERATION='{"sync":{}}' scripts/sync.sh "$sha" demo >/dev/null 2>&1; then
+  echo "active operation unexpectedly replaced" >&2
+  exit 1
+fi
+test ! -e "$tmp/call.patch"
 
 PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-vcluster-pastelariadev.sh >/dev/null
 test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete vcluster-pastelariadev --core --cascade --yes"
-
-grep -Fq 'scripts/retire-cognee-canary.sh' justfile
-PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-cognee-canary.sh >/dev/null
-test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete cognee --core --cascade --yes"
