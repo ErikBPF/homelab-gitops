@@ -161,3 +161,6 @@ rules=platform/monitoring/files/alerting/rules.yaml
 for uid in cognee-api-unavailable cognee-pvc-high cognee-backup-stale; do
   yq -e ".groups[].rules[] | select(.uid == \"$uid\")" "$rules" >/dev/null
 done
+
+# C6 must compare identities, not only row counts.
+python3 tests/cognee-restore-identity.py
