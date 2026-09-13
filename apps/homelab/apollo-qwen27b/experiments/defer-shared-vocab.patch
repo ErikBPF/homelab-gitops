@@ -1,0 +1,76 @@
+--- a/vllm/model_executor/models/qwen3_dflash.py
++++ b/vllm/model_executor/models/qwen3_dflash.py
+@@ -2,6 +2,7 @@
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+ import io
++from contextlib import nullcontext
+ from collections.abc import Iterable
+ 
+ import torch
+@@ -399,11 +400,17 @@
+ 
+         current_vllm_config = get_current_vllm_config()
+ 
+-        self.embed_tokens = VocabParallelEmbedding(
+-            self.config.vocab_size,
+-            self.config.hidden_size,
+-            prefix=maybe_prefix(prefix, "embed_tokens"),
+-        )
++        # Shared vocabulary tensors are installed by load_dflash_model.
++        with (
++            torch.device("meta")
++            if getattr(self.config, "defer_shared_vocab", False)
++            else nullcontext()
++        ):
++            self.embed_tokens = VocabParallelEmbedding(
++                self.config.vocab_size,
++                self.config.hidden_size,
++                prefix=maybe_prefix(prefix, "embed_tokens"),
++            )
+ 
+         # Masked query slots are fed to the draft as `mask_token_id`. Most DFlash
+         # checkpoints will have the mask embedding in the vocabulary embedding table
+@@ -702,11 +709,17 @@
+         )
+ 
+         logit_scale = getattr(self.config, "logit_scale", 1.0)
+-        self.lm_head = ParallelLMHead(
+-            self.config.draft_vocab_size,
+-            self.config.hidden_size,
+-            prefix=maybe_prefix(prefix, "lm_head"),
+-        )
++        # Shared vocabulary tensors are installed by load_dflash_model.
++        with (
++            torch.device("meta")
++            if getattr(self.config, "defer_shared_vocab", False)
++            else nullcontext()
++        ):
++            self.lm_head = ParallelLMHead(
++                self.config.draft_vocab_size,
++                self.config.hidden_size,
++                prefix=maybe_prefix(prefix, "lm_head"),
++            )
+         self.logits_processor = LogitsProcessor(
+             self.config.draft_vocab_size, scale=logit_scale
+         )
+@@ -798,6 +811,10 @@
+         includes_draft_id_mapping = False
+         includes_embed_tokens = False
+         for name, loaded_weight in weights:
++            if getattr(self.config, "defer_shared_vocab", False) and any(
++                part in name for part in ("embed_tokens", "lm_head", "d2t")
++            ):
++                raise ValueError("defer_shared_vocab requires target-shared vocabulary")
+             assert "mask_hidden" not in name, (
+                 "DFlash embeds masked slots via mask_token_id (optionally "
+                 "overridden by a mask_embedding.pt file); it should not ship a "
+--- a/vllm/v1/worker/gpu/spec_decode/dflash/utils.py
++++ b/vllm/v1/worker/gpu/spec_decode/dflash/utils.py
+@@ -65,4 +65,6 @@
+             del dflash_model.lm_head
+         dflash_model.lm_head = target_lm_head
+ 
++    if any(p.is_meta for p in dflash_model.parameters()):
++        raise RuntimeError("DFlash vocabulary sharing left unmaterialized parameters")
+     return dflash_model
