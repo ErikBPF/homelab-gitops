@@ -74,6 +74,15 @@ class DictionaryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             codewords('other', e1.repeat(256, 1))
 
+    def test_stored_radius_rounding(self):
+        e1 = torch.eye(8)[0]
+        x = (1.003 * e1)[None]
+        result = dictionary_roundtrip(x, 'vq', e1.repeat(256, 1))
+        self.assertIsNotNone(result)
+        restored, indices, radii = result
+        self.assertTrue(torch.equal(restored, radii.float()[:, None] * e1))
+        self.assertFalse(torch.equal(restored, x))
+
     def test_final_query_matches_actual_attention(self):
         from transformers import Qwen3Config, Qwen3ForCausalLM
         torch.manual_seed(4827)
