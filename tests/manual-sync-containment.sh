@@ -72,5 +72,29 @@ if PATH="$tmp:$PATH" ARGOCALL="$tmp/call" ACTIVE_OPERATION='{"sync":{}}' scripts
 fi
 test ! -e "$tmp/call.patch"
 
+# Selective root sync must reject every other selector/application before API access.
+rm "$tmp/call"
+for args in "demo platform-project" "root arbitrary" "root platform-project extra"; do
+  read -r -a selected <<<"$args"
+  if PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/sync.sh "$sha" "${selected[@]}" >/dev/null 2>&1; then
+    echo "invalid selective sync unexpectedly accepted: $args" >&2
+    exit 1
+  fi
+  test ! -e "$tmp/call"
+done
+
+PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/sync.sh "$sha" root platform-project >/dev/null
+jq -e --arg sha "$sha" '. == [
+  {op:"test",path:"/metadata/resourceVersion",value:"42"},
+  {op:"add",path:"/operation",value:{sync:{revision:$sha,syncStrategy:{hook:{}},syncOptions:["CreateNamespace=true","ServerSideApply=true"],resources:[{group:"argoproj.io",kind:"AppProject",name:"platform",namespace:"argocd"}]}}}
+]' "$tmp/call.patch" >/dev/null
+rm "$tmp/call.patch"
+if PATH="$tmp:$PATH" ARGOCALL="$tmp/call" ACTIVE_OPERATION='{"sync":{}}' scripts/sync.sh "$sha" root platform-project >/dev/null 2>&1; then
+  echo "selective sync replaced an active operation" >&2
+  exit 1
+fi
+test ! -e "$tmp/call.patch"
+just --dry-run sync-platform-project "$sha" 2>&1 | grep -Fq "scripts/sync.sh '$sha' root platform-project"
+
 PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-vcluster-pastelariadev.sh >/dev/null
 test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete vcluster-pastelariadev --core --cascade --yes"
