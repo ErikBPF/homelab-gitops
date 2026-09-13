@@ -1,6 +1,7 @@
 """Scalar controls: signed wire format, distortion bound and input boundary."""
 import unittest
 import sys
+import math
 
 sys.path.append('/host-deps')
 
@@ -29,6 +30,8 @@ class ScalarTests(unittest.TestCase):
                          {(b, m) for b in (2, 4, 8, 16) for m in ('k', 'v', 'kv')})
         self.assertEqual(len(result['variants']), 12)
         for v in result['variants']:
+            for key in ('kl_original_to_variant', 'logit_rmse', 'k_nmse', 'v_nmse'):
+                self.assertTrue(math.isfinite(v[key]), (v['bits'], v['mode'], key))
             side = 640 if v['bits'] == 16 else 320 * v['bits'] // 8 + 40
             self.assertEqual(v['stored_bytes'], 2 * side if v['mode'] == 'kv' else side + 1280)
             self.assertGreaterEqual(v['kl_original_to_variant'], -1e-6)
@@ -65,6 +68,7 @@ class ScalarTests(unittest.TestCase):
         for x, bits in [(valid, 3), (valid, True), (valid, 4.0),
                         (torch.zeros(31), 4), (torch.tensor(1.), 4),
                         (torch.empty(0, 32), 4), (torch.ones(32, dtype=torch.int64), 4),
+                        (torch.ones(32, dtype=torch.float64), 4),
                         (torch.full((32,), float('nan')), 4),
                         (torch.full((32,), float('inf')), 4)]:
             with self.subTest(shape=x.shape, bits=bits):

@@ -67,7 +67,7 @@ GPU. This slice establishes scalar controls; it does not fit or select a learned
 codec, bind CKV-03 end to end, or claim task-quality preservation.
 
 `scalar_probe.scalar_roundtrip(tensor, bits)` returns reconstructed tensor, packed
-uint8 tensor and FP32 scales. Bits are 2, 4 or 8. Inputs are finite floating CPU
+uint8 tensor and FP32 scales. Bits are 2, 4 or 8. Inputs are finite FP32 or BF16 CPU
 tensors with last dimension divisible by 32. Each consecutive group of 32 uses
 max-absolute scale divided by `2**(bits-1)-1`, round-to-nearest-even and symmetric
 clipping; a zero group uses scale one. Signed integers use two's-complement fields,
@@ -75,6 +75,10 @@ low field first in each byte. Scales remain FP32; reconstruction preserves shape
 and input dtype without mutating input. Reject unsupported widths, nonfinite
 values or invalid shapes with ValueError. This is a reference format, not an
 engine-compatible or native integer compute format.
+
+Review refinement: FP64 is outside this control's precision contract because its
+finite range exceeds FP32 scales. Reject it explicitly rather than implying a
+general floating-point codec. The model diagnostic itself uses FP32 inputs.
 
 Runnable checks must establish known signed packed bytes, zero-group behavior,
 actual payload/scale storage, bounded reconstruction error for all widths, shape
