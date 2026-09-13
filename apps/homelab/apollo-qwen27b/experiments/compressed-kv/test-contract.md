@@ -189,3 +189,53 @@ Run all 18 captures, fits and comparisons in one owned four-thread/32-GiB contai
 with no swap, network or GPU devices, a 20-minute deadline and a 1-GiB artifact
 budget. Preserve source/model/dependency/input hashes, all raw rows, exit status,
 and unchanged service health. A timeout is a blocker, not a scientific negative.
+
+
+## Successor slice: joint endpoints on the retained captures
+
+Basis: the user's continuation and the explicitly pending joint-segment variant.
+Use only the retained dictionary bundle
+`73465d6f361dff338674c1a9d9a293778918f846fabdcfc1bf0d8cbb3cbdc889.tar`.
+Its evaluation results have already been inspected. This is a paired replay
+diagnostic, not a fresh held-out confirmation or a full H2 verdict.
+
+`refine_segments(vectors, initial)` takes the same finite FP32 calibration rows
+and a valid [32,2,8] FP32 unit-endpoint initializer. Clone inputs; optimize both
+endpoints with 50 fixed Adam steps at learning rate 0.03, recomputing nearest
+segment/alpha assignments each step. Optimize mean squared unit-direction error,
+not attention error or radius-weighted reconstruction. Normalize blends using the
+existing eight alpha levels, differentiate selected directions, and project
+endpoints to unit length after each step. Reject nonfinite/degenerate states.
+Return final detached endpoints and all 51 calibration losses (initial plus each
+step). No early stopping, best-checkpoint selection or loss-based reversion.
+The final iterate remains a measured candidate even if it loses. Preserve initial
+and final objectives, optimizer settings, every seed and input/table hashes.
+
+Reuse all three original seed initializers and their exact stored 8192-row K/V
+calibration samples; fit K and V separately. No viewed selection/evaluation data
+enters gradients or parameter selection. Freeze all six refined tables before
+scoring. Representation, BF16-radius rounding, byte accounting, frozen-Q attention
+and K-only/V-only/combined modes remain unchanged. The expanded direction-table
+count is not a peak-memory measurement.
+
+Replay all 288 existing baseline comparisons and verify them against the source
+receipt. `verify_replay` requires unique matching document/family/seed/mode IDs,
+exact counts and nonnumeric/byte fields, and finite metric agreement within
+atol 1e-8 plus rtol 1e-6. A mismatch is a correctness blocker. Then score 108 new
+joint-segment cases: 12 documents x three seeds x three modes. Retain all 396 rows
+and every loss. Compare each refined seed with its own paired initializer;
+selection and evaluation summaries remain separate.
+
+Tests must observe assertion RED for refinement on a simple off-direction fixture,
+final-objective consistency, input immutability, invalid input rejection, and
+replay refusal of changed metrics, identities, counts and byte totals. Commit the
+RED anchor before implementation. Reuse existing codecs and comparison functions;
+do not reload model weights or recapture prompts. Verify all source input hashes
+before and after; save refined tables and provenance in a new owned directory.
+
+Run model-free on Orion using the same cached image and read-only dependencies,
+with four CPU threads, 4 GiB memory/no swap, no network/GPU devices, a 20-minute
+deadline and a 64-MiB new-output budget. Mount the verified retained artifact
+read-only; no model mount is needed. Record service health and preserve the new
+artifact by hash. Other segment objectives, specialization, table-size sweeps,
+models and GPU paths remain scheduled regardless of this result.
