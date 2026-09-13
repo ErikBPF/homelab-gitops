@@ -42,6 +42,8 @@ class JointSegmentTests(unittest.TestCase):
         changed = copy.deepcopy(expected)
         changed[0]['attention_nmse'] += 1e-9
         self.assertTrue(verify_replay(changed, expected))
+        changed[0]['attention_nmse'] = 0.1 + 1.05e-7
+        self.assertTrue(verify_replay(changed, expected))
         for key, value in [('attention_nmse', 0.2), ('attention_nmse', float('nan')),
                            ('raw_bytes', 101), ('mode', 'k')]:
             changed = copy.deepcopy(expected)
