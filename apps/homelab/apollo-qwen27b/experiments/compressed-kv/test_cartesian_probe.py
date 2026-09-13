@@ -14,6 +14,15 @@ import cartesian_probe as codec
 
 
 class CartesianTests(unittest.TestCase):
+    def test_finite_distance_overflow_is_an_explicit_blocker(self):
+        vectors = torch.zeros(1, 8)
+        vectors[0, 0] = 3e20
+        table = torch.zeros(256, 8)
+        table[:, 0] = -3e20
+        table[1, 0] = 2e20
+        with self.assertRaises(ValueError):
+            codec.roundtrip(vectors, 'vq', table)
+
     def test_affine_words_and_euclidean_wire_preserve_magnitudes(self):
         e1 = torch.eye(8)[0]
         table = torch.zeros(256, 8)
