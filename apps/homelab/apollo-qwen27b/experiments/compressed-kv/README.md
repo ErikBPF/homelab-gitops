@@ -163,3 +163,44 @@ calibration losses. All 288 baseline comparisons must reproduce before scoring
 An improvement in direction loss need not improve attention error. New outputs
 have a 64-MiB budget; preserve input/output hashes and service health as before.
 No model mount, weight loading, recapture or package installation is needed.
+
+
+## Cartesian corrective validation
+
+The learned spherical runs above are historical diagnostics. They used normalized
+vectors plus radii; none implemented logarithmic encoding. The corrective contract
+runs Euclidean VQ, fixed affine segments and jointly optimized affine segments on
+the original Cartesian captures. Keep the model's RoPE unchanged. No normalization,
+radius field or logarithm belongs to these new codecs.
+
+Archive `cartesian_probe.py` and `test_cartesian_probe.py` alongside all previous
+Python modules/tests, fixed prompts, README and test contract. Verify source hashes
+before execution. Extract the verified dictionary bundle
+`73465d6f361dff338674c1a9d9a293778918f846fabdcfc1bf0d8cbb3cbdc889.tar`
+into `input/` and the verified joint bundle
+`638ddc8c6821a74f97b818406fff0f854a74d2af8c568a7c13527d61a20a8f4b.tar`
+into `joint/`; both reside under Orion's `/projects/compressed-kv/artifacts/`.
+Create a new empty `out/`. Use the joint replay recipe's immutable image and
+four-CPU/4-GiB limits, adding `-v "$PWD/joint:/joint:ro"` and replacing its command:
+
+```sh
+python -B -m unittest -v test_reference test_scalar_probe test_dictionary_probe test_joint_segment_probe test_cartesian_probe >&2 && python -B -u cartesian_probe.py
+```
+
+This runs 396 historical baseline comparisons, 324 Cartesian learned comparisons
+and 72 additional scalar-8/BF16 frozen-Q controls: 792 rows. Every seed and loss is
+retained. The new learned codecs store one byte per eight components, compared
+with three for the spherical code/radius representation. Report actual raw and
+padded bytes; these cross-rate results cannot isolate a coordinate effect.
+LUT checks establish numerical equivalence only, not kernel performance.
+
+Separately rerun the original scalar diagnostic recipe with its original immutable
+source archive from bundle
+`6802494af35a47d2b9c0ba658673797f06cf70c50175f39c92eb45a7efd47a3e.tar`.
+Those 72 prefix-logit comparisons were already Cartesian, and require the cached
+model for an exact replay. Preserve their original metrics and compare receipts;
+do not substitute frozen-Q attention for propagated logit error. This separate
+trial uses the existing 32-GiB model limit and output budget. Verify live container
+limits, source/dependency/input hashes and unchanged services for both runs, then
+preserve each evidence bundle by SHA256. No new downloads, GPU access or service
+changes are needed. Logarithmic encoding remains a separate future experiment.
