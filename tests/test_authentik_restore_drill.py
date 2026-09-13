@@ -66,6 +66,10 @@ if mode=='app-fail' and 'shell' in args:
         self.assertFalse(pod['spec']['automountServiceAccountToken'])
         self.assertTrue(all('emptyDir' in v for v in pod['spec']['volumes']))
         self.assertNotIn('hostNetwork',pod['spec'])
+        pg=next(c for c in pod['spec']['containers'] if c['name']=='postgres')
+        self.assertEqual(next(e['value'] for e in pg['env'] if e['name']=='PGDATA'),'/var/lib/postgresql/data/pgdata')
+        probe=pg['readinessProbe']['exec']['command']
+        self.assertEqual(probe[probe.index('-h')+1],'127.0.0.1')
         auth=next(c for c in pod['spec']['containers'] if c['name']=='authentik')
         refs=[e for e in auth['env'] if 'valueFrom' in e]
         self.assertEqual([e['name'] for e in refs],['AUTHENTIK_SECRET_KEY'])
