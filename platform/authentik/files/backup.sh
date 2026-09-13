@@ -5,6 +5,12 @@ umask 027
 root=${1:-/backups}
 # A killed pod may leave an unpublished directory; no live job can be a day old.
 find "$root" -mindepth 1 -maxdepth 1 -type d -name '.incomplete.*' -mtime +1 -exec rm -rf -- {} +
+# Database connectivity can lag behind a new pod starting.
+if ! timeout 30 bash -c 'until pg_isready --quiet --timeout=1; do sleep 1; done'; then
+  echo "PostgreSQL readiness timed out after 30 seconds" >&2
+  exit 1
+fi
+
 started=$(date -u +%s)
 stamp=$(date -u -d "@$started" +%Y%m%dT%H%M%SZ)
 temporary=$(mktemp -d "$root/.incomplete.XXXXXX")

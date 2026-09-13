@@ -58,6 +58,10 @@ completed staging under `/fast/k8s/authentik-backups`. The NFS-backed PV is Reta
 and reserved for the Authentik backup claim; platform Argo permission includes
 PersistentVolume so it can reconcile this declared volume.
 
+The backup producer waits up to 30 seconds for PostgreSQL readiness before
+starting the snapshot. A readiness timeout fails the job without attempting a
+dump or publishing a bundle; the dump itself is not retried.
+
 Prepare the owner-only directory through Desktop before reconciling the chart.
 The existing Servarr Restic transport runs locally at 00:20/12:20 UTC and offsite
 at 00:40/12:40 UTC. It rejects bundles two hours old or older. Grafana warns at
