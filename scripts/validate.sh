@@ -51,6 +51,7 @@ for contract in \
   tests/grafana-admin-rotation.sh \
   tests/airflow-contract.sh \
   tests/cognee-contract.sh \
+  tests/test_cognee_reader_provision.py \
   tests/alloy-resilience.sh \
   tests/core-scheduling.sh \
   tests/demo-keda-ownership.sh \

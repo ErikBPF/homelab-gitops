@@ -463,6 +463,10 @@ data:
     }
     trap cleanup EXIT
 
+    # NFS exclusive flock requires a writable descriptor; archive reads remain read-only.
+    test -f /source-data/data/readiness.json.lock
+    exec 9<>/source-data/data/readiness.json.lock
+    flock -x -w 300 9
     kubectl -n cognee scale deployment cognee --replicas=0 >/dev/null
     kubectl -n cognee wait --for=delete pod -l app=cognee --timeout=2m >/dev/null
     kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
@@ -472,7 +476,7 @@ data:
       "CREATE (:RecoveryCanary {id:'$stamp'})-[:RESTORES]->(:RecoveryTarget {id:'$stamp'})" >/dev/null
 
     : >"$target/postgres-counts.tsv"
-    for table in cognee_backup_canary datasets users acls; do
+    for table in cognee_backup_canary datasets users acls data dataset_data dataset_database permissions; do
       exists=$(kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
         -c "select to_regclass('public.$table') is not null")
       if [[ $exists == t ]]; then
@@ -492,13 +496,17 @@ data:
       printf '%s\t%s\t%s\n' "$graph" "$nodes" "$edges" >>"$target/falkor-counts.tsv"
     done < <(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.LIST)
 
+    kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee -c "select encode(sha256(convert_to(coalesce(string_agg(value, E'\n' order by value), ''), 'UTF8')), 'hex') from (select jsonb_build_array('users', to_jsonb(u))::text value from users u union all select jsonb_build_array('datasets', to_jsonb(d))::text from datasets d union all select jsonb_build_array('acls', to_jsonb(a))::text from acls a) identity_rows" >"$target/identity-digest.sha256"
     kubectl -n cognee exec pod/postgres-0 -- pg_dump -Fc -U cognee cognee >"$target/postgres.dump"
     kubectl -n cognee exec pod/falkordb-0 -- redis-cli SAVE >/dev/null
     kubectl -n cognee exec pod/falkordb-0 -- sh -c \
       'cat /var/lib/falkordb/data/dump.rdb' >"$target/falkordb.rdb"
+    tar -C /source-data -cf "$target/cognee-data.tar" .
     (
       cd "$target"
-      sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv >SHA256SUMS
+      sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv >SHA256SUMS.pending
+      sha256sum cognee-data.tar identity-digest.sha256 >>SHA256SUMS.pending
+      mv SHA256SUMS.pending SHA256SUMS
     )
 
     marker=cognee-backup-$(date -u +%s)
@@ -540,6 +548,7 @@ spec:
                 - { name: COGNEE_BACKUP_RETENTION_DAYS, value: "14" }
               volumeMounts:
                 - { name: backups, mountPath: /backups }
+                - { name: source-data, mountPath: /source-data }
                 - { name: script, mountPath: /scripts, readOnly: true }
               securityContext:
                 allowPrivilegeEscalation: false
@@ -548,6 +557,8 @@ spec:
                 requests: { cpu: 50m, memory: 128Mi }
                 limits: { cpu: 500m, memory: 512Mi }
           volumes:
+            - name: source-data
+              persistentVolumeClaim: { claimName: cognee-data }
             - name: backups
               persistentVolumeClaim: { claimName: cognee-backups }
             - name: script
