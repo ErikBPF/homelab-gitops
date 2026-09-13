@@ -19,7 +19,7 @@ class BackupTest(unittest.TestCase):
                 root = Path(temp)
                 staging = root / 'backups'
                 staging.mkdir()
-                for command in ('pg_dump', 'pg_restore'):
+                for command in ('pg_dump', 'pg_restore', 'pg_isready'):
                     fake = root / command
                     fake.write_text(f'#!{shutil.which("bash")}\nset -eu\n'
                                     '[[ ${FAIL_COMMAND:-} != ' + command + ' ]] || exit 7\n'
@@ -44,6 +44,46 @@ class BackupTest(unittest.TestCase):
                     self.assertEqual((bundle / 'postgres.dump').stat().st_mode & 0o777, 0o640)
                     subprocess.run(['sha256sum', '--check', 'SHA256SUMS'], cwd=bundle,
                                    check=True, capture_output=True)
+
+    def test_readiness_before_snapshot_and_timeout(self):
+        for ready in (True, False):
+            with self.subTest(ready=ready), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                staging = root / 'backups'
+                staging.mkdir()
+                commands = {
+                    'pg_isready': 'echo probe >> "$TRACE"\n'
+                        '[[ $READY == yes ]] || exit 2\n'
+                        '[[ $(wc -l < "$TRACE") -ge 3 ]] || exit 2\n'
+                        'touch "$READY_FILE"\n',
+                    'pg_dump': 'echo dump >> "$TRACE"\n'
+                        'test -e "$READY_FILE" || exit 9\n'
+                        'for arg; do case $arg in --file=*) printf fixture > "${arg#--file=}";; esac; done\n',
+                    'pg_restore': 'exit 0\n',
+                    'date': 'test -e "$READY_FILE" || exit 10\n'
+                        + 'exec ' + shutil.which('date') + ' "$@"\n',
+                }
+                for name, body in commands.items():
+                    command = root / name
+                    command.write_text('#!' + shutil.which('bash') + '\nset -eu\n' + body)
+                    command.chmod(0o755)
+                trace = root / 'trace'
+                result = subprocess.run(['bash', str(SCRIPT), str(staging)],
+                    env=os.environ | {'PATH': f'{root}:{os.environ["PATH"]}',
+                        'TRACE': str(trace), 'READY_FILE': str(root / 'ready'),
+                        'READY': 'yes' if ready else 'no'},
+                    capture_output=True, text=True, timeout=40)
+                calls = trace.read_text().splitlines() if trace.exists() else []
+                if ready:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(calls, ['probe', 'probe', 'probe', 'dump'])
+                    self.assertEqual(len(list(staging.iterdir())), 1)
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('PostgreSQL readiness timed out after 30 seconds', result.stderr)
+                    self.assertGreaterEqual(calls.count('probe'), 2)
+                    self.assertNotIn('dump', calls)
+                    self.assertEqual(list(staging.iterdir()), [])
 
     def test_rendered_scheduled_backup_boundaries(self):
         result = subprocess.run(['helm', 'template', 'authentik', 'platform/authentik',
