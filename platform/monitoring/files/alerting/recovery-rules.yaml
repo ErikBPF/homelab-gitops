@@ -197,3 +197,101 @@ groups:
               expression: B
               datasource: {type: __expr__, uid: __expr__}
               conditions: [{evaluator: {type: gt, params: [0]}}]
+
+      - uid: authentik-offsite-aging
+        title: Authentik offsite recovery source exceeds 18 hours
+        condition: C
+        for: 0m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: Authentik offsite source is missing, future-dated or at least 18 hours old; inspect authentik-backup and the selective Restic job. Upload time is not recovery freshness.
+        labels:
+          severity: warning
+          instance: kepler
+        data:
+        - refId: A
+          relativeTimeRange:
+            from: 600
+            to: 0
+          datasourceUid: prometheus
+          model:
+            refId: A
+            instant: true
+            datasource:
+              type: prometheus
+              uid: prometheus
+            expr: (time() - min(restic_authentik_offsite_source_timestamp_seconds{instance="kepler"}) >= bool 64800) + (max(restic_authentik_offsite_source_timestamp_seconds{instance="kepler"}) > bool time())
+        - refId: B
+          datasourceUid: __expr__
+          model:
+            refId: B
+            type: reduce
+            expression: A
+            reducer: last
+            datasource:
+              type: __expr__
+              uid: __expr__
+        - refId: C
+          datasourceUid: __expr__
+          model:
+            refId: C
+            type: threshold
+            expression: B
+            datasource:
+              type: __expr__
+              uid: __expr__
+            conditions:
+            - evaluator:
+                type: gt
+                params:
+                - 0
+
+      - uid: authentik-offsite-rpo-breached
+        title: Authentik offsite recovery source exceeds 24 hours
+        condition: C
+        for: 0m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: Authentik offsite source is missing, future-dated or at least 24 hours old; inspect authentik-backup and the selective Restic job. Upload time is not recovery freshness.
+        labels:
+          severity: critical
+          instance: kepler
+        data:
+        - refId: A
+          relativeTimeRange:
+            from: 600
+            to: 0
+          datasourceUid: prometheus
+          model:
+            refId: A
+            instant: true
+            datasource:
+              type: prometheus
+              uid: prometheus
+            expr: (time() - min(restic_authentik_offsite_source_timestamp_seconds{instance="kepler"}) >= bool 86400) + (max(restic_authentik_offsite_source_timestamp_seconds{instance="kepler"}) > bool time())
+        - refId: B
+          datasourceUid: __expr__
+          model:
+            refId: B
+            type: reduce
+            expression: A
+            reducer: last
+            datasource:
+              type: __expr__
+              uid: __expr__
+        - refId: C
+          datasourceUid: __expr__
+          model:
+            refId: C
+            type: threshold
+            expression: B
+            datasource:
+              type: __expr__
+              uid: __expr__
+            conditions:
+            - evaluator:
+                type: gt
+                params:
+                - 0

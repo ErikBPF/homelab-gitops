@@ -110,3 +110,11 @@ set-repo url:
     grep -rl 'github.com/ErikBPF/homelab-gitops' bootstrap clusters \
         | xargs sed -i "s|ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git|{{url}}|g"
     @echo ":: repoURL set to {{url}}"
+
+# Produce a bounded Authentik dump using the deployed CronJob.
+backup-authentik:
+    bash scripts/authentik-backup.sh
+
+# Check an offsite-retrieved bundle in an isolated PostgreSQL/AuthentiK pod.
+restore-drill-authentik bundle:
+    bash scripts/authentik-restore-drill.sh {{quote(bundle)}}

@@ -35,6 +35,8 @@ for contract in \
   tests/platform-prerequisites-contract.sh \
   tests/lane-secretstore-contract.sh \
   tests/authentik-contract.sh \
+  tests/authentik-backup.py \
+  tests/test_authentik_restore_drill.py \
   tests/changedetection-contract.sh \
   tests/karakeep-contract.sh \
   tests/immich-contract.sh \

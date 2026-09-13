@@ -68,4 +68,6 @@ spec:
     - from:
         - podSelector:
             matchLabels: {app.kubernetes.io/instance: authentik}
+        - podSelector:
+            matchLabels: {app: authentik-backup}
       ports: [{protocol: TCP, port: 5432}]
