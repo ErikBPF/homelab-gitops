@@ -1,0 +1,128 @@
+[
+  {
+    "id": "calibration_compost",
+    "split": "calibration",
+    "language": "en",
+    "group": "compost",
+    "text": "A gardener mixes dry leaves with fresh grass in a compost bin. Explain why airflow and moisture affect decomposition."
+  },
+  {
+    "id": "calibration_railway",
+    "split": "calibration",
+    "language": "en",
+    "group": "railway",
+    "text": "A commuter train leaves Cedar at 08:10 and reaches Pine forty minutes later. A connection departs Pine at 09:05. Describe the available transfer time."
+  },
+  {
+    "id": "calibration_ceramics",
+    "split": "calibration",
+    "language": "pt",
+    "group": "ceramics",
+    "text": "Uma ceramista deixa uma tigela secar antes da primeira queima. Explique por que a água retida pode causar rachaduras no forno."
+  },
+  {
+    "id": "calibration_rainfall",
+    "split": "calibration",
+    "language": "pt",
+    "group": "rainfall",
+    "text": "Uma estação registrou chuva em quatro dias consecutivos: doze, oito, zero e vinte milímetros. Descreva como calcular a precipitação acumulada."
+  },
+  {
+    "id": "calibration_dictionary_sort",
+    "split": "calibration",
+    "language": "code",
+    "group": "dictionary_sort",
+    "text": "prices = {\"pear\": 4, \"plum\": 2, \"fig\": 7}\nordered = sorted(prices, key=prices.get)\n# Describe the ordering of the resulting keys."
+  },
+  {
+    "id": "calibration_sql_join",
+    "split": "calibration",
+    "language": "code",
+    "group": "sql_join",
+    "text": "SELECT authors.name, books.title FROM authors LEFT JOIN books ON books.author_id = authors.id;\n-- Describe the row for an author with no matching book."
+  },
+  {
+    "id": "selection_eclipse",
+    "split": "selection",
+    "language": "en",
+    "group": "eclipse",
+    "text": "During a lunar eclipse, the Moon passes through Earth's shadow. Explain why this differs from a solar eclipse."
+  },
+  {
+    "id": "selection_bread",
+    "split": "selection",
+    "language": "en",
+    "group": "bread",
+    "text": "A baker leaves dough in a warm bowl until it expands. Describe how yeast changes the dough during fermentation."
+  },
+  {
+    "id": "selection_museum",
+    "split": "selection",
+    "language": "pt",
+    "group": "museum",
+    "text": "Um museu preserva cartas antigas em caixas sem ácido e controla a iluminação. Explique como essas medidas protegem o papel."
+  },
+  {
+    "id": "selection_sailing",
+    "split": "selection",
+    "language": "pt",
+    "group": "sailing",
+    "text": "Um veleiro pretende cruzar uma baía antes da chegada de ventos fortes. Descreva quais informações de previsão o navegador deve comparar."
+  },
+  {
+    "id": "selection_regex",
+    "split": "selection",
+    "language": "code",
+    "group": "regex",
+    "text": "import re\npattern = re.compile(r\"^[A-Z]{2}[0-9]{3}$\")\n# Explain which identifier shapes match this pattern."
+  },
+  {
+    "id": "selection_shell_permissions",
+    "split": "selection",
+    "language": "code",
+    "group": "shell_permissions",
+    "text": "chmod 640 report.txt\n# Explain the resulting permissions for owner, group, and everyone else."
+  },
+  {
+    "id": "evaluation_basalt",
+    "split": "evaluation",
+    "language": "en",
+    "group": "basalt",
+    "text": "Basalt forms when lava cools near Earth's surface. Explain how rapid cooling influences the size of its mineral crystals."
+  },
+  {
+    "id": "evaluation_bicycle_gears",
+    "split": "evaluation",
+    "language": "en",
+    "group": "bicycle_gears",
+    "text": "A cyclist shifts to a smaller front chainring while climbing a steep hill. Explain the tradeoff between pedal force and distance traveled per turn."
+  },
+  {
+    "id": "evaluation_beekeeping",
+    "split": "evaluation",
+    "language": "pt",
+    "group": "beekeeping",
+    "text": "Uma colmeia possui rainha, operárias e zangões. Descreva como a divisão de tarefas contribui para a manutenção da colônia."
+  },
+  {
+    "id": "evaluation_orchestra",
+    "split": "evaluation",
+    "language": "pt",
+    "group": "orchestra",
+    "text": "Uma orquestra afina os instrumentos antes do concerto. Explique por que uma referência comum ajuda músicos de famílias instrumentais diferentes."
+  },
+  {
+    "id": "evaluation_recursion",
+    "split": "evaluation",
+    "language": "code",
+    "group": "recursion",
+    "text": "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n# Explain the role of the base case."
+  },
+  {
+    "id": "evaluation_javascript_map",
+    "split": "evaluation",
+    "language": "code",
+    "group": "javascript_map",
+    "text": "const labels = [\"oak\", \"ash\", \"elm\"];\nconst lengths = labels.map(label => label.length);\n// Explain whether map changes the original array."
+  }
+]
