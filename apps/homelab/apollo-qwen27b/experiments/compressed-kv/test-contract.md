@@ -239,3 +239,88 @@ deadline and a 64-MiB new-output budget. Mount the verified retained artifact
 read-only; no model mount is needed. Record service health and preserve the new
 artifact by hash. Other segment objectives, specialization, table-size sweeps,
 models and GPU paths remain scheduled regardless of this result.
+
+## Corrective slice: Cartesian validation before logarithmic encoding
+
+Human correction, September 13: "lets redo validations so far in a cartesian
+space. I believe it is the default on kv caches. Our experiemnt is not isolating
+logn representations for a change in coordinates spaces". Preserve this correction
+without replacing the missing original brief. This run establishes ordinary linear
+Cartesian codecs. No logarithmic codec has been implemented or validated; a future
+signed-log encoding must hold the Cartesian axes and other controls fixed.
+
+Grounded challenge: the previous `fit_dictionaries` and `refine_segments` call
+`_directions`, and decode multiplies normalized codewords by a BF16 radius. Both
+learned families therefore changed the representation before a Cartesian learned
+baseline existed. Original Qwen3 captures already contain real-valued Cartesian
+components (post-RoPE K and Q, unrotated V); reuse them exactly. Scalar controls
+already operate on Cartesian components and must be rerun unchanged. Do not
+undo RoPE: it is part of the model, not this codec's coordinate transformation.
+
+`cartesian_probe.codewords(kind, table)` accepts finite CPU FP32 VQ [256,8] or
+segment [32,2,8] tables. VQ words are their centers; segment code `8*s+a` means
+`(1-a/7)*left + (a/7)*right`. Never normalize, extract radii or take logarithms.
+Zero, nonunit and antipodal endpoints are valid, including a zero midpoint.
+`roundtrip(vectors, kind, table)` chooses minimum squared Euclidean distance in
+bounded chunks and returns reconstruction from actual uint8 codes plus those
+codes, preserving finite CPU FP32 [N,8] input and its shape. Lower index wins ties.
+Reject invalid kind, shape, dtype, device or nonfinite input with ValueError.
+
+`fit_dictionaries(vectors, seed)` requires at least 256 rows. Initialize raw-vector
+centers with the same seeded permutation convention as the earlier probe. Run ten
+Euclidean Lloyd iterations for 256 and 64 centers, retaining empty centers. Pair
+the first remaining 64-center index with its nearest remaining Euclidean neighbor
+to form 32 fixed affine segments. Preserve magnitudes and signs throughout.
+`refine_segments(vectors, initial)` clones valid raw endpoints and uses 50 fixed
+Adam steps at 0.03 on original-vector MSE, recomputing discrete nearest codeword
+assignments each step. No endpoint projection or normalization. Return detached
+final endpoints and 51 losses; no pruning, best-checkpoint choice or early stop.
+
+`score_lut(query, segments)` returns the 256 affine scores from 64 endpoint dot
+products and linear interpolation. It must agree with direct reconstructed-vector
+dot products (atol/rtol 1e-5 on bounded FP32 fixtures). This is a CPU correctness
+oracle, not a fast implementation claim. The existing packing tests remain valid.
+
+Tests first: same-ray different magnitudes must choose different Euclidean codes;
+explicit negative/nonunit and zero-segment examples must reconstruct without a
+radius; uint8 storage and unchanged inputs must be checked. Seeded fitting must
+retain a known nonunit constant center. Joint fitting must reduce the off-line
+fixture MSE, preserve input, return all 51 losses and match its final objective.
+Check LUT/direct parity for every code and invalid inputs. A tiny captured Qwen3
+comparison must agree with independent manual reconstructed attention and charge
+actual code/table/untouched bytes. Observe assertion RED from importable stubs,
+commit the RED anchor, then implement and independently review before running.
+
+Replay the exact retained dictionary and joint bundles by verified SHA256. Verify
+all declared captures/samples/tables before use, load NPZ with allow_pickle=False,
+and verify unchanged hashes after scoring. Use the exact original 8192-row K/V
+calibration samples and all seeds 4827/4828/4829; fit separate K/V tables. Freeze
+all new tables before scoring selection or evaluation. Reproduce all 396 previous
+rows with `verify_replay`; these remain spherical/scalar historical controls.
+Then run 324 Cartesian comparisons: 12 documents x three seeds x VQ/fixed-segment/
+joint-segment x K-only/V-only/KV. Add scalar-8 and BF16 controls on all 12 documents
+and modes (72 rows); scalar-2/4 are already among the 396 replay rows. Total792.
+Separately rerun the unchanged original 72-case scalar model diagnostic, preserving
+logit metrics and comparing against its original receipt. No failed scientific
+variant removes another. Errors, nonfinite states or resource exhaustion are
+explicit execution blockers, not negative scientific evidence.
+
+Cartesian learned codes use one byte per eight values, with no radius or per-block
+scale. Raw table bytes are 8192 for VQ and 2048 for either segment family per side;
+also report common 8192-byte table allocation and its padding. These three learned
+families have identical payload rates and equal padded totals. They are a lower
+rate than the spherical three-byte blocks and group32 scalar-2 controls: do not
+label that cross-family comparison equal-rate or attribute its difference solely
+to coordinates. Report payload, scale, table, untouched FP32 and expanded decode
+working bytes separately; padding is not useful encoded information. BF16 controls
+round Cartesian cache components, with no table padding. Metrics remain per-side
+and frozen-original-Q attention-output NMSE; no model-quality/speed claim follows.
+
+Use one model-free four-CPU/4-GiB/no-swap offline Orion container for the 792-row
+replay, and a separate four-CPU/32-GiB/no-swap container for the original scalar
+model diagnostic. Both have 20-minute deadlines, read-only source/dependency/input
+mounts, no GPU devices, no downloads or service changes. New table output budget
+64MiB; scalar captures retain the existing128MiB budget. Inspect live limits,
+record source/dependency identities and before/after health, then preserve all
+receipts and fit histories in content-addressed bundles. Reuse existing helpers;
+do not alter the historical codec or its archived baselines.
