@@ -56,4 +56,58 @@ GPU access, downloads, host changes or performance/quality claims.
 
 Run from an immutable archive on Orion with a 120-second deadline, one CPU core and
 512 MiB address-space ceiling. Record archive/source hashes, Python/host identity,
-exit status and unchanged service health. Keep all GPU/model experiments pending.
+exit status and unchanged service health. That first slice leaves GPU/model work pending.
+
+## Successor slice: real-cache scalar controls on Orion
+
+The user's continuation authorizes bounded CPU model tests. CKV-02/03 supplies
+the seed for physical byte accounting and separate K/V evidence. The existing
+Qwen3-4B snapshot permits a diagnostic without downloading weights or taking the
+GPU. This slice establishes scalar controls; it does not fit or select a learned
+codec, bind CKV-03 end to end, or claim task-quality preservation.
+
+`scalar_probe.scalar_roundtrip(tensor, bits)` returns reconstructed tensor, packed
+uint8 tensor and FP32 scales. Bits are 2, 4 or 8. Inputs are finite floating CPU
+tensors with last dimension divisible by 32. Each consecutive group of 32 uses
+max-absolute scale divided by `2**(bits-1)-1`, round-to-nearest-even and symmetric
+clipping; a zero group uses scale one. Signed integers use two's-complement fields,
+low field first in each byte. Scales remain FP32; reconstruction preserves shape
+and input dtype without mutating input. Reject unsupported widths, nonfinite
+values or invalid shapes with ValueError. This is a reference format, not an
+engine-compatible or native integer compute format.
+
+Runnable checks must establish known signed packed bytes, zero-group behavior,
+actual payload/scale storage, bounded reconstruction error for all widths, shape
+and dtype preservation, unchanged input, and invalid-input rejection. Observe
+assertion failures from empty seams and commit that RED anchor before green.
+
+The model diagnostic uses the pinned local Qwen3-4B snapshot, eager attention,
+FP32 CPU weights/cache, evaluation mode and six fixed public synthetic prompts
+(English, Portuguese and code), at most 64 tokens each. Prompt text, token IDs,
+model revision and runtime versions are recorded. These prompts are diagnostic
+fixtures, not calibration data or a benchmark. No fitting means no fit-seed claim.
+
+For each prompt, prefill all but the last token once, then compare one identical
+last-token step against the original cache with: 2/4/8-bit round trips and BF16
+round trip, each K-only, V-only and combined. Use a fresh independent cache for
+every step so append mutation cannot contaminate comparisons. Record per-side
+NMSE, payload and scale bytes, baseline logical FP32/BF16 bytes, logit RMS error,
+KL(original || perturbed) and top-token agreement for every case. No negative
+result prunes another case. Count untouched cache sides in each variant's bytes.
+`evaluate_prefix(model, token_ids)` is checked against an actual randomly
+initialized two-layer Qwen3 fixture: all 12 cases, exact byte totals, original
+cache unchanged, finite metrics and cached baseline agreeing with full-sequence
+logits (maximum absolute error below 1e-4 for the tiny fixture). Record that
+baseline error for the real model too. This fixture tests mechanics, not quality.
+
+This simulates reconstructed prefix caches; appended tokens and attention remain
+FP32. It measures neither packed execution nor generation quality, kernels,
+transport or speed. No acceptance threshold is invented. All H1–H9/P1–P5 remain
+scheduled in the host plan.
+
+Run an immutable source archive in the existing cached container image with no
+network, no GPU/device mounts, read-only root/model mounts, dropped capabilities,
+four CPU threads, 32 GiB memory/no swap and a 20-minute container deadline. Use
+only a unique trial directory for output. Preserve image/source identities,
+exit status, numerical checks and unchanged chat/retrieval health. Do not install
+packages or stop services. A runtime failure is a blocker, not a measured negative.
