@@ -1,5 +1,5 @@
 # Draft behavior contract; unautomated. No step bindings or GPU checks exist yet.
-# CPU reference tests now cover only the CKV-02/04 subset in test-contract.md.
+# CPU reference and scalar diagnostic cover bounded CKV-02/03/04 mechanics in test-contract.md.
 # Passing that subset does not execute or qualify the broader scenarios below.
 # Seed: homelab/compressed-kv-hypotheses.md, SHA256
 # 918f51209232fec0f18bb69213851ecc8f5544f72b70ae5944db0e9657d60fc1.
