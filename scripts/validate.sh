@@ -26,6 +26,7 @@ mapfile -t manifests < <(
 kubeconform -strict -summary -ignore-missing-schemas "${manifests[@]}"
 
 for contract in \
+  tests/apollo-launch.py \
   tests/manual-sync-containment.sh \
   tests/operational-context.sh \
   tests/first-wave-image-pins.py \
