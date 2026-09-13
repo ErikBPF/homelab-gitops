@@ -65,6 +65,7 @@ data:
   GRAPH_DATABASE_PORT: "6379"
   GRAPH_DATASET_DATABASE_HANDLER: falkor_graph_local
   DATA_ROOT_DIRECTORY: /var/lib/cognee/data
+  COGNEE_READER_DOMAINS: '{"dca51320-82d1-4d12-a568-75ed3019738f":"homelab","366ab7e3-4a85-4f2a-af92-2dba2bf09fc0":"work"}'
   SYSTEM_ROOT_DIRECTORY: /var/lib/cognee/system
   CACHE_ROOT_DIRECTORY: /var/lib/cognee/cache
   CACHING: "true"
@@ -266,7 +267,7 @@ spec:
       containers:
         - name: cognee
           # Built and published by cognee-homelab; GitOps only selects the release tag.
-          image: harbor.homelab.pastelariadev.com/library/cognee-homelab@sha256:ba77e587c6c8f2e035fbfc24576c27b22c1fda045cf50cd5beaddd7bf4efbc93
+          image: harbor.homelab.pastelariadev.com/library/cognee-homelab@sha256:2b273dfe82ad825560beb087b119060457712a806bcb1afec96232dda2a09f88
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }
