@@ -115,3 +115,77 @@ four CPU threads, 32 GiB memory/no swap and a 20-minute container deadline. Use
 only a unique trial directory for output. Preserve image/source identities,
 exit status, numerical checks and unchanged chat/retrieval health. Do not install
 packages or stop services. A runtime failure is a blocker, not a measured negative.
+
+
+## Successor slice: frozen global dictionary and segment diagnostics
+
+Basis: the user's continuation, CKV-02/03/04, and the host plan's learned-codec
+comparison. The prior six prompts were already inspected; they remain replay
+fixtures. `dictionary-prompts.json` freezes 18 fresh public synthetic documents
+before capture, six each for calibration, selection and evaluation. Topic groups,
+IDs and canonical casefolded/whitespace-normalized texts must be disjoint. These
+small fixtures test mechanics and conditional distortion, not task quality or
+cross-model transfer. All configurations are fixed here; selection is reported
+separately and does not tune parameters or select a winning seed.
+
+`validate_documents` accepts well-formed nonempty records with unique IDs, groups
+and canonical texts, and only the three named splits; invalid input raises
+ValueError. `capture_final_qkv` uses the pinned Qwen3-4B CPU eager FP32 model with
+one unpadded sequence of at most 64 tokens. Capture all layers' post-RoPE K,
+unrotated V and final-token post-RoPE Q. Reconstruct Q through the installed
+normalization, projection and rotary mapping. The scaled, GQA-expanded QK softmax
+must agree with the actual eager final attention row (atol 1e-6, rtol 1e-5), or
+stop as a correctness blocker. Preserve scale, token IDs, shapes and capture hash.
+The captured K/V include the final input token, unlike the previous last-token
+prefix diagnostic. No logits or generated-answer claims follow from this capture.
+
+`fit_dictionaries(vectors, seed)` takes finite CPU FP32 eight-component vectors,
+at least 256 rows, and returns global FP32 unit directions: `vq` [256,8] and
+`segments` [32,2,8]. Use spherical Lloyd fitting for ten iterations, deterministic
+sample initialization and empty-cluster retention. VQ fits 256 centers; the segment
+family fits 64 centers and greedily pairs each first remaining center with its
+nearest remaining direction. This is a fixed-endpoint heuristic, not joint
+segment optimization. That stronger variant remains scheduled. Fit seeds are
+4827, 4828 and 4829; every seed runs. Separate K and V dictionaries pool all layers
+and heads under the same consecutive eight-component convention. Sample at most
+8192 calibration vectors per side, recording sample identity. No selection or
+evaluation vector enters fitting. Store tables and hashes before either split is
+scored; verify hashes afterward. Zero vectors use radius zero and direction e1.
+
+`codewords(kind, table)` returns 256 normalized eight-component directions. VQ
+uses its centers. Segment code `8*s+a` selects segment s and alpha a/7, a=0..7,
+then normalizes the endpoint blend. Reject invalid/nonunit/zero directions or
+nonfinite data. `dictionary_roundtrip` returns reconstructed FP32 vectors, actual
+uint8 codes and BF16 radii. Decode from these stored fields, including BF16 radius
+rounding; never grade the unrounded encoder approximation. Assign in bounded
+chunks; fitting/decoding must not materialize all capture-by-code distances.
+Known orthogonal segment code 3 decodes direction [0.8,0.6,0,...].
+
+Each compressed eight-component block uses three payload bytes (one code and two
+radius bytes). VQ tables cost 8192 bytes per compressed side, segment tables 2048.
+Report raw totals and an explicitly padded common table allocation of 8192 bytes
+per compressed side. Segment padding is 6144; the existing scalar-2 control uses
+8192 padding, since its group32 FP32-scale format also costs three bytes per eight
+values. Report scalar-4 separately as a higher-rate control. Padding is deliberate
+comparison overhead, not compression efficiency. Count untouched FP32 cache sides
+for K-only/V-only cases and charge global tables once per independent document.
+Report the 8192-byte expanded direction table as decode working storage, separate
+from stored endpoints. Exclude packet metadata and allocator overhead explicitly.
+
+For selection and evaluation documents, grade every learned seed/family and
+scalar-2/scalar-4 controls, each K-only, V-only and combined. Report per-side NMSE,
+raw/matched bytes, and conditional attention-output NMSE using original frozen Q,
+the model's scaling and GQA mapping. This does not propagate codec error through
+model layers or append generated tokens. Expected ledger: 216 learned rows plus
+72 deterministic scalar rows = 288 comparisons. Scalars are not refitted or
+repeated as independent seed evidence. Negative outcomes never remove another
+case. Zero-energy NMSE is zero only when squared error is zero; otherwise invalid.
+
+The tiny Qwen3 oracle, split-leak rejection, seeded fit, normalized interpolation,
+actual signed/unsigned wire fields and malformed-input checks must fail assertions
+from empty seams before implementation. Preserve the local RED commit. Reuse the
+cached offline image/dependency mounts and existing scalar helper; install nothing.
+Run all 18 captures, fits and comparisons in one owned four-thread/32-GiB container
+with no swap, network or GPU devices, a 20-minute deadline and a 1-GiB artifact
+budget. Preserve source/model/dependency/input hashes, all raw rows, exit status,
+and unchanged service health. A timeout is a blocker, not a scientific negative.
