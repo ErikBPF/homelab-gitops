@@ -233,6 +233,16 @@ alert_case("host-metrics-absent", "Discovery silent for more than 20m", {
 }, 1)
 tests[-1]["promql_expr_test"][0]["eval_time"] = "30m"
 
+for uid, threshold in [("authentik-offsite-aging", 18 * 3600),
+                       ("authentik-offsite-rpo-breached", 24 * 3600)]:
+    assert uid in all_rules, f"missing Authentik source-age alert: {uid}"
+    metric = 'restic_authentik_offsite_source_timestamp_seconds{instance="kepler"}'
+    for name, value, expected in [("fresh", 500, 0),
+                                  ("at threshold", 600 - threshold, 1),
+                                  ("missing", None, 1),
+                                  ("future", 700, 1)]:
+        alert_case(uid, name, {} if value is None else {metric: value}, expected)
+
 with tempfile.TemporaryDirectory(prefix="monitoring-promql-") as directory:
     path = Path(directory) / "tests.yaml"
     path.write_text(yaml.safe_dump({"evaluation_interval": "1m", "tests": tests}))
