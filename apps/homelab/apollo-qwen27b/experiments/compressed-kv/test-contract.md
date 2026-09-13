@@ -312,8 +312,9 @@ families have identical payload rates and equal padded totals. They are a lower
 rate than the spherical three-byte blocks and group32 scalar-2 controls: do not
 label that cross-family comparison equal-rate or attribute its difference solely
 to coordinates. Report payload, scale, table, untouched FP32 and expanded decode
-working bytes separately; padding is not useful encoded information. BF16 controls
-round Cartesian cache components, with no table padding. Metrics remain per-side
+working bytes separately; padding is not useful encoded information. New scalar-8
+and BF16 controls have no artificial table padding; historical scalar-2/4 replay
+retains its recorded padding. BF16 rounds Cartesian cache components. Metrics remain per-side
 and frozen-original-Q attention-output NMSE; no model-quality/speed claim follows.
 
 Use one model-free four-CPU/4-GiB/no-swap offline Orion container for the 792-row
