@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise atomic publication and rejection of failed PostgreSQL dumps."""
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -20,7 +21,7 @@ class BackupTest(unittest.TestCase):
                 staging.mkdir()
                 for command in ('pg_dump', 'pg_restore'):
                     fake = root / command
-                    fake.write_text('#!/bin/bash\nset -eu\n'
+                    fake.write_text(f'#!{shutil.which("bash")}\nset -eu\n'
                                     '[[ ${FAIL_COMMAND:-} != ' + command + ' ]] || exit 7\n'
                                     + ('for arg; do case $arg in --file=*) printf fixture > "${arg#--file=}";; esac; done\n'
                                        if command == 'pg_dump' else 'exit 0\n'))
@@ -63,6 +64,7 @@ class BackupTest(unittest.TestCase):
         self.assertFalse(pod['automountServiceAccountToken'])
         self.assertEqual(pod['securityContext']['runAsUser'], 1000)
         self.assertEqual(pod['securityContext']['runAsGroup'], 100)
+        self.assertNotIn('fsGroup', pod['securityContext'], 'Owner UID already grants access; do not widen NFS staging modes')
         self.assertNotIn('serviceAccountName', pod)
         self.assertNotIn('app.kubernetes.io/instance',
                          spec['jobTemplate']['spec']['template']['metadata']['labels'])
