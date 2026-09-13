@@ -38,6 +38,7 @@ with Path(os.environ['CALLS']).open('a') as f:f.write(json.dumps(record)+'\\n')
 mode=os.environ['MODE']
 if mode=='restore-fail' and 'pg_restore' in args:
     print('synthetic-sensitive-db-error',file=sys.stderr);sys.exit(17)
+if mode=='cleanup-fail' and 'delete' in args and 'pod' in args: sys.exit(23)
 if mode=='app-fail' and 'shell' in args:
     print('synthetic-sensitive-app-error',file=sys.stderr);sys.exit(19)
 ''')
@@ -84,11 +85,18 @@ if mode=='app-fail' and 'shell' in args:
         for mode in ['restore-fail','app-fail']:
             with self.subTest(mode=mode):
                 result,calls=self.run_case(mode)
-                self.assertNotEqual(result.returncode,0)
+                self.assertEqual(result.returncode,17 if mode=='restore-fail' else 19)
                 self.assertNotIn('synthetic-sensitive',result.stdout+result.stderr)
                 self.assertNotIn('passed',result.stdout)
                 self.assertEqual(len([c for c in calls if 'delete' in c['args']]),2)
                 if mode=='restore-fail':
                     self.assertFalse(any('shell' in c['args'] for c in calls))
+
+    def test_failed_pod_cleanup_keeps_isolation(self):
+        result,calls=self.run_case('cleanup-fail')
+        self.assertNotEqual(result.returncode,0)
+        deletes=[c['args'] for c in calls if 'delete' in c['args']]
+        self.assertEqual(len(deletes),1)
+        self.assertIn('pod',deletes[0])
 
 if __name__ == '__main__': unittest.main()
