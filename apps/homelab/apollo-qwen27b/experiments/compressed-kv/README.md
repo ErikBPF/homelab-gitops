@@ -96,3 +96,38 @@ activations from public synthetic prompts, not user conversations. They are usef
 for replay diagnostics; disjoint calibration/evaluation data and task-quality
 tests remain separate work. Cache append semantics follow the installed Qwen3
 source, checked against [Transformers' cache explanation](https://huggingface.co/docs/transformers/main/en/cache_explanation).
+
+## Frozen dictionary diagnostic
+
+The next contract section binds `dictionary_probe.py`, `test_dictionary_probe.py`
+and the immutable `dictionary-prompts.json` manifest. Include those three files
+alongside the scalar/reference modules, contract and README in the source archive.
+Use the same offline Orion container recipe and mounts above, replacing its
+`bash -c` body with:
+
+```sh
+python -B -m unittest -v test_reference test_scalar_probe test_dictionary_probe >&2 && python -B -u dictionary_probe.py
+```
+
+The run captures 18 new documents, six per declared split, including final-token
+Q and full input K/V. QK probabilities must match the actual eager attention row
+before the capture is graded. Three fit seeds compare global K/V spherical VQ
+against greedily paired fixed endpoints with eight interpolation levels. This
+segment heuristic does not jointly optimize endpoints; that variant remains
+separate work. Calibration alone fits tables; selection and evaluation receive
+separate records under frozen parameters. All 288 comparisons run despite losses.
+
+Each direction code plus BF16 radius costs three bytes per eight components.
+Report raw table costs and a common padded allocation separately: per compressed
+side VQ stores 8192 bytes, segments store 2048 plus 6144 padding. Scalar-2 has the
+same payload rate and receives 8192 comparison padding; scalar-4 is a higher-rate
+control. Padding is not an efficiency gain. Expanded direction tables and
+reconstructed FP32 attention remain working storage, separate from encoded bytes.
+
+Results measure reconstruction and conditional attention-output error with frozen
+original Q. They do not propagate errors through layers or measure generation,
+append, transport, GPU kernels or task quality. The original six scalar prompts
+remain replay fixtures and do not enter these fitting/evaluation splits. The
+four-CPU, 32-GiB, 20-minute trial retains at most 1 GiB of source, captures, tables
+and receipts under its unique output directory; preserve them by artifact hash
+after checking service health. No new dependency or host configuration is needed.
