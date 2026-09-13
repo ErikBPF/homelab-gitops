@@ -131,3 +131,35 @@ remain replay fixtures and do not enter these fitting/evaluation splits. The
 four-CPU, 32-GiB, 20-minute trial retains at most 1 GiB of source, captures, tables
 and receipts under its unique output directory; preserve them by artifact hash
 after checking service health. No new dependency or host configuration is needed.
+
+## Joint endpoint replay
+
+Include `joint_segment_probe.py` and `test_joint_segment_probe.py` with the previous
+source archive contents. Verify retained dictionary bundle
+`73465d6f361dff338674c1a9d9a293778918f846fabdcfc1bf0d8cbb3cbdc889.tar`
+from `/projects/compressed-kv/artifacts/` against its filename hash before extracting
+it into the new trial's `input/` directory. Create a separate `out/` directory.
+From that trial directory, run:
+
+```sh
+podman run --rm --pull=never --network=none --read-only \
+  --cpus=4 --memory=4g --memory-swap=4g --pids-limit=256 --timeout=1200 \
+  --cap-drop=ALL --security-opt=no-new-privileges \
+  --tmpfs /tmp:rw,nosuid,nodev,size=128m \
+  -e OMP_NUM_THREADS=4 -e MKL_NUM_THREADS=4 -e OPENBLAS_NUM_THREADS=4 \
+  -e USE_TF=0 -e USE_FLAX=0 -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
+  -e PYTHONDONTWRITEBYTECODE=1 \
+  -v "$PWD:/work:ro" -v "$PWD/input:/input:ro" -v "$PWD/out:/out:rw" -w /work \
+  -v /projects/rocmvenv/lib/python3.12/site-packages:/host-deps:ro \
+  a955de5bbe923a946401a55e1ff138cca039e0f0fc0e4ea1938be11e4480bb6f \
+  bash -c 'python -B -m unittest -v test_reference test_scalar_probe test_dictionary_probe test_joint_segment_probe >&2 && python -B -u joint_segment_probe.py' \
+  > results.jsonl 2> checks.log
+```
+
+This model-free run reuses exact calibration samples and all three initializers.
+It fits endpoints for 50 Adam steps at 0.03, retaining the final iterate and all
+calibration losses. All 288 baseline comparisons must reproduce before scoring
+108 refined-segment cases. Viewed evaluation fixtures remain paired diagnostics.
+An improvement in direction loss need not improve attention error. New outputs
+have a 64-MiB budget; preserve input/output hashes and service health as before.
+No model mount, weight loading, recapture or package installation is needed.
