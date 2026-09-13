@@ -75,6 +75,14 @@ class SegmentContract(unittest.TestCase):
                 self.assertTrue(math.isclose(reference.score_lut(query, left, right, alpha, radius),
                                              expected, rel_tol=1e-12, abs_tol=1e-12))
 
+    def test_zero_radius_with_large_finite_query(self):
+        endpoint = (1 / math.sqrt(8),) * 8
+        try:
+            score = reference.score_lut((1e308,) * 8, endpoint, endpoint, 0.5, 0)
+        except OverflowError as error:
+            self.fail(f"zero-radius score overflowed: {error}")
+        self.assertEqual(score, 0.0)
+
     def test_invalid_segments(self):
         cases = [(self.left, tuple(-x for x in self.left), 0.5, 1),
                  ((0.0,) * 8, self.right, 0.5, 1),
