@@ -21,9 +21,29 @@ import yaml
 assert len(list(yaml.safe_load_all(pathlib.Path(sys.argv[1]).read_text()))) == 3
 PY
 
-for project in platform homelab home-services; do
+for project in homelab home-services; do
   test "$(yq -r "select(.metadata.name == \"$project\") | .spec.sourceRepos[]" "$projects")" = "$repo"
 done
+
+# Only the declared recovery rollout dependencies extend platform source access.
+python - "$root" <<'PYTEST'
+from pathlib import Path
+import sys
+import yaml
+root = Path(sys.argv[1])
+projects = list(yaml.safe_load_all((root / 'clusters/kepler/apps/projects.yaml').read_text()))
+platform = next(project for project in projects if project['metadata']['name'] == 'platform')
+expected = {
+    'ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git',
+    'https://charts.goauthentik.io',
+    'https://prometheus-community.github.io/helm-charts',
+}
+actual = platform['spec']['sourceRepos']
+assert set(actual) == expected and len(actual) == len(expected), actual
+for name in ('authentik', 'monitoring'):
+    chart = yaml.safe_load((root / 'platform' / name / 'Chart.yaml').read_text())
+    assert all(dep['repository'] in expected for dep in chart['dependencies']), name
+PYTEST
 
 test "$(yq -r 'select(.metadata.name == "homelab") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "airflow,cognee,demo,langfuse,trace-demo"
 test "$(yq -r 'select(.metadata.name == "home-services") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "changedetection,immich,karakeep"
