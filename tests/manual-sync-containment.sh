@@ -94,7 +94,11 @@ if PATH="$tmp:$PATH" ARGOCALL="$tmp/call" ACTIVE_OPERATION='{"sync":{}}' scripts
   exit 1
 fi
 test ! -e "$tmp/call.patch"
-just --dry-run sync-platform-project "$sha" 2>&1 | grep -Fq "scripts/sync.sh '$sha' root platform-project"
+# Match the existing recipe checks without adding Just to CI dependencies.
+python - <<'PYTEST'
+from pathlib import Path
+assert "sync-platform-project revision:\n    scripts/sync.sh {{quote(revision)}} root platform-project\n" in Path("justfile").read_text()
+PYTEST
 
 PATH="$tmp:$PATH" ARGOCALL="$tmp/call" scripts/retire-vcluster-pastelariadev.sh >/dev/null
 test "$(cat "$tmp/call")" = "--context homelab -n argocd exec statefulset/argocd-application-controller -- argocd app delete vcluster-pastelariadev --core --cascade --yes"
