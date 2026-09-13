@@ -28,6 +28,10 @@ bootstrap:
 sync revision app="root":
     scripts/sync.sh {{quote(revision)}} {{quote(app)}}
 
+# Grant platform permissions without reconciling unrelated root resources.
+sync-platform-project revision:
+    scripts/sync.sh {{quote(revision)}} root platform-project
+
 # One-time cutover: remove the retired Kepler work-test vcluster and its resources.
 retire-vcluster-pastelariadev:
     scripts/retire-vcluster-pastelariadev.sh
