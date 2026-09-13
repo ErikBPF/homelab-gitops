@@ -5,8 +5,8 @@ invariants in [test-contract.md](test-contract.md). It is a CPU mathematical
 reference. It does not fit codebooks, load models, measure quality, implement
 attention kernels, or establish an INT4/NVFP4 performance gain.
 
-The [broader feature](compressed-kv.feature) remains unautomated. Only the bounded
-CKV-02/CKV-04 subset described in the test contract has runnable checks.
+The [broader feature](compressed-kv.feature) remains unautomated. The reference and
+scalar diagnostic have only the bounded runnable coverage in the test contract.
 
 ```sh
 python3 -B -m unittest -v test_reference
@@ -57,6 +57,10 @@ snapshot and cached CPU-capable runtime. Each of six fixed synthetic prompts get
 each K-only, V-only and combined. Weights and actual attention stay FP32 on CPU.
 The BF16 control only rounds the prefix cache. These are diagnostic logit/error
 measurements, not generation quality or native INT4 throughput.
+
+`stored_bytes` counts tensor payload, FP32 scales and untouched FP32 cache sides.
+It excludes packet metadata, allocator alignment and capture-file overhead.
+`baseline_bf16_bytes` is a logical size comparison, not a BF16 model execution.
 
 Use an immutable source archive containing both Python modules, the two reference
 modules, this README and the test contract. Verify its SHA256 after copying it to
