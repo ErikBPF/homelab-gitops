@@ -127,8 +127,11 @@ above.
 - **Branch protection / review gate:** every Argo application is manual while
   `main` is unprotected. Sync root and children at the reviewed commit as shown
   above. Restore auto-sync only after branch protection is enabled.
-- **Cognee is blocked before first sync.** Publish/sign and digest-pin its image,
-  then apply the reviewed `homelab-iac` key and OpenBao handoff first.
+- **Cognee consumes the published `cognee-homelab` image.** Its
+  [resources](apps/cognee/resources.yaml) pin the Harbor image by digest and
+  declare the `cognee-harbor` pull secret. For a new deployment, verify the
+  reviewed `homelab-iac` key, OpenBao handoff and registry credentials before
+  syncing; check operation completion and health as described above.
 - **Telemetry stays in cluster.** `alloy-metrics` writes to the monitoring
   namespace Prometheus receiver and cluster log collectors write to Loki's
   service address. Discovery remains only the household ingress and OpenBao
