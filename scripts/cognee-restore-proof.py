@@ -33,19 +33,29 @@ readiness = json.loads((root / 'readiness.json').read_text())
 assert readiness['version'] == 1
 states = readiness['datasets']
 queries = {}
+
+def source_path(location):
+    parsed = urllib.parse.urlsplit(location)
+    if parsed.scheme not in ('', 'file') or parsed.netloc not in ('', 'localhost'):
+        raise ValueError('restored data is not a local managed file')
+    path = pathlib.Path(urllib.parse.unquote(parsed.path)).resolve()
+    if not path.is_relative_to(root):
+        raise ValueError('restored data escapes the managed data root')
+    return path
+
 for row in rows:
     state = states[row['dataset_id']]
     assert state['status'] == 'ready' and not state.get('pending_deletions')
     for column in ('raw_data_location', 'original_data_location'):
         if row[column]:
-            path = pathlib.Path(row[column]).resolve()
+            path = source_path(row[column])
             assert path.is_relative_to(root) and path.is_file(), 'missing restored document'
-    path = pathlib.Path(row['raw_data_location'])
+    path = source_path(row['raw_data_location'])
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     assert digest in state['source_hashes'], 'restored source missing from readiness'
     assert hashlib.md5(data).hexdigest() == row['raw_content_hash'], 'raw content hash mismatch'
-    original = pathlib.Path(row['original_data_location']).read_bytes()
+    original = source_path(row['original_data_location']).read_bytes()
     assert hashlib.md5(original).hexdigest() == row['content_hash'], 'original content hash mismatch'
     queries.setdefault(row['dataset_id'], []).append(data.decode('utf-8')[:160])
 
