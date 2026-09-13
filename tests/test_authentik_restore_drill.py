@@ -77,6 +77,11 @@ if mode=='app-fail' and 'shell' in args:
         self.assertEqual(next(e['value'] for e in auth['env'] if e['name']=='AUTHENTIK_POSTGRESQL__HOST'),'127.0.0.1')
         restores=[c for c in calls if 'pg_restore' in c['args']]
         self.assertEqual(len(restores),1)
+        copies=[c for c in calls if 'cp' in c['args']]
+        self.assertEqual(len(copies),1,'copy a framed file before restoring')
+        self.assertLess(calls.index(copies[0]),calls.index(restores[0]))
+        self.assertNotIn('-i',restores[0]['args'])
+        self.assertIn('/tmp/authentik.dump',restores[0]['args'])
         self.assertIn('--exit-on-error',restores[0]['args'])
         app=next(c for c in calls if 'shell' in c['args'])
         self.assertIn('check_password', ' '.join(app['args']))
