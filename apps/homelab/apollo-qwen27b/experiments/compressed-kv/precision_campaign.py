@@ -92,26 +92,40 @@ def capture_precision(model, token_ids):
     if (not isinstance(token_ids, torch.Tensor) or token_ids.dtype != torch.int64
             or token_ids.ndim != 2 or token_ids.shape[0] != 1 or not 1 <= token_ids.shape[1] <= 256):
         raise ValueError('capture requires one unpadded sequence of 1 through 256 tokens')
-    outputs = model(input_ids=token_ids, use_cache=True, output_hidden_states=True, output_attentions=True)
+    queries = [None] * len(model.model.layers)
+    rotary, hooks = [], []
+    try:
+        for index, layer in enumerate(model.model.layers):
+            def save_query(module, args, output, index=index):
+                queries[index] = output.detach().cpu().clone()
+            hooks.append(layer.self_attn.q_norm.register_forward_hook(save_query))
+
+        def save_rotary(module, args, output):
+            rotary.append(tuple(x.detach().cpu().clone() for x in output))
+        hooks.append(model.model.rotary_emb.register_forward_hook(save_rotary))
+        outputs = model(input_ids=token_ids, use_cache=True, output_attentions=True)
+    finally:
+        for hook in hooks:
+            hook.remove()
+    if len(rotary) != 1 or any(q is None for q in queries):
+        raise ValueError('capture requires actual normalized queries and one rotary output')
     captures = []
     for index, layer in enumerate(model.model.layers):
         attn = layer.self_attn
         device = attn.q_proj.weight.device
-        hidden = layer.input_layernorm(outputs.hidden_states[index][:, -1:, :].to(device))
-        q = attn.q_norm(attn.q_proj(hidden).view(1, 1, -1, attn.head_dim)).transpose(1, 2)
-        position = torch.tensor([[token_ids.shape[1] - 1]], device=device)
-        cos, sin = model.model.rotary_emb(hidden, position)
-        cos, sin = cos.to(device), sin.to(device)
+        q = queries[index].to(device).transpose(1, 2)
+        cos, sin = (x.to(device) for x in rotary[0])
         q, _ = apply_rotary_pos_emb(q, q, cos, sin)
         k, v = outputs.past_key_values.layers[index].keys, outputs.past_key_values.layers[index].values
         if any(x.dtype != torch.float32 for x in (q, k, v)):
             raise ValueError('precision capture requires FP32 Q/K/V')
-        oracle = ((q @ repeat_kv(k, attn.num_key_value_groups).transpose(-2, -1)) * attn.scaling).softmax(-1)
+        # Preserve the actual matmul shape; the final query has no masked future keys.
+        oracle = ((q @ repeat_kv(k, attn.num_key_value_groups).transpose(-2, -1)) * attn.scaling).softmax(-1)[:, :, -1:, :]
         expected = outputs.attentions[index][:, :, -1:, :].to(device)
         error = (oracle - expected).abs().max().item()
         if not torch.allclose(oracle, expected, atol=1e-6, rtol=1e-5):
             raise AssertionError(f'layer {index} final-query oracle mismatch: {error}')
-        captures.append(dict(q=q.cpu().clone(), k=k.cpu().clone(), v=v.cpu().clone(),
+        captures.append(dict(q=q[:, :, -1:, :].cpu().clone(), k=k.cpu().clone(), v=v.cpu().clone(),
                              scale=float(attn.scaling), oracle_max_error=error))
     return captures
 

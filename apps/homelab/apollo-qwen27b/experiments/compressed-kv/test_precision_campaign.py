@@ -33,7 +33,8 @@ class PrecisionCampaignTests(unittest.TestCase):
             handles.append(layer.self_attn.q_norm.register_forward_hook(perturb(index)))
         handles.append(model.model.rotary_emb.register_forward_hook(
             lambda module, args, output: rotary.append(tuple(x.detach().clone() for x in output))))
-        counts = {name: len(module._forward_hooks) for name, module in model.named_modules()}
+        targets = [layer.self_attn.q_norm for layer in model.model.layers] + [model.model.rotary_emb]
+        counts = [len(module._forward_hooks) for module in targets]
         try:
             try:
                 captured = capture_precision(model, ids)
@@ -46,13 +47,11 @@ class PrecisionCampaignTests(unittest.TestCase):
                 rotated = torch.cat((-q[..., 4:], q[..., :4]), dim=-1)
                 expected = (q * cos + rotated * sin)[:, :, -1:, :]
                 self.assertTrue(torch.equal(layer['q'], expected))
-            self.assertEqual(counts, {name: len(module._forward_hooks)
-                                      for name, module in model.named_modules()})
+            self.assertEqual(counts, [len(module._forward_hooks) for module in targets])
             with patch.object(model, 'forward', side_effect=RuntimeError('fixture failure')):
                 with self.assertRaisesRegex(RuntimeError, 'fixture failure'):
                     capture_precision(model, ids)
-            self.assertEqual(counts, {name: len(module._forward_hooks)
-                                      for name, module in model.named_modules()})
+            self.assertEqual(counts, [len(module._forward_hooks) for module in targets])
         finally:
             for handle in handles:
                 handle.remove()
