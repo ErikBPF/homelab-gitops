@@ -325,3 +325,91 @@ mounts, no GPU devices, no downloads or service changes. New table output budget
 record source/dependency identities and before/after health, then preserve all
 receipts and fit histories in content-addressed bundles. Reuse existing helpers;
 do not alter the historical codec or its archived baselines.
+
+## Successor slice: matched-byte logarithmic grids and propagated error
+
+Basis: the user's "lets continue" after recommending a matched-byte Cartesian
+linear/log comparison followed by teacher-forced accumulated-error evaluation.
+Keep the original Cartesian axes and model RoPE. This slice tests one explicit
+logarithmic storage grid, not log-domain attention arithmetic or a universal claim
+about logarithmic representations. Every named configuration runs despite losses.
+
+`log_probe.log_roundtrip(tensor, bits)` accepts finite CPU FP32 tensors with last
+dimension divisible by 32, bits 2/4/8, and returns reconstructed FP32, packed uint8
+and FP32 scales in the existing scalar format. Let m=2**(bits-1)-1 and use the same
+group32 scale s=max(abs(x))/m as `scalar_roundtrip` (zero groups use s=1). The signed
+integer field z ranges -m..m, with zero decoding exactly zero. For j=abs(z)>0 and
+m>1, decode sign(z)*s*m*2**(-8*(m-j)/(m-1)). For m=1 use sign(z)*s. The fixed eight
+octave span is an experimental setting chosen before results, not a fitted optimum.
+Choose the closest decoded level in original component space; ties go toward zero.
+Preserve two's-complement fields, low field first, and reconstruct from actual
+packed fields and stored scales. No norm, radius, rotation or logarithmic attention
+calculation. Reject unsupported inputs and nonfinite/zero scales or arithmetic.
+Log-2 is exactly linear-2 by construction; execute it and report the identity.
+Actual payload plus scales is 3/5/9 bytes per eight values for 2/4/8 bits, for both
+linear and log grids. No artificial table padding in these scalar comparisons.
+
+The public `comparison(captures, bits, mode, logarithmic=False)` accepts scalar
+bits 2/4/8 or the explicit BF16 control, and K/V/KV modes. Reuse original frozen-Q
+attention and NMSE definitions; charge payload, scales and untouched FP32 values.
+Tests establish known signed packed bytes, zero and nearest-level boundaries,
+bit2 exact linear parity, all widths' identical scale/payload accounting, no input
+mutation, finite arithmetic rejection, and manual reconstructed-attention parity.
+
+The model-free runner uses verified retained dictionary and Cartesian bundles
+73465d6f361dff338674c1a9d9a293778918f846fabdcfc1bf0d8cbb3cbdc889 and
+a6966f9bc5951acbbb8aaea7ab6bc237e7651b59734c12b9a9f290a6f57d7e04.
+Verify all 23 dictionary and six Cartesian NPZ identities and source provenance;
+load arrays with allow_pickle=False. Preserve all input hashes before/after.
+Run 252 rows: 12 documents x three modes x (linear2/4/8, log2/4/8, BF16).
+Verify all 144 linear/BF16 rows against retained Cartesian-run metrics and actual
+raw byte fields exactly; old artificial table-padding fields do not enter this
+new paired scalar experiment. Verify every log2 row equals its linear2 pair.
+No refitting, recapture or replay of unrelated learned-codec rows is needed here.
+
+`teacher_forced_probe.QuantizedCache(config, codec, mode)` subclasses the installed
+DynamicCache. Its update intercepts only incoming K/V, applies codec(tensor,side)
+to selected sides, then calls the parent update. The model consumes decoded K/V
+before attention, during prefill and every append. Never requantize stored entries,
+reset to reference K/V, share cache storage across variants, or quantize Q. This
+captures each variant's own propagated layer states, unlike the old perturb-once
+FP32-prefix diagnostic. Existing raw FP32 and BF16 controls remain distinct.
+
+`evaluate_teacher_forced(model, token_ids, codec, mode)` runs a fresh quantized
+cache over token_ids[:,:-1] and returns next-token logits and its final cache.
+A full causal pass is sufficient because all codecs group only within a token's
+last dimension, never across tokens. A tiny Qwen3 test must prove logits and final
+caches agree with separate prefill-plus-append execution, and that old entries are
+unchanged after append. Test independent caches, K-only/V-only isolation and input
+nonmutation; include nonlinear scalar and learned codecs. A deliberately simple
+codec must show old entries are not quantized twice. The clean cached baseline
+must agree with a no-cache causal forward within atol/rtol1e-4 on tiny fixtures.
+
+`logit_metrics(reference, actual, targets)` returns per-position finite
+KL(reference||actual), logit RMSE, reference and variant target NLL, NLL increase
+and top-token agreement. Targets are the identical next tokens for every variant.
+Test zero-error identity and an independent small-logit analytical example, correct
+alignment/counts, and malformed/nonfinite input rejection. These are teacher-forced
+propagation measurements, not free-running generated-answer quality.
+
+Score all 189 next-token positions in the six retained evaluation documents.
+Run all nine Cartesian learned family/seed configurations, linear2/4/8, log2/4/8
+and BF16, each K/V/KV: 288 tracks and 9072 variant-position observations, plus
+189 clean FP32 reference positions. Reuse frozen Cartesian tables, do not fit on
+these viewed documents, and retain every position and loss. Record both per-track
+and per-position results; average documents before an overall summary. Capture
+encoded payload/scale/table and untouched FP32 bytes separately from reconstructed
+working memory. Q4/log4 comparisons have identical bytes; learned-vs-Q4 comparisons
+retain their distinct rates. Historical spherical codecs remain separately
+scheduled; this continuation preserves the user's Cartesian correction.
+
+Run immutable archives on Orion with four CPUs, no GPU/network, read-only source,
+inputs/dependencies/model, no swap and 20-minute deadlines. The frozen-Q run uses
+4GiB; teacher forcing uses32GiB and cached Qwen3-4B FP32 eager weights. Shard teacher
+forcing by document if needed, recording exact completed tracks; no timeout counts
+as a scientific loss or permission to prune another track. No package install,
+download or service change. Preserve source/bundle/dependency hashes, observed
+limits, test RED/GREEN logs and unchanged service health. A fixed-model causal pass
+avoids unnecessary repeated decode forwards; correctness is gated by append-parity
+tests, not an assumed equivalence. Longer fresh-data and generation tests remain
+later work, regardless of the result.
