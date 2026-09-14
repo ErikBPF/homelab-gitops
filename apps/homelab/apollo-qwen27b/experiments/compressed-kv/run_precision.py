@@ -213,9 +213,15 @@ def fit(args, manifest):
         stream.write(json.dumps(receipts, indent=2, allow_nan=False) + '\n')
     (args.out / 'manifest.json').write_bytes((args.inputs / 'manifest.json').read_bytes())
     emit('fit_complete', configurations=len(configs), fitted_sha256=fitted_sha256)
+    compare_captures(args, manifest, captures, configs, fitted_sha256)
+
+@torch.inference_mode()
+def compare_captures(args, manifest, captures, configs, fitted_sha256):
+    if not 0 <= args.config_start < args.config_stop <= len(configs):
+        raise ValueError('invalid frozen comparison configuration interval')
     count = 0
     with (args.out / 'results.jsonl').open('x') as stream:
-        for config in configs:
+        for config in configs[args.config_start:args.config_stop]:
             for doc in manifest['documents']:
                 for mode in ('k', 'v', 'kv'):
                     row = precision_campaign.compare_frozen(captures[doc['id']], config, mode)
@@ -225,9 +231,9 @@ def fit(args, manifest):
                     stream.flush()
                     count += 1
             emit('frozen_configuration_complete', config_id=config['id'], rows=count)
-    if count != 1512:
+    if count != (args.config_stop - args.config_start) * 54:
         raise AssertionError('frozen comparison matrix is incomplete')
-    emit('frozen_complete', rows=count, results_sha256=sha(args.out / 'results.jsonl'))
+    emit('frozen_complete', config_start=args.config_start, config_stop=args.config_stop, rows=count, results_sha256=sha(args.out / 'results.jsonl'))
 
 
 @torch.inference_mode()
@@ -247,16 +253,7 @@ def teacher(args, manifest):
     from precision_codec import evaluate_grouped
     from teacher_forced_probe import logit_metrics
 
-    if not args.fitted_sha256 or sha(args.fitted) != args.fitted_sha256:
-        raise ValueError('fitted artifact identity changed')
-    envelope = torch.load(args.fitted, map_location='cpu', weights_only=True)
-    if (envelope['format_version'] != 1 or envelope['manifest_sha256'] != MANIFEST_SHA
-            or envelope['model_snapshot'] != SNAPSHOT or envelope['documents'] != manifest['documents']
-            or len(envelope['captures']) != 18
-            or {row['document_id'] for row in envelope['captures']} != {doc['id'] for doc in manifest['documents']}):
-        raise ValueError('fitted artifact does not match the complete frozen input cohort')
-    configs = envelope['configurations']
-    validate_configurations(configs)
+    configs = load_fitted(args, manifest)['configurations']
     if not 0 <= args.config_start < args.config_stop <= 28:
         raise ValueError('configuration shard must be a nonempty half-open interval within 0..28')
     documents = [doc for doc in manifest['documents'] if doc['split'] == 'evaluation']
@@ -312,9 +309,36 @@ def teacher(args, manifest):
          results_sha256=sha(args.out / 'results.jsonl'))
 
 
+def load_fitted(args, manifest):
+    if not args.fitted_sha256 or sha(args.fitted) != args.fitted_sha256:
+        raise ValueError('fitted artifact identity changed')
+    envelope = torch.load(args.fitted, map_location='cpu', weights_only=True)
+    if (envelope['format_version'] != 1 or envelope['manifest_sha256'] != MANIFEST_SHA
+            or envelope['model_snapshot'] != SNAPSHOT or envelope['documents'] != manifest['documents']
+            or len(envelope['captures']) != 18
+            or {row['document_id'] for row in envelope['captures']} != {doc['id'] for doc in manifest['documents']}):
+        raise ValueError('fitted artifact does not match the complete frozen input cohort')
+    configs = envelope['configurations']
+    validate_configurations(configs)
+    if envelope['campaign_source_sha256'] != sha(precision_campaign.__file__):
+        raise ValueError('campaign implementation changed since fitting')
+    return envelope
+
+
+@torch.inference_mode()
+def frozen(args, manifest):
+    envelope = load_fitted(args, manifest)
+    if args.captures_sha256 != envelope['captures_sha256']:
+        raise ValueError('frozen captures differ from fitting inputs')
+    captures, records = load_captures(args.captures, args.captures_sha256, manifest)
+    if records != envelope['captures']:
+        raise ValueError('capture records differ from fitting inputs')
+    compare_captures(args, manifest, captures, envelope['configurations'], args.fitted_sha256)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('phase', choices=['capture', 'fit', 'teacher'])
+    parser.add_argument('phase', choices=['capture', 'fit', 'frozen', 'teacher'])
     parser.add_argument('--inputs', type=Path, default=Path('/input'))
     parser.add_argument('--out', type=Path, default=Path('/out'))
     parser.add_argument('--captures', type=Path, default=Path('/input'))
@@ -333,7 +357,7 @@ def main():
     emit('start', phase=args.phase, teacher_chunk_size=1, source_sha256=sha(__file__), manifest_sha256=MANIFEST_SHA,
          torch_version=torch.__version__, cuda_version=torch.version.cuda, tf32=False)
     try:
-        {'capture': capture, 'fit': fit, 'teacher': teacher}[args.phase](args, manifest)
+        {'capture': capture, 'fit': fit, 'frozen': frozen, 'teacher': teacher}[args.phase](args, manifest)
     except Exception as error:
         emit('failure', phase=args.phase, error_type=type(error).__name__, error=str(error))
         raise
