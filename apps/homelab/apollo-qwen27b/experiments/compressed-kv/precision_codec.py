@@ -36,7 +36,10 @@ def grid_roundtrip(tensor, levels, clip=1.0, legacy_linear=False):
             or not math.isfinite(clip) or not 0 < clip <= 1 or type(legacy_linear) is not bool):
         raise ValueError('invalid clipping or linear-grid policy')
     levels = levels.to(tensor.device)
-    if legacy_linear and not torch.equal(levels, torch.arange(1, 8, device=tensor.device, dtype=torch.float32) / 7):
+    # CPU and CUDA division can differ by one FP32 rounding step.
+    if legacy_linear and not torch.allclose(
+            levels, torch.arange(1, 8, device=tensor.device, dtype=torch.float32) / 7,
+            rtol=torch.finfo(torch.float32).eps, atol=0):
         raise ValueError('linear policy requires the linear grid')
     groups = tensor.reshape(-1, 32)
     peaks = groups.abs().amax(dim=1, keepdim=True)
