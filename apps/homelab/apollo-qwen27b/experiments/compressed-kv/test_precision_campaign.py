@@ -13,7 +13,7 @@ class PrecisionCampaignTests(unittest.TestCase):
         rows = [dict(platform='fixture', question_id=str(i), question_content='x' * (270 + i))
                 for i in range(24)]
         rows.append(dict(platform='fixture', question_id='short', question_content='x'))
-        encode = lambda text: list(range(len(text)))
+        encode = lambda text: [len(text)] + list(range(len(text) - 1))
         actual = freeze_documents(rows, encode)
         self.assertIsInstance(actual, list)
         self.assertEqual(actual, freeze_documents(list(reversed(rows)), encode))
@@ -22,12 +22,15 @@ class PrecisionCampaignTests(unittest.TestCase):
         expected = sorted(rows[:-1], key=lambda r: hashlib.sha256(
             ('4827:' + r['platform'] + ':' + r['question_id']).encode()).hexdigest())[:18]
         self.assertEqual([r['id'] for r in actual], ['fixture:' + r['question_id'] for r in expected])
-        self.assertTrue(all(r['token_ids'] == list(range(257)) for r in actual))
+        self.assertEqual([r['token_ids'] for r in actual], [encode(r['question_content'])[:257] for r in expected])
         self.assertTrue(all(len(r['text_sha256']) == 64 and len(r['tokens_sha256']) == 64 for r in actual))
         with self.assertRaises(ValueError):
             freeze_documents(rows + [rows[0]], encode)
         with self.assertRaises(ValueError):
             freeze_documents(rows[:2], encode)
+        # Distinct documents with the same used prefix cannot form a holdout.
+        with self.assertRaises(ValueError):
+            freeze_documents(rows, lambda text: list(range(len(text))))
 
     def test_candidate_selection_uses_all_calibration_documents_and_stable_ties(self):
         candidates = [{'clip': 0.5}, {'clip': 1.0}, {'clip': 0.9}]

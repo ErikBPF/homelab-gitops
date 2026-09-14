@@ -11,7 +11,8 @@ Ownership: GitOps implementation, Homelab plan/results, existing Orion/Apollo ho
 - Reuse the cached public LiveCodeBench test6.jsonl snapshot and its verified hash.
   Read only platform, question_id and question_content. Deterministically rank
   unique documents by SHA256 of seed 4827 and identity, retain the first 18 with
-  at least 257 tokenizer tokens, and freeze their first 257 token IDs and hashes.
+  at least 257 tokenizer tokens, skipping already selected identical 257-token
+  prefixes, and freeze their first 257 token IDs and hashes.
   Assign six calibration, six selection and six evaluation documents by rank.
   These splits are held out from codec fitting, not claimed absent from model
   training. Do not use solutions, tests or evaluation metrics for fitting.
