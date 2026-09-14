@@ -82,7 +82,13 @@ def request(path, body=None, token=None, method=None, form=False):
             raw = response.read()
             return response.status, json.loads(raw) if raw else None
     except urllib.error.HTTPError as error:
-        return error.code, None
+        raw = error.read()
+        return error.code, json.loads(raw) if raw else None
+
+def assert_denied(status, result, allowed=(403, 409)):
+    assert status in allowed, 'reader retrieval was not denied by the guard'
+    details = {403: 'reader scope denied', 409: 'reader context changed or exceeded limit'}
+    assert result == {'detail': details[status]}, 'denied reader response contains unexpected context'
 
 embedding_request = urllib.request.Request(os.environ['EMBEDDING_ENDPOINT'].rstrip('/') + '/embeddings',
     data=json.dumps({'model': os.environ['EMBEDDING_MODEL'].removeprefix('openai/'), 'input': 'isolated restore dimension check'}).encode(),
@@ -124,7 +130,7 @@ for domain, credential in credentials.items():
                 status, result = request('/api/v1/search', body, token)
                 assert status == 200 and result, 'restored pilot graph retrieval failed'
         else:
-            assert status in (401, 403, 404), 'ungranted retrieval was not denied'
+            assert_denied(status, result, allowed=(403,) if state['domain'] not in (domain, 'oss') else (403, 409))
             if state['domain'] == domain:
                 private_checks += 1
     owned = next(key for key in queries if states[key]['domain'] == domain and any(grant['email'] == credential['username'] and grant['dataset_id'] == key for grant in grants))
@@ -138,7 +144,7 @@ for domain, credential in credentials.items():
     status, _ = request('/api/v1/permissions/datasets/' + reader_id + '?permission_name=read', [owned], operator, method='DELETE')
     assert status == 200, 'restored grant revocation failed'
     body = dict(domain=domain, dataset_ids=[owned], search_type='CHUNKS', only_context=True, query=queries[owned][0], include_references=True)
-    assert request('/api/v1/search', body, token)[0] in (401, 403, 404), 'revoked reader still retrieves'
+    assert_denied(*request('/api/v1/search', body, token))
     status, _ = request('/api/v1/permissions/datasets/' + reader_id + '?permission_name=read', [owned], operator)
     assert status == 200, 'restored grant reissue failed'
     status, result = request('/api/v1/search', body, token)
@@ -146,7 +152,7 @@ for domain, credential in credentials.items():
     # Delete only restored data, then prove the source cannot reappear in search.
     status, _ = request('/api/v1/datasets/' + owned, token=operator, method='DELETE')
     assert status in (200, 204), 'restored dataset deletion failed'
-    assert request('/api/v1/search', body, token)[0] in (401, 403, 404), 'deleted dataset still retrieves'
+    assert_denied(*request('/api/v1/search', body, token))
 assert private_checks, 'same-domain private source denial was not exercised'
 print(json.dumps({'restore_sources': len(rows), 'restore_datasets': len(queries), 'reader_domains': sorted(credentials), 'file_provenance': 'pass', 'scoped_search': 'pass', 'denied_mutations': 'pass', 'revoked_and_deleted': 'pass'}))
 '''
