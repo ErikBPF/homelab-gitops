@@ -147,7 +147,23 @@ grep -Fq 'falkor-counts.tsv' scripts/cognee-restore-drill.sh
 grep -Fq 'cognee-backup-canary' scripts/cognee-restore-drill.sh
 grep -Fq 'create job --from=cronjob/cognee-backup' scripts/cognee-backup.sh
 
+# A database-only drill cannot recover retained documents or prove reader safety.
+yq -o=json 'select(.kind == "CronJob" and .metadata.name == "cognee-backup") | .spec.jobTemplate.spec.template.spec.securityContext' "$manifest" \
+  | jq -e '.runAsUser == 1000 and .runAsGroup == 1000 and .fsGroup == 1000' >/dev/null \
+  || { echo 'backup identity must preserve application UID/GID 1000' >&2; exit 1; }
+for required in 'cognee-data.tar' 'readiness.json.lock' 'flock -x' 'mountPath: /source-data'; do
+  grep -Fq "$required" "$manifest" || { echo "missing full recovery backup contract: $required" >&2; exit 1; }
+done
+for required in 'cognee-data.tar' 'create namespace' 'policyTypes' 'Egress' 'dataset_database' \
+  'vector_database_url' 'graph_database_url' '/api/v1/search' '/api/v1/datasets' 'readiness.json' \
+  'raw_data_location' 'content_hash' '403' 'cognee-restore-'; do
+  grep -Fq "$required" scripts/cognee-restore-drill.sh || { echo "missing full recovery restore contract: $required" >&2; exit 1; }
+done
+
 rules=platform/monitoring/files/alerting/rules.yaml
 for uid in cognee-api-unavailable cognee-pvc-high cognee-backup-stale; do
   yq -e ".groups[].rules[] | select(.uid == \"$uid\")" "$rules" >/dev/null
 done
+
+# C6 must compare identities, not only row counts.
+python3 tests/cognee-restore-identity.py
