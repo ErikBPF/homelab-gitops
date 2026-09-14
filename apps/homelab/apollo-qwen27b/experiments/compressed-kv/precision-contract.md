@@ -48,6 +48,14 @@ first-block K-only identity, immutable sealed groups, separate cache instances,
 chunk rejection and exact payload/scale/raw-tail/table/working-buffer byte counts.
 Keep the historical zero-tail token-local linear4/log4 controls as separate arms.
 
+The actual-model chunk-32 qualification failed in all six layout/mode cells on
+2026-09-14. Those failures remain failed execution evidence. The authoritative
+teacher campaign therefore uses one-token appends for both clean and compressed
+paths; the 28-configuration matrix and numeric bounds are unchanged. A separate
+actual-model check establishes tokenwise repeatability, first-block K identity
+and identical storage ledgers. It does not establish chunk-32 equivalence.
+Full-pass clean capture remains the separate frozen-Q calibration diagnostic.
+
 ## Four-bit scalar grids
 
 A shared codec uses signed fields -7..7, an explicit zero, group32 FP32 scales,
