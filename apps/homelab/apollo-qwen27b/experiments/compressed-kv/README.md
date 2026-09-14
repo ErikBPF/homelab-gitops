@@ -204,3 +204,49 @@ trial uses the existing 32-GiB model limit and output budget. Verify live contai
 limits, source/dependency/input hashes and unchanged services for both runs, then
 preserve each evidence bundle by SHA256. No new downloads, GPU access or service
 changes are needed. Logarithmic encoding remains a separate future experiment.
+
+## Matched logarithmic grids and teacher-forced propagation
+
+Archive `log_probe.py`, `teacher_forced_probe.py` and their two test modules with
+all previous source files. This continuation keeps Cartesian axes and group32
+scales fixed. Signed logarithmic magnitudes span eight octaves, with explicit zero;
+2/4/8-bit rates match the existing linear controls exactly. Log-2 and linear-2
+have identical grids. Attention still operates on reconstructed FP32 values.
+
+Verify and extract the dictionary bundle
+`73465d6f361dff338674c1a9d9a293778918f846fabdcfc1bf0d8cbb3cbdc889.tar`
+into `input/` and the Cartesian bundle
+`a6966f9bc5951acbbb8aaea7ab6bc237e7651b59734c12b9a9f290a6f57d7e04.tar`
+into `cartesian/`. Both reside under `/projects/compressed-kv/artifacts/` on Orion.
+Use the existing offline four-CPU/4-GiB recipe, with read-only mounts at `/input`
+and `/cartesian`. The model-free command is:
+
+```sh
+python -B -m unittest -v test_reference test_scalar_probe test_dictionary_probe test_joint_segment_probe test_cartesian_probe test_log_probe test_teacher_forced_probe >&2 && python -B -u log_probe.py --input-dir /input --cartesian-dir /cartesian
+```
+
+Retain all 252 frozen-Q rows: 144 linear/BF16 controls and 108 logarithmic cases.
+The new scalar comparisons have no artificial table padding. Replay checks compare
+actual payload/scale/untouched bytes and metrics with retained controls.
+
+For propagation, use the same source/input archive and cached image with the
+existing read-only Qwen3 model mount and 32-GiB/no-swap memory limit. Each variant
+quantizes newly produced K/V before attention from the first prefill onward.
+Previously cached entries are never quantized again. Full causal teacher forcing
+is checked against prefill-plus-append execution in the tiny-model tests.
+Run two separate three-document shards, each with the 20-minute deadline:
+
+```sh
+python -B -u teacher_forced_probe.py --input-dir /input --cartesian-dir /cartesian --document-ids evaluation_basalt evaluation_bicycle_gears evaluation_beekeeping
+python -B -u teacher_forced_probe.py --input-dir /input --cartesian-dir /cartesian --document-ids evaluation_orchestra evaluation_recursion evaluation_javascript_map
+```
+
+Each command runs in its own owned container/trial directory; these are not two
+commands to append blindly to a single bounded container. Across both shards,
+288 tracks score all 189 target positions for 9072 variant-position observations.
+Preserve per-position KL, target NLL, logit error, top-token agreement, actual
+storage counts and every negative result. These short, viewed sequences measure
+teacher-forced propagated error, not long-context or free-running task quality.
+Capture live limits, unchanged services/dependencies, source/input identities and
+completion counts; preserve evidence by content hash. No downloads, GPU access,
+package installation or service handoff is needed.
