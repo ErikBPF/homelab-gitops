@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 context=${KUBE_CONTEXT:-homelab}
 namespace=${COGNEE_NAMESPACE:-cognee}
@@ -11,17 +12,23 @@ restore_namespace=cognee-restore-$(date -u +%s)-$RANDOM
 helper=cognee-backup-reader-$(date -u +%s)-$RANDOM
 created_namespace=false
 staging=
+member_list=
+evidence=$(mktemp -d /tmp/cognee-restore-state.XXXXXX)
 production_state() {
+  printf 'postgres '
   kubectl --context "$context" -n "$production_namespace" exec postgres-0 -- \
     psql -At -U cognee -d cognee -c "select md5(coalesce(string_agg(value, ',' order by value), '')) from (select row_to_json(d)::text value from datasets d union all select row_to_json(a)::text from acls a union all select row_to_json(u)::text from users u union all select row_to_json(d)::text from data d union all select row_to_json(d)::text from dataset_database d) state"
   # Expand graph names inside the database pod, not the operator shell.
   # shellcheck disable=SC2016
   kubectl --context "$context" -n "$production_namespace" exec falkordb-0 -- sh -c \
-    'redis-cli --raw GRAPH.LIST | sort | while IFS= read -r graph; do printf "%s " "$graph"; redis-cli --raw DUMP "$graph" | sha256sum; done'
+    'redis-cli --raw GRAPH.LIST | sort | while IFS= read -r graph; do printf "graph %s " "$graph"; redis-cli --raw DUMP "$graph" | sha256sum; done'
+  printf 'files '
   kubectl --context "$context" -n "$production_namespace" exec deployment/cognee -- sh -c \
     'find /var/lib/cognee/data -type f -exec sha256sum {} + | sort | sha256sum'
 }
 production_before=$(production_state)
+printf '%s\n' "$production_before" >"$evidence/before"
+echo "Production state evidence: $evidence"
 cleanup() {
   result=$?
   set +e
@@ -30,10 +37,14 @@ cleanup() {
     kubectl --context "$context" delete namespace "$restore_namespace" --wait=true --timeout=120s >/dev/null || result=1
   fi
   [[ -z $staging ]] || rm -rf "$staging"
+  [[ -z $member_list ]] || rm -f "$member_list"
   production_after=$(production_state)
+  printf '%s\n' "$production_after" >"$evidence/after"
   if [[ $production_after != "$production_before" ]]; then
     echo "production state changed during isolated restore" >&2
     result=1
+  else
+    echo "Production state unchanged"
   fi
   if [[ $result == 0 ]]; then
     echo "Cognee full restore drill passed; production state unchanged ($restore_namespace)"
@@ -41,7 +52,6 @@ cleanup() {
   exit "$result"
 }
 trap cleanup EXIT
-umask 077
 
 backup=${1:-}
 if [[ -z $backup ]]; then
@@ -67,13 +77,16 @@ fi
 )
 
 # Reject unsafe archive entries before extraction into the restored application.
-python3 - "$backup/cognee-data.tar" <<'PY_ARCHIVE'
+member_list=$(mktemp)
+python3 - "$backup/cognee-data.tar" "$member_list" <<'PY_ARCHIVE'
 import pathlib, sys, tarfile
-with tarfile.open(sys.argv[1]) as archive:
+with tarfile.open(sys.argv[1]) as archive, open(sys.argv[2], 'wb') as members:
     for entry in archive:
         path = pathlib.PurePosixPath(entry.name)
         if path.is_absolute() or '..' in path.parts or not (entry.isfile() or entry.isdir()):
             raise SystemExit('unsafe application archive entry')
+        if path.parts:
+            members.write(entry.name.encode('utf-8', 'surrogateescape') + b'\0')
 PY_ARCHIVE
 
 # A separate namespace keeps persisted short database names away from production.
@@ -176,9 +189,10 @@ for _ in $(seq 1 120); do
   sleep 2
 done
 [[ -n $state ]] || { echo "restore file container failed to start" >&2; exit 1; }
-kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar -C /var/lib/cognee -xf - <"$backup/cognee-data.tar"
-# Compare the full restored archive before the app can modify caches or logs.
-kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar -C /var/lib/cognee -df - <"$backup/cognee-data.tar"
+kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar --no-overwrite-dir --same-permissions -C /var/lib/cognee -xf - <"$backup/cognee-data.tar"
+kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- sh -c 'cat > /tmp/restore-archive-members' <"$member_list"
+# Compare every file and subdirectory, including modes; Kubernetes owns only mount-root metadata.
+kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar -C /var/lib/cognee -df - --no-recursion --null -T /tmp/restore-archive-members <"$backup/cognee-data.tar"
 kubectl --context "$context" -n "$namespace" exec cognee -c restore-files -- touch /var/lib/cognee/.restore-complete
 kubectl --context "$context" -n "$namespace" wait --for=condition=Ready pod/cognee --timeout=5m >/dev/null
 # Companion proof checks raw_data_location, content_hash, readiness.json and
