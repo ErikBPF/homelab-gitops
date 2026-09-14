@@ -267,7 +267,7 @@ spec:
       containers:
         - name: cognee
           # Built and published by cognee-homelab; GitOps only selects the release tag.
-          image: harbor.homelab.pastelariadev.com/library/cognee-homelab@sha256:2b273dfe82ad825560beb087b119060457712a806bcb1afec96232dda2a09f88
+          image: harbor.homelab.pastelariadev.com/library/cognee-homelab@sha256:bf0a0eb4090f7fe9220105576ddcb6c9ae752c1171a2b31ddce833a206c9963a
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }
