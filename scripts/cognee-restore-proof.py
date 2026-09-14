@@ -26,7 +26,10 @@ if not rows:
     raise SystemExit("restored database has no source documents")
 # Input travels over stdin; passwords never enter argv, files or command output.
 probe = r'''
-import hashlib, json, os, pathlib, urllib.request, urllib.parse, urllib.error
+import hashlib, json, os, pathlib, sys, urllib.request, urllib.parse, urllib.error
+# Cognee installs rich tracebacks; never render credential-bearing probe locals.
+check = 'file-provenance'
+sys.excepthook = lambda kind, error, trace: print('Restore proof failed: ' + check + ': ' + kind.__name__, file=sys.stderr)
 rows, credentials, grants = INPUT
 root = pathlib.Path('/var/lib/cognee/data').resolve()
 readiness = json.loads((root / 'readiness.json').read_text())
@@ -90,12 +93,14 @@ def assert_denied(status, result, allowed=(403, 409)):
     details = {403: 'reader scope denied', 409: 'reader context changed or exceeded limit'}
     assert result == {'detail': details[status]}, 'denied reader response contains unexpected context'
 
+check = 'embedding-dimension'
 embedding_request = urllib.request.Request(os.environ['EMBEDDING_ENDPOINT'].rstrip('/') + '/embeddings',
     data=json.dumps({'model': os.environ['EMBEDDING_MODEL'].removeprefix('openai/'), 'input': 'isolated restore dimension check'}).encode(),
     headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + os.environ['EMBEDDING_API_KEY']})
 with urllib.request.urlopen(embedding_request, timeout=180) as response:
     assert len(json.load(response)['data'][0]['embedding']) == 1024, 'embedding dimension mismatch'
 assert request('/api/v1/datasets')[0] == 401
+check = 'retained-private-fixture'
 fixture = json.loads((root / 'qualification/refresh-live-20260913.json').read_text())
 fixture_id = fixture['dataset_id']
 assert next(row['owner_id'] for row in rows if row['dataset_id'] == fixture_id) == fixture['owner_id'], 'restored fixture owner UUID changed'
@@ -109,12 +114,14 @@ for search_type in ('CHUNKS', 'GRAPH_COMPLETION'):
     assert not any(marker in result_text for marker in ('FIXTURE_REMOVED_20260913', 'FixtureCedar', 'FixtureBirch', 'FixtureMaple')), 'restored deleted source or relation returned'
 private_checks = 0
 for domain, credential in credentials.items():
+    check = 'reader-login-and-mutation-denial'
     status, result = request('/api/v1/auth/login', credential, form=True)
     assert status == 200, 'restored reader login failed'
     token = result['access_token']
     assert request('/api/v1/datasets', {'name': 'restore-denied-create'}, token)[0] == 403
     assert request('/api/v1/datasets', token=token)[0] == 403
     for dataset_id, packet_queries in queries.items():
+        check = 'reader-source-specific-retrieval'
         query = packet_queries[0]
         state = states[dataset_id]
         body = dict(domain=domain, dataset_ids=[dataset_id], search_type='CHUNKS', only_context=True, query=query, top_k=3, include_references=True)
@@ -141,15 +148,18 @@ for domain, credential in credentials.items():
     operator = result['access_token']
     readers = json.loads(os.environ['COGNEE_READER_DOMAINS'])
     reader_id = next(key for key, value in readers.items() if value == domain)
+    check = 'native-revocation'
     status, _ = request('/api/v1/permissions/datasets/' + reader_id + '?permission_name=read', [owned], operator, method='DELETE')
     assert status == 200, 'restored grant revocation failed'
     body = dict(domain=domain, dataset_ids=[owned], search_type='CHUNKS', only_context=True, query=queries[owned][0], include_references=True)
     assert_denied(*request('/api/v1/search', body, token))
+    check = 'native-regrant'
     status, _ = request('/api/v1/permissions/datasets/' + reader_id + '?permission_name=read', [owned], operator)
     assert status == 200, 'restored grant reissue failed'
     status, result = request('/api/v1/search', body, token)
     assert status == 200 and result, 'reissued reader grant does not retrieve'
     # Delete only restored data, then prove the source cannot reappear in search.
+    check = 'native-dataset-deletion'
     status, _ = request('/api/v1/datasets/' + owned, token=operator, method='DELETE')
     assert status in (200, 204), 'restored dataset deletion failed'
     assert_denied(*request('/api/v1/search', body, token))

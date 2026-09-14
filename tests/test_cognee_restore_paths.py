@@ -1,12 +1,28 @@
 """Restore must decode native file URIs without escaping managed storage."""
 import ast
+import io
 from pathlib import Path
 import tempfile
 import unittest
 import urllib.parse
+from types import SimpleNamespace
 
 
 class RestorePathTests(unittest.TestCase):
+    def test_traceback_hook_never_discloses_credential_locals(self):
+        script = Path(__file__).resolve().parents[1] / 'scripts/cognee-restore-proof.py'
+        module = ast.parse(script.read_text())
+        probe = next(node.value.value for node in module.body if isinstance(node, ast.Assign)
+                     and any(isinstance(target, ast.Name) and target.id == 'probe' for target in node.targets))
+        hook = next(node for node in ast.parse(probe).body if isinstance(node, ast.Assign)
+                    and any(isinstance(target, ast.Attribute) and target.attr == 'excepthook' for target in node.targets))
+        stream = io.StringIO()
+        fake_sys = SimpleNamespace(stderr=stream)
+        namespace = {'sys': fake_sys, 'check': 'native-revocation', 'credentials': 'synthetic-secret'}
+        exec(compile(ast.Module(body=[hook], type_ignores=[]), str(script), 'exec'), namespace)
+        fake_sys.excepthook(ValueError, ValueError('synthetic-secret'), None)
+        self.assertEqual(stream.getvalue(), 'Restore proof failed: native-revocation: ValueError\n')
+
     def test_denial_requires_guard_status_and_no_context(self):
         script = Path(__file__).resolve().parents[1] / 'scripts/cognee-restore-proof.py'
         module = ast.parse(script.read_text())
