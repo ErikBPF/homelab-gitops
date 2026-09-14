@@ -189,8 +189,8 @@ for _ in $(seq 1 120); do
   sleep 2
 done
 [[ -n $state ]] || { echo "restore file container failed to start" >&2; exit 1; }
-kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar --no-overwrite-dir --same-permissions -C /var/lib/cognee -xf - <"$backup/cognee-data.tar"
 kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- sh -c 'cat > /tmp/restore-archive-members' <"$member_list"
+kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar --same-permissions -C /var/lib/cognee -xf - --no-recursion --null -T /tmp/restore-archive-members <"$backup/cognee-data.tar"
 # Compare every file and subdirectory, including modes; Kubernetes owns only mount-root metadata.
 kubectl --context "$context" -n "$namespace" exec -i cognee -c restore-files -- tar -C /var/lib/cognee -df - --no-recursion --null -T /tmp/restore-archive-members <"$backup/cognee-data.tar"
 kubectl --context "$context" -n "$namespace" exec cognee -c restore-files -- touch /var/lib/cognee/.restore-complete

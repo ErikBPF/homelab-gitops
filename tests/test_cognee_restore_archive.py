@@ -23,7 +23,7 @@ class ArchiveTests(unittest.TestCase):
             members = root / 'members'
             with tarfile.open(archive) as tar:
                 members.write_bytes(b''.join(entry.name.encode() + b'\0' for entry in tar if Path(entry.name).parts))
-            subprocess.run(['tar', '--no-overwrite-dir', '--same-permissions', '-C', str(restored), '-xf', str(archive)], check=True)
+            subprocess.run(['tar', '--same-permissions', '-C', str(restored), '-xf', str(archive), '--no-recursion', '--null', '-T', str(members)], check=True)
             self.assertEqual(restored.stat().st_mode & 0o777, 0o700)
             command = ['tar', '-C', str(restored), '-df', str(archive), '--no-recursion', '--null', '-T', str(members)]
             self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
