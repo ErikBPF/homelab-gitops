@@ -30,6 +30,31 @@ def linear(tensor, side=None):
 
 
 class PrecisionCodecTests(unittest.TestCase):
+    @unittest.skipUnless(torch.cuda.is_available(), 'requires CUDA')
+    def test_linear_grid_cpu_gpu_construction_preserves_even_ties(self):
+        levels = torch.arange(1, 8, dtype=torch.float32) / 7
+        for index in range(torch.cuda.device_count()):
+            device = torch.device('cuda', index)
+            grids = (levels, levels.to(device),
+                     torch.arange(1, 8, dtype=torch.float32, device=device) / 7)
+            for clip in (1.0, 0.5):
+                tensor = torch.tensor([-7 / clip, 7 / clip, 1.5, -1.5,
+                                       2.5, -2.5, 3.5, -3.5] * 4, device=device)
+                for grid in grids:
+                    with self.subTest(device=str(device), clip=clip, grid_device=str(grid.device)):
+                        try:
+                            decoded, packed, scales = probe.grid_roundtrip(
+                                tensor, grid, clip=clip, legacy_linear=True)
+                        except ValueError as error:
+                            self.fail(f'valid linear grid rejected: {error}')
+                        self.assertEqual(bytes(packed.cpu().tolist()), bytes.fromhex('79e2e2c4' * 4))
+                        expected = torch.tensor([-7., 7., 2., -2., 2., -2., 4., -4.] * 4, device=device)
+                        self.assertTrue(torch.equal(decoded, expected))
+                        self.assertEqual(scales.item(), 1.0)
+                        self.assertTrue(all(x.device == device for x in (decoded, packed, scales)))
+                with self.assertRaises(ValueError):
+                    probe.grid_roundtrip(tensor, levels * 0.99, clip=clip, legacy_linear=True)
+
     def test_historical_wire_replay_and_declared_tie_policies(self):
         levels = probe.log_levels(8)
         self.assertIsNotNone(levels)
