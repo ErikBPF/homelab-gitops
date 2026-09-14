@@ -77,5 +77,29 @@ class PrecisionCampaignTests(unittest.TestCase):
             capture_precision(model, torch.ones(1, 257, dtype=torch.long))
 
 
+    @unittest.skipUnless(torch.cuda.device_count() >= 2, 'requires two CUDA devices')
+    def test_capture_restores_explicitly_dispatched_rotary_output_device(self):
+        from accelerate.hooks import AlignDevicesHook, add_hook_to_module
+        torch.manual_seed(4827)
+        config = Qwen3Config(vocab_size=96, hidden_size=32, intermediate_size=48,
+                             num_hidden_layers=2, num_attention_heads=4,
+                             num_key_value_heads=2, head_dim=8, max_position_embeddings=512,
+                             attention_dropout=0.0)
+        config._attn_implementation = 'eager'
+        model = Qwen3ForCausalLM(config).float().eval().to('cuda:0')
+        add_hook_to_module(model.model.rotary_emb, AlignDevicesHook(execution_device='cuda:1'))
+        for layer in model.model.layers:
+            add_hook_to_module(layer, AlignDevicesHook(execution_device='cuda:0'))
+        ids = torch.arange(17, device='cuda:0').reshape(1, -1)
+        with torch.inference_mode():
+            self.assertTrue(torch.isfinite(model(ids).logits).all())
+        try:
+            captured = capture_precision(model, ids)
+        except RuntimeError as error:
+            self.fail(f'capture must handle independently dispatched rotary output: {error}')
+        self.assertEqual(len(captured), 2)
+        self.assertTrue(all(layer['oracle_max_error'] <= 1e-6 for layer in captured))
+
+
 if __name__ == '__main__':
     unittest.main()

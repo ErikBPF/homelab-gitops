@@ -8,6 +8,8 @@ Ownership: GitOps implementation, Homelab plan/results, existing Orion/Apollo ho
 
 - Keep the exact Qwen3-4B snapshot, FP32 weights/eager attention, model RoPE and
   Cartesian components. No radius normalization or log-domain attention.
+  Captured queries must agree with actual attention even when Accelerate places
+  rotary embeddings on a different device; a two-GPU regression locks this case.
 - Reuse the cached public LiveCodeBench test6.jsonl snapshot and its verified hash.
   Read only platform, question_id and question_content. Deterministically rank
   unique documents by SHA256 of seed 4827 and identity, retain the first 18 with
