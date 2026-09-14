@@ -148,6 +148,9 @@ grep -Fq 'cognee-backup-canary' scripts/cognee-restore-drill.sh
 grep -Fq 'create job --from=cronjob/cognee-backup' scripts/cognee-backup.sh
 
 # A database-only drill cannot recover retained documents or prove reader safety.
+yq -o=json 'select(.kind == "CronJob" and .metadata.name == "cognee-backup") | .spec.jobTemplate.spec.template.spec.securityContext' "$manifest" \
+  | jq -e '.runAsUser == 1000 and .runAsGroup == 1000 and .fsGroup == 1000' >/dev/null \
+  || { echo 'backup identity must preserve application UID/GID 1000' >&2; exit 1; }
 for required in 'cognee-data.tar' 'readiness.json.lock' 'flock -x' 'mountPath: /source-data'; do
   grep -Fq "$required" "$manifest" || { echo "missing full recovery backup contract: $required" >&2; exit 1; }
 done
