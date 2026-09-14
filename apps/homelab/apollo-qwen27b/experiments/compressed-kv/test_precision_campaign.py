@@ -1,6 +1,7 @@
 """Fresh-input, calibration and capture gates for the precision continuation."""
 import hashlib
 import unittest
+from unittest.mock import patch
 
 import torch
 from transformers import Qwen3Config, Qwen3ForCausalLM
@@ -9,6 +10,53 @@ from precision_campaign import capture_precision, fit_levels, freeze_documents, 
 
 
 class PrecisionCampaignTests(unittest.TestCase):
+    def test_capture_uses_actual_full_sequence_queries_and_removes_hooks(self):
+        torch.manual_seed(4827)
+        config = Qwen3Config(vocab_size=32, hidden_size=32, intermediate_size=48,
+                            num_hidden_layers=2, num_attention_heads=4,
+                            num_key_value_heads=2, head_dim=8, attention_dropout=0.0)
+        config._attn_implementation = 'eager'
+        model = Qwen3ForCausalLM(config).float().eval()
+        ids = torch.arange(17).reshape(1, -1)
+        queries, rotary = {}, []
+        handles = []
+
+        def perturb(index):
+            def hook(module, args, output):
+                # A full-sequence-only change makes last-token reprojection invalid.
+                actual = output + (0.5 if output.shape[1] > 1 else 0.0)
+                queries[index] = actual.detach().clone()
+                return actual
+            return hook
+
+        for index, layer in enumerate(model.model.layers):
+            handles.append(layer.self_attn.q_norm.register_forward_hook(perturb(index)))
+        handles.append(model.model.rotary_emb.register_forward_hook(
+            lambda module, args, output: rotary.append(tuple(x.detach().clone() for x in output))))
+        counts = {name: len(module._forward_hooks) for name, module in model.named_modules()}
+        try:
+            try:
+                captured = capture_precision(model, ids)
+            except AssertionError as error:
+                self.fail(f'capture recomputed a different query: {error}')
+            self.assertEqual(len(rotary), 1)
+            cos, sin = (x.unsqueeze(1) for x in rotary[0])
+            for index, layer in enumerate(captured):
+                q = queries[index].transpose(1, 2)
+                rotated = torch.cat((-q[..., 4:], q[..., :4]), dim=-1)
+                expected = (q * cos + rotated * sin)[:, :, -1:, :]
+                self.assertTrue(torch.equal(layer['q'], expected))
+            self.assertEqual(counts, {name: len(module._forward_hooks)
+                                      for name, module in model.named_modules()})
+            with patch.object(model, 'forward', side_effect=RuntimeError('fixture failure')):
+                with self.assertRaisesRegex(RuntimeError, 'fixture failure'):
+                    capture_precision(model, ids)
+            self.assertEqual(counts, {name: len(module._forward_hooks)
+                                      for name, module in model.named_modules()})
+        finally:
+            for handle in handles:
+                handle.remove()
+
     def test_frozen_documents_are_unique_ranked_and_disjoint(self):
         rows = [dict(platform='fixture', question_id=str(i), question_content='x' * (270 + i))
                 for i in range(24)]
