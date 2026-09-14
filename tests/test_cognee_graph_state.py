@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import pathlib
+import subprocess
 import unittest
 
 PATH = pathlib.Path(__file__).resolve().parents[1] / 'scripts/cognee-graph-state.py'
@@ -16,6 +17,7 @@ class GraphStateTest(unittest.TestCase):
             'nodes': [[1, ['Entity'], {'text': 'source', 'vector': [0.25, 0.75]}]],
             'edges': [[2, 1, 1, 'depends_on', {'weight': 1}]],
             'labels': [['Entity']], 'relationships': [['depends_on']],
+            'constraints': [['UNIQUE', 'Entity', ['text'], 'NODE', 'OPERATIONAL']],
             'properties': [['text'], ['vector'], ['weight']],
             'indexes': [['Entity', ['vector'], {'vector': ['VECTOR']},
                          {'vector': {'dimension': 1024}}, 'english', [], 'NODE', 'OPERATIONAL']],
@@ -46,11 +48,30 @@ class GraphStateTest(unittest.TestCase):
         changed['indexes'][0][3]['vector']['dimension'] = 768
         self.assertNotEqual(baseline, self.digest(changed))
 
+    def test_constraint_definitions_are_included(self):
+        self.assertIn("constraints", self.module.QUERIES)
+
     def test_result_and_map_order_do_not_change_digest(self):
         changed = copy.deepcopy(self.rows)
         changed['properties'].reverse()
         changed['nodes'][0][2] = {'vector': [0.25, 0.75], 'text': 'source'}
         self.assertEqual(self.digest(self.rows), self.digest(changed))
+
+    def test_snapshot_errors_cannot_be_masked_by_later_commands(self):
+        script = (PATH.parent / 'cognee-restore-drill.sh').read_text()
+        function = script[script.index('production_state()'):script.index('production_before=')]
+        for failing in ('postgres', 'graph', 'files'):
+            mock = 'kubectl() { case "$*" in *psql*) part=postgres;; *) part=files;; esac; [[ $part != "$failing" ]] || return 23; echo stable; }; python3() { [[ $failing != graph ]] || return 23; echo stable; }; '
+            result = subprocess.run(['bash', '-c', 'failing=' + failing + '; ' + mock + function + '\nsnapshot=$(production_state); exit $?'], capture_output=True, text=True)
+            with self.subTest(failing=failing):
+                self.assertEqual(result.returncode, 23)
+        self.assertIn('production_after=$(production_state) || result=1', script)
+
+    def test_memberships_and_permissions_have_exact_row_coverage(self):
+        script = (PATH.parent / 'cognee-restore-drill.sh').read_text()
+        snapshot = script[script.index('production_state()'):script.index('production_before=')]
+        self.assertIn('from dataset_data ', snapshot)
+        self.assertIn('from permissions ', snapshot)
 
     def test_drill_uses_complete_snapshot_instead_of_dump(self):
         script = (PATH.parent / 'cognee-restore-drill.sh').read_text()

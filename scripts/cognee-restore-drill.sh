@@ -17,14 +17,13 @@ evidence=$(mktemp -d /tmp/cognee-restore-state.XXXXXX)
 production_state() {
   printf 'postgres '
   kubectl --context "$context" -n "$production_namespace" exec postgres-0 -- \
-    psql -At -U cognee -d cognee -c "select md5(coalesce(string_agg(value, ',' order by value), '')) from (select row_to_json(d)::text value from datasets d union all select row_to_json(a)::text from acls a union all select row_to_json(u)::text from users u union all select row_to_json(d)::text from data d union all select row_to_json(d)::text from dataset_database d) state"
-  # Expand graph names inside the database pod, not the operator shell.
-  # shellcheck disable=SC2016
-  kubectl --context "$context" -n "$production_namespace" exec falkordb-0 -- sh -c \
-    'redis-cli --raw GRAPH.LIST | sort | while IFS= read -r graph; do printf "graph %s " "$graph"; redis-cli --raw DUMP "$graph" | sha256sum; done'
+    psql -At -U cognee -d cognee -c "select md5(coalesce(string_agg(value, ',' order by value), '')) from (select row_to_json(d)::text value from datasets d union all select row_to_json(a)::text from acls a union all select row_to_json(u)::text from users u union all select row_to_json(d)::text from data d union all select row_to_json(d)::text from dataset_database d union all select row_to_json(m)::text from dataset_data m union all select row_to_json(p)::text from permissions p) state" || return
+  # FalkorDB v4.20.3 serializes GraphBLAS container pointers into DUMP bytes.
+  # Compare all graph records and index/schema definitions instead.
+  python3 scripts/cognee-graph-state.py "$context" "$production_namespace" || return
   printf 'files '
   kubectl --context "$context" -n "$production_namespace" exec deployment/cognee -- sh -c \
-    'find /var/lib/cognee/data -type f -exec sha256sum {} + | sort | sha256sum'
+    'find /var/lib/cognee/data -type f -exec sha256sum {} + | sort | sha256sum' || return
 }
 production_before=$(production_state)
 printf '%s\n' "$production_before" >"$evidence/before"
@@ -38,7 +37,7 @@ cleanup() {
   fi
   [[ -z $staging ]] || rm -rf "$staging"
   [[ -z $member_list ]] || rm -f "$member_list"
-  production_after=$(production_state)
+  production_after=$(production_state) || result=1
   printf '%s\n' "$production_after" >"$evidence/after"
   if [[ $production_after != "$production_before" ]]; then
     echo "production state changed during isolated restore" >&2
