@@ -1,0 +1,54 @@
+# Scoped default-deny for the aster ns. Deny all, then allow DNS egress, ingress
+# from the ingress controllers, and egress to the query planes aster must reach.
+#
+# ponytail: engine/catalog/llm egress is namespace-open while the prerequisite
+# runtime (proposal D6) is unsettled. Narrow to trino/polaris/llm namespaces once
+# those exist and their labels are known.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: aster }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-dns, namespace: aster }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-ingress, namespace: aster }
+spec:
+  podSelector: { matchLabels: { app: aster-server } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: traefik }
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-egress, namespace: aster }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 8181 }
+        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 443 }

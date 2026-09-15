@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: aster-notebooks, namespace: aster }
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs-slow
+  resources: { requests: { storage: 2Gi } }

@@ -31,3 +31,4 @@ resources:
   - demo.yaml
   - airflow.yaml
   - cognee.yaml
+  - aster.yaml

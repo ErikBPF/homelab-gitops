@@ -5,6 +5,14 @@ metadata: {name: airflow}
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: aster
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: authentik
   labels:
     pod-security.kubernetes.io/enforce: restricted

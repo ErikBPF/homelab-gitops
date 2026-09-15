@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: aster-controller, namespace: aster, labels: { app: aster-controller } }
+spec:
+  # One writer: the controller owns migrations, health reconciliation and audit pruning.
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: aster-controller } }
+  template:
+    metadata: { labels: { app: aster-controller } }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: controller
+          # TODO(S1): pin the published Harbor digest before this Application syncs.
+          image: harbor.homelab.pastelariadev.com/library/aster:0.0.1@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          command: ["/usr/local/bin/aster-controller"]
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: aster-secret, key: database_url } }
+            - { name: ASTER_RECONCILE_SECONDS, value: "30" }
+            - { name: ASTER_AUDIT_RETENTION_DAYS, value: "30" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 128Mi }

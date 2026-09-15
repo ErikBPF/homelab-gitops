@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: aster-server, namespace: aster, labels: { app: aster-server } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: aster-server } }
+  template:
+    metadata: { labels: { app: aster-server } }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: server
+          # TODO(S1): pin the published Harbor digest before this Application syncs.
+          image: harbor.homelab.pastelariadev.com/library/aster:0.0.1@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          env:
+            - { name: ASTER_BIND, value: "0.0.0.0:8080" }
+            - { name: ASTER_NOTEBOOK_DIR, value: /data/notebooks }
+            - { name: ASTER_NOTEBOOK_BRANCH, value: session }
+            - { name: ASTER_CONTRACTS_DIR, value: /etc/aster/contracts }
+            - name: ASTER_SESSION_KEY
+              valueFrom: { secretKeyRef: { name: aster-secret, key: session_key } }
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: aster-secret, key: database_url } }
+            - name: ASTER_OIDC_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: aster-secret, key: oidc_client_secret } }
+            - { name: ASTER_OIDC_ISSUER, value: https://auth.pastelariadev.com/application/o/aster/ }
+            - { name: ASTER_OIDC_CLIENT_ID, value: aster }
+            - { name: ASTER_OIDC_REDIRECT_URI, value: https://aster.k8s.pastelariadev.com/callback }
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 256Mi }
+          volumeMounts:
+            - { name: notebooks, mountPath: /data/notebooks }
+            - { name: contracts, mountPath: /etc/aster/contracts, readOnly: true }
+      volumes:
+        - name: notebooks
+          persistentVolumeClaim: { claimName: aster-notebooks }
+        - name: contracts
+          configMap: { name: aster-contracts }

@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: { name: aster, namespace: aster }
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: aster.k8s.pastelariadev.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: aster-server, port: { number: 80 } } }
