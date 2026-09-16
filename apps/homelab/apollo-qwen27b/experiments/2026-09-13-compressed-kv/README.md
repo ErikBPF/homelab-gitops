@@ -250,3 +250,66 @@ teacher-forced propagated error, not long-context or free-running task quality.
 Capture live limits, unchanged services/dependencies, source/input identities and
 completion counts; preserve evidence by content hash. No downloads, GPU access,
 package installation or service handoff is needed.
+
+
+## Apollo floating-point runtime qualification
+
+`test_apollo_runtime.py` is a standalone, model-free numerical check for the
+accepted Apollo GPU campaign. It requires PyTorch and exactly one visible GPU:
+
+```sh
+python3 -B -u test_apollo_runtime.py
+```
+
+Six JSONL cells compare FP32/BF16 matrix multiplication and forced BF16 math/flash
+attention against CPU FP64 oracles. Prefill uses 33 causal tokens; decode uses
+one query and 129 valid keys with no causal mask. This checks runtime support,
+not compressed-cache quality, native four-bit arithmetic or performance.
+
+Apollo already retains the image
+`docker.io/lmsysorg/sglang@sha256:710bc11443a7b1807d69803386468101bcfced35f86bf8fe92a8209e05a2f052`
+under its existing rooted Podman store. The executable is
+`/mnt/microvms/ai-evaluation/runtimes/tools/podman/bin/podman`, with
+`--root /mnt/microvms/ai/cache/podman-root --runroot /run/apollo-ftw-containers`.
+No installation or personal dependency overlay is needed. The image contains
+PyTorch 2.13.0+cu130 and nvcc 13.0.88; preserve exact identities on replay.
+
+Use a unique owned trial directory and archive this probe plus the test contract.
+Verify source hashes before and after. Expose one card at a time using the existing
+CDI index names `nvidia.com/gpu=0`, `=1`, `=2`, after verifying their UUID mapping.
+The current CDI file does not expose UUID aliases. Each run uses UID 1000:GID 100,
+`--pull=never --network=none --read-only --cpus=4 --memory=8g --memory-swap=8g`,
+`--pids-limit=256 --timeout=180 --cap-drop=ALL --security-opt=no-new-privileges`,
+a 256-MiB temporary filesystem and a read-only source mount. Override the image
+entrypoint with `/bin/bash -c 'nvcc --version >&2; python3 -B -u test_apollo_runtime.py'`.
+Capture container configuration before start, live state, stdout/stderr, exit code,
+final state and host GPU/service state. Run all three cards despite numerical
+failures. Preserve all 18 cells; unavailable or timed-out cells are failures,
+not skipped passes. Remove only the three owned stopped containers after saving
+receipts. No model mount, network access or standing service change is needed.
+
+## Stock Q4 comparison
+
+`stock_q4_probe.py` compares Transformers' Quanto cache defaults with the existing
+fixed linear token/channel controls. See [stock-q4-contract.md](stock-q4-contract.md)
+for the four arms, frozen inputs, Qwen-then-Granite order and resource bounds.
+Weights remain FP32; every arm uses native eager attention and one-token forwards.
+
+Run `python test_stock_q4_probe.py` for CPU qualification, or append `cuda:0` for
+the GPU check. These require the pinned runtime and optimum-quanto 0.2.7; Quanto's
+native extension build directories must be writable while package source remains
+unchanged. The runner requires a pinned model path, hashed manifest and document
+index; `--help` lists arguments. It retains all per-position metrics and sampled
+resident cache bytes. The controls' encoded ledger is separate from their actual
+FP32 resident cache, so it does not imply a runtime memory saving.
+
+For the split Qwen model, also run `python test_stock_q4_multigpu.py` with the two
+qualified GPUs visible. The runner selects each decoder's CUDA device because
+Quanto's native unpack launch does not guard it; it rejects non-default streams
+and restores the caller's device after evaluation. This context applies equally
+to the clean reference and every quantized arm.
+
+The Q2–Q6 extension uses `--bits 6 5 4 3 2` on the same runner. Quanto stock arms
+run only at Q2/Q4; other stock widths are explicitly unsupported. Own token and
+channel controls run at every width. Run `python test_stock_qbits.py` in the
+qualified runtime for scalar, packed-byte and native-model checks.

@@ -413,3 +413,31 @@ limits, test RED/GREEN logs and unchanged service health. A fixed-model causal p
 avoids unnecessary repeated decode forwards; correctness is gated by append-parity
 tests, not an assumed equivalence. Longer fresh-data and generation tests remain
 later work, regardless of the result.
+
+
+## Apollo cached GPU runtime qualification
+
+This is a test-only prerequisite to the accepted GPU campaign, not a new codec.
+Use the cached SGLang image digest
+`sha256:710bc11443a7b1807d69803386468101bcfced35f86bf8fe92a8209e05a2f052`
+and expose one verified physical GPU per container. Run every case on the RTX 3070
+and both RTX 5060 Ti cards, regardless of earlier failures: 18 cells total.
+
+- Two matrix products: FP32 with TF32 disabled, and BF16; compare against CPU FP64
+  products of inputs rounded to the tested dtype.
+- Four BF16 attention cases: forced MATH and forced FLASH_ATTENTION, each with
+  causal prefill Q=K=33 and noncausal decode Q=1, K=129, batch 1, four heads,
+  head dimension 128. Decode keys are all valid past/current keys. The independent
+  CPU FP64 oracle explicitly scales, masks and applies softmax.
+- Require finite outputs and fixed maximum absolute/relative L2 bounds: FP32
+  matmul 1e-4/1e-5, BF16 matmul 0.1/0.01, and BF16 attention 0.02/0.01.
+  Synchronize within each cell. Preserve raw exceptions; unsupported or
+  failed cells make aggregate status nonzero, and cannot count as passes.
+- Require exactly one visible GPU. Record device identity, compute capability,
+  image/source hashes, PyTorch/CUDA versions, compiler version and container limits.
+- Offline, read-only, UID 1000:GID 100, four CPUs, 8 GiB memory/no swap, 180 seconds
+  per GPU. Preserve source and receipts; verify no remaining experiment container
+  or GPU process and unchanged standing service start times afterward.
+
+No model is loaded. These checks establish floating-point runtime readiness only;
+INT4/NVFP4 kernels, GQA, model parity and throughput remain separate campaign cells.
