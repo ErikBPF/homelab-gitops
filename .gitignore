@@ -10,3 +10,7 @@ Chart.lock
 result
 result-*
 /worktrees/
+
+# Python bytecode
+__pycache__/
+*.pyc
