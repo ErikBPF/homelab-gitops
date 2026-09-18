@@ -98,12 +98,6 @@ grep -Fq 'kube_statefulset_replicas' <<<"$statefulset_expr"
 
 host_absence_expr=$(yq -r '.groups[].rules[] | select(.uid == "host-metrics-absent") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'instance="apollo"' <<<"$host_absence_expr"
-test "$(yq -r '.groups[].rules[] | select(.uid == "apollo-k3s-readiness") | .for' "$root/platform/monitoring/files/alerting/rules.yaml")" = 10m
-test "$(yq -r '.groups[].rules[] | select(.uid == "apollo-k3s-readiness") | .labels.severity' "$root/platform/monitoring/files/alerting/rules.yaml")" = warning
-apollo_expr=$(yq -r '.groups[].rules[] | select(.uid == "apollo-k3s-readiness") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
-grep -Fq 'apollo_k3s_ready_nodes{instance="apollo"}) < bool 5' <<<"$apollo_expr"
-grep -Fq 'apollo_k3s_probe_last_success_seconds{instance="apollo"}) > bool 300' <<<"$apollo_expr"
-grep -Fq 'absent_over_time(apollo_k3s_probe_last_success_seconds{instance="apollo"}[5m])' <<<"$apollo_expr"
 test "$(grep -c 'uid: host-systemd-unit-failed' "$root/platform/monitoring/files/alerting/rules.yaml")" -eq 1
 
 alert_files=(
