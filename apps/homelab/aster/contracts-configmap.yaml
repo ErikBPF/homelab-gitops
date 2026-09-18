@@ -1,17 +1,37 @@
 # Contracts are deployment artifacts: change the file, redeploy, restart.
+# This is a real Open Data Contract Standard document (v3.2); aster reads
+# name/id, team.name, schema[].properties[] and semanticType.
 apiVersion: v1
 kind: ConfigMap
 metadata: { name: aster-contracts, namespace: aster }
 data:
-  orders.json: |
-    {
-      "name": "orders",
-      "description": "one row per customer order",
-      "owner": "data-team",
-      "schema": [
-        { "name": "order_id", "type": "bigint", "required": true },
-        { "name": "customer_id", "type": "bigint", "required": true },
-        { "name": "total", "type": "decimal(12,2)", "required": true },
-        { "name": "placed_at", "type": "timestamp", "required": true }
-      ]
-    }
+  orders.yaml: |
+    version: 3.2.0
+    apiVersion: v3.2.0
+    kind: DataContract
+    id: orders
+    name: orders
+    status: active
+    description: one row per customer order
+    team:
+      name: data-team
+    schema:
+      - name: orders
+        logicalType: object
+        properties:
+          - name: order_id
+            logicalType: bigint
+            required: true
+            primaryKey: true
+          - name: customer_id
+            logicalType: bigint
+            required: true
+            semanticType: dimension
+          - name: total
+            logicalType: decimal(12,2)
+            required: true
+            semanticType: measure
+          - name: placed_at
+            logicalType: timestamp
+            required: true
+            semanticType: dimension
