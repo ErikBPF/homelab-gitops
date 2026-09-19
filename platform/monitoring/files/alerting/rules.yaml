@@ -2255,7 +2255,7 @@ groups:
               instant: true
               queryType: instant
               datasource: {type: loki, uid: loki}
-              expr: 'sum by (host, source_ip, ssh_user, auth_method, fingerprint) (count_over_time({source="journal"} |~ "Accepted (publickey|password)" !~ "query=|security-ssh-public-login|count_over_time" | regexp "Accepted (?P<auth_method>publickey|password) for (?P<ssh_user>[^ ]+) from (?P<source_ip>[^ ]+) port [^ ]+ ssh2(?:: [^ ]+ (?P<fingerprint>SHA256:[^ ]+))?" | source_ip !~ "^(192\\.168\\.10\\.147|192\\.168\\.10\\.200|192\\.168\\.10\\.205|100\\.107\\.225\\.13|fd7a:115c:a1e0::d53b:e10e|100\\.91\\.131\\.59|fd7a:115c:a1e0::8a3b:833d|192\\.168\\.10\\.210|100\\.76\\.140\\.121|fd7a:115c:a1e0::6e3b:8c79)$" [5m]))'
+              expr: 'sum by (host, source_ip, ssh_user, auth_method, fingerprint) (count_over_time({source="journal"} |~ "Accepted (publickey|password)" !~ "query=|security-ssh-public-login|count_over_time" | regexp "Accepted (?P<auth_method>publickey|password) for (?P<ssh_user>[^ ]+) from (?P<source_ip>[^ ]+) port [^ ]+ ssh2(?:: [^ ]+ (?P<fingerprint>SHA256:[^ ]+))?" | source_ip !~ "^(192\\.168\\.10\\.147|192\\.168\\.10\\.200|192\\.168\\.10\\.205|100\\.107\\.225\\.13|fd7a:115c:a1e0::d53b:e10e|192\\.168\\.10\\.210|100\\.76\\.140\\.121|100\\.66\\.253\\.15|fd7a:115c:a1e0::113b:fd0f|127\\.0\\.0\\.1|::1)$" | fingerprint !~ "^(SHA256:dlP1RdOO0EGo0EG2wj4E4xdE0E4W9oZdnKj3Zlb8anI|SHA256:JHKSkDkCbnAot\\+p6FEx8g2frKyl0VQxaXgOaOFhOcyE|SHA256:SPUVdLfcMHe7ANHnPT1uF\\+/8HzzpSn6M81ydw\\+RvQD4)$" [5m]))'
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
