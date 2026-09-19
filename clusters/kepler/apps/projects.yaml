@@ -23,6 +23,7 @@ spec:
     - {server: https://kubernetes.default.svc, namespace: spark-operator}
     - {server: https://kubernetes.default.svc, namespace: spark-jobs}
     - {server: https://kubernetes.default.svc, namespace: traefik}
+    - {server: https://kubernetes.default.svc, namespace: trino}
     - {server: https://kubernetes.default.svc, namespace: wazuh}
     - {server: https://kubernetes.default.svc, namespace: yunikorn}
   clusterResourceWhitelist:
@@ -69,6 +70,7 @@ spec:
     - {group: argoproj.io, kind: AppProject}
     - {group: rbac.authorization.k8s.io, kind: Role}
     - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+    - {group: sparkoperator.k8s.io, kind: SparkConnect}
     - {group: traefik.io, kind: Middleware}
     - {group: traefik.io, kind: ServersTransport}
 ---

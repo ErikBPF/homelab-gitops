@@ -1,0 +1,55 @@
+# The homelab's own Spark Connect server, so `aster`'s Spark engine has a cluster
+# it owns. It lives in `spark-jobs` because that is the only namespace the
+# operator watches. Spark 4.2.0 matches the Rust client's version.
+apiVersion: sparkoperator.k8s.io/v1alpha1
+kind: SparkConnect
+metadata:
+  name: aster-spark
+  labels: {app: aster-spark, app.kubernetes.io/part-of: aster}
+spec:
+  sparkVersion: 4.2.0
+  image: harbor.homelab.pastelariadev.com/dockerhub/apache/spark:4.2.0@sha256:fc64959c04bd87b0ac686be9aaa9008b69cdb1afc695400528279c8b01f43d89
+  server:
+    cores: 1
+    memory: 1g
+    service:
+      metadata: {name: spark-connect-aster}
+      spec:
+        ports: [{name: connect, port: 15002, protocol: TCP, targetPort: 15002}]
+    template:
+      metadata:
+        annotations:
+          yunikorn.apache.org/app-id: aster-spark
+          yunikorn.apache.org/queue: root.main
+      spec:
+        serviceAccount: spark-operator-spark
+        schedulerName: yunikorn
+        securityContext: {fsGroup: 185}
+        containers:
+          - name: spark-kubernetes-driver
+            image: harbor.homelab.pastelariadev.com/dockerhub/apache/spark:4.2.0@sha256:fc64959c04bd87b0ac686be9aaa9008b69cdb1afc695400528279c8b01f43d89
+            resources:
+              requests: {cpu: 500m, memory: 1Gi}
+              limits: {cpu: "1", memory: 2Gi}
+  executor:
+    cores: 1
+    instances: 1
+    memory: 2g
+    template:
+      metadata:
+        annotations:
+          yunikorn.apache.org/app-id: aster-spark
+          yunikorn.apache.org/queue: root.main
+      spec:
+        schedulerName: yunikorn
+        securityContext: {fsGroup: 185}
+        containers:
+          - name: spark-kubernetes-executor
+            image: harbor.homelab.pastelariadev.com/dockerhub/apache/spark:4.2.0@sha256:fc64959c04bd87b0ac686be9aaa9008b69cdb1afc695400528279c8b01f43d89
+            resources:
+              requests: {cpu: 500m, memory: 2Gi}
+              limits: {cpu: "1", memory: 3Gi}
+  sparkConf:
+    spark.kubernetes.container.image.pullPolicy: IfNotPresent
+    # The workers run hot; a 500m request fits where a guaranteed 1 CPU cannot.
+    spark.kubernetes.executor.request.cores: 500m

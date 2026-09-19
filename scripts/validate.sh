@@ -55,7 +55,8 @@ for contract in \
   tests/alloy-resilience.sh \
   tests/core-scheduling.sh \
   tests/demo-keda-ownership.sh \
-  tests/repository-transport.sh; do
+  tests/repository-transport.sh \
+  tests/trino-contract.sh; do
   case "$contract" in
     *.py) python3 "$contract" ;;
     *.go) go test "$contract" ;;
