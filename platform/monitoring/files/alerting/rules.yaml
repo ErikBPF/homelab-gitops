@@ -10,6 +10,8 @@ deleteRules:
     uid: netbird-relay-scrape-down
   - orgId: 1
     uid: security-control-unifi-siem-silent
+  - orgId: 1
+    uid: apollo-k3s-readiness
 
 groups:
   # Compose container health. Discovery exports Docker metrics through cAdvisor;

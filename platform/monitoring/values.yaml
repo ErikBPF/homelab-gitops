@@ -99,7 +99,7 @@ kube-prometheus-stack:
     sidecar:
       image:
         registry: harbor.homelab.pastelariadev.com/quay
-        sha: a36a5946ea215ca6435a2a7e155a17cc360ac35664ad33fa8f640a1d6786100e
+        sha: d78f9e2c1e20356a8ad6359f346ff35b5589922df56c8ce4d67ad38749fad65f
       resources:
         requests: {cpu: 10m, memory: 32Mi}
         limits: {cpu: 100m, memory: 128Mi}
