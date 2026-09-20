@@ -31,7 +31,7 @@ loki:
       limits: {cpu: "2", memory: 2Gi}
     persistence:
       enabled: true
-      storageClass: local-path
+      storageClass: nfs-fast
       size: 30Gi
   backend: {replicas: 0}
   read: {replicas: 0}
