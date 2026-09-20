@@ -81,7 +81,7 @@ langfuse:
       image:
         repository: harbor.homelab.pastelariadev.com/dockerhub/clickhouse/clickhouse-server
         tag: 26.4@sha256:c7796a1335d14385c052f10061cf719f4a368a908432ec25980860b1333e9ccd
-      storage: {size: 20Gi, className: local-path, accessModes: [ReadWriteOnce]}
+      storage: {size: 20Gi, className: nfs-fast, accessModes: [ReadWriteOnce]}
       resources:
         requests: {cpu: 200m, memory: 1Gi}
         limits: {cpu: "2", memory: 3Gi}

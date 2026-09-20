@@ -12,7 +12,7 @@ kind: PersistentVolumeClaim
 metadata: {name: scrutiny-influxdb-data}
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: local-path
+  storageClassName: nfs-slow
   resources: {requests: {storage: 20Gi}}
 ---
 apiVersion: v1

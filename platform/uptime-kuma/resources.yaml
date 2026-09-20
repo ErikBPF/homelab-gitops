@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata: {name: uptime-kuma-data}
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: local-path
+  storageClassName: nfs-slow
   resources: {requests: {storage: 5Gi}}
 ---
 apiVersion: apps/v1
