@@ -76,10 +76,6 @@ metadata: {name: traefik}
 ---
 apiVersion: v1
 kind: Namespace
-metadata: {name: trino}
----
-apiVersion: v1
-kind: Namespace
 metadata: {name: wazuh}
 ---
 apiVersion: v1

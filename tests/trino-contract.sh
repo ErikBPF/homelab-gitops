@@ -6,10 +6,8 @@ set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
-# The Trino applications are not part of the app-of-apps yet; only the
-# manifests, the namespace and the project destination are declared here.
-grep -Fq '{server: https://kubernetes.default.svc, namespace: trino}' "$root/clusters/kepler/apps/projects.yaml"
-grep -Fq 'name: trino' "$root/clusters/kepler/apps/namespaces.yaml"
+# The Trino applications, namespace and project destination are out of the
+# app-of-apps until D6 settles; the manifests below stay contract-checked.
 
 trino=$(kubectl kustomize "$root/platform/trino")
 echo "$trino" | grep -Fq 'coordinator=true'
