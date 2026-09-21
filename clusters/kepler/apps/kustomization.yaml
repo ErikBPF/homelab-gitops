@@ -29,6 +29,3 @@ resources:
   - demo.yaml
   - airflow.yaml
   - cognee.yaml
-  - trino.yaml
-  - trino-gateway.yaml
-  - spark-connect.yaml

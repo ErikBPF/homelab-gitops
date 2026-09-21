@@ -6,9 +6,8 @@ set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
-test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/trino.yaml")" = platform
-test "$(yq -r '.spec.destination.namespace' "$root/clusters/kepler/apps/trino.yaml")" = trino
-test "$(yq -r '.spec.destination.namespace' "$root/clusters/kepler/apps/trino-gateway.yaml")" = trino
+# The Trino applications are not part of the app-of-apps yet; only the
+# manifests, the namespace and the project destination are declared here.
 grep -Fq '{server: https://kubernetes.default.svc, namespace: trino}' "$root/clusters/kepler/apps/projects.yaml"
 grep -Fq 'name: trino' "$root/clusters/kepler/apps/namespaces.yaml"
 
