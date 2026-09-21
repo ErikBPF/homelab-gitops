@@ -1,0 +1,75 @@
+# Black-box HTTP probing for the user-facing ingress hosts. Replaces the manual
+# uptime-kuma checks: every probe target feeds `probe_success`, and the
+# `probe-target-down` Grafana rule alerts when one stops returning 200.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-exporter-config
+data:
+  blackbox.yml: |
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 5s
+        http:
+          valid_status_codes: [200]
+          follow_redirects: true
+          preferred_ip_protocol: ip4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox-exporter
+  labels: {app: blackbox-exporter}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: blackbox-exporter}
+  template:
+    metadata:
+      labels: {app: blackbox-exporter}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: blackbox-exporter
+          image: harbor.homelab.pastelariadev.com/quay/prometheus/blackbox-exporter@sha256:43027b43fb785b7c5adc53bd3b5dbc1a258270a2e8aff24f477b45c4e38dac68
+          args: ["--config.file=/etc/blackbox/blackbox.yml"]
+          ports:
+            - {name: http, containerPort: 9115}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          readinessProbe:
+            httpGet: {path: /-/healthy, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet: {path: /-/healthy, port: http}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - {name: config, mountPath: /etc/blackbox, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: blackbox-exporter-config}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blackbox-exporter
+  labels: {app: blackbox-exporter, release: monitoring}
+spec:
+  selector: {app: blackbox-exporter}
+  ports:
+    - {name: http, port: 9115, targetPort: http}

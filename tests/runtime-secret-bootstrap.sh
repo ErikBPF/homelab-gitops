@@ -8,7 +8,6 @@ for path in \
   home-services/immich \
   home-services/karakeep \
   lab/langfuse \
-  platform/healthchecks \
   platform/monitoring \
   platform/scrutiny \
   platform/wazuh/indexer-certs \
@@ -26,7 +25,6 @@ for key in \
   DB_PASSWORD NEXTAUTH_SECRET MEILI_MASTER_KEY \
   ENCRYPTION_KEY SALT POSTGRES_PASSWORD REDIS_PASSWORD CLICKHOUSE_PASSWORD \
   S3_ACCESS_KEY S3_SECRET_KEY SEAWEEDFS_S3_CONFIG \
-  SECRET_KEY SUPERUSER_PASSWORD \
   DOCKER_INFLUXDB_INIT_ADMIN_TOKEN SCRUTINY_WEB_INFLUXDB_TOKEN \
   GRAFANA_ADMIN_PASSWORD GRAFANA_SECRET_KEY WEBHOOK_GRAFANA_ALERTS_SECRET \
   node.pem node-key.pem root-ca.pem admin.pem admin-key.pem \

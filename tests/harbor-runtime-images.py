@@ -35,7 +35,6 @@ COMPONENTS = (
     "platform/clickhouse-operator",
     "platform/csi-driver-nfs",
     "platform/external-secrets",
-    "platform/healthchecks",
     "platform/jaeger",
     "platform/keda",
     "platform/kube-state-metrics",
@@ -48,7 +47,6 @@ COMPONENTS = (
     "platform/spark-connect",
     "platform/trino",
     "platform/trino-gateway",
-    "platform/uptime-kuma",
     "platform/wazuh",
     "platform/yunikorn",
 )

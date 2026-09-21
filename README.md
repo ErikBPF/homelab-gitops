@@ -89,12 +89,12 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
 ## Current applications
 
-The root app manages 25 child applications (26 Argo Applications including
+The root app manages 26 child applications (27 Argo Applications including
 `root`):
 
 - `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`, `cert-manager`,
   `clickhouse-operator`, `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`,
-  `otel-collector`, `monitoring`, `loki`, `uptime-kuma`, `healthchecks`,
+  `otel-collector`, `monitoring`, `loki`,
   `scrutiny`, `wazuh`, `trace-demo`, `demo`, `airflow`, `langfuse`,
   `changedetection`, `karakeep`, `immich`, and the `cognee` graph+RAG experiment.
 - Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.

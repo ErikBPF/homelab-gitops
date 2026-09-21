@@ -19,8 +19,6 @@ COMPONENTS = (
     "platform/trino",
     "platform/trino-gateway",
     "platform/loki",
-    "platform/uptime-kuma",
-    "platform/healthchecks",
     "platform/scrutiny",
     "platform/wazuh",
 )

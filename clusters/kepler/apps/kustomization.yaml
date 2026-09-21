@@ -8,7 +8,6 @@ resources:
   - cert-manager.yaml
   - changedetection.yaml
   - external-secrets.yaml
-  - healthchecks.yaml
   - immich.yaml
   - clickhouse-operator.yaml
   - csi-driver-nfs.yaml
@@ -26,7 +25,6 @@ resources:
   - alloy-metrics.yaml
   - otel-collector.yaml
   - trace-demo.yaml
-  - uptime-kuma.yaml
   - wazuh.yaml
   - demo.yaml
   - airflow.yaml

@@ -3,7 +3,7 @@ set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
-for app in monitoring loki uptime-kuma healthchecks scrutiny; do
+for app in monitoring loki scrutiny; do
   manifest=$root/clusters/kepler/apps/$app.yaml
   test "$(yq -r '.spec.project' "$manifest")" = platform
   test "$(yq -r '.spec.destination.namespace' "$manifest")" = monitoring
@@ -51,7 +51,7 @@ test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitorin
 test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitoring-kube-prometheus-kubelet") | .spec.endpoints[] | select(.path == null) | .relabelings[] | select(.targetLabel == "metrics_path" and .action == "replace") | .sourceLabels[]' "$render")" = __metrics_path__
 rm -f "$render"
 
-for app in uptime-kuma healthchecks scrutiny; do
+for app in scrutiny; do
   render=$(mktemp)
   kubectl kustomize "$root/platform/$app" >"$render"
   yq -e 'select(.kind == "Deployment") | .spec.template.spec.containers[0].image | contains("@sha256:")' "$render" >/dev/null
@@ -61,13 +61,6 @@ for app in uptime-kuma healthchecks scrutiny; do
   python3 "$root/scripts/check-first-wave-resources.py" "$render"
   rm -f "$render"
 done
-
-render=$(mktemp)
-kubectl kustomize "$root/platform/healthchecks" >"$render"
-for probe in readinessProbe livenessProbe; do
-  test "$(yq -r "select(.kind == \"Deployment\") | .spec.template.spec.containers[0].$probe.httpGet.httpHeaders[0].value" "$render")" = healthchecks.homelab.pastelariadev.com
-done
-rm -f "$render"
 
 grep -Fq 'vault-platform' "$root/platform/monitoring/templates/externalsecret.yaml"
 test "$(yq -r 'select(.metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$root/platform/monitoring/templates/networkpolicy.yaml")" = Ingress,Egress

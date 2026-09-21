@@ -29,8 +29,6 @@ random_hex langfuse-redis 32
 random_hex langfuse-clickhouse 32
 random_hex langfuse-s3-access 10
 random_hex langfuse-s3-secret 20
-random_hex healthchecks-key 32
-random_hex healthchecks-password 24
 random_hex scrutiny-password 24
 random_hex scrutiny-token 32
 random_hex grafana-password 24
@@ -87,8 +85,6 @@ payload=$(jq -nc \
   --rawfile langfuse_clickhouse "$tmp/langfuse-clickhouse" \
   --rawfile s3_access "$tmp/langfuse-s3-access" \
   --rawfile s3_secret "$tmp/langfuse-s3-secret" \
-  --rawfile healthchecks_key "$tmp/healthchecks-key" \
-  --rawfile healthchecks_password "$tmp/healthchecks-password" \
   --rawfile scrutiny_password "$tmp/scrutiny-password" \
   --rawfile scrutiny_token "$tmp/scrutiny-token" \
   --rawfile grafana_password "$tmp/grafana-password" \
@@ -119,7 +115,6 @@ payload=$(jq -nc \
       S3_ACCESS_KEY:($s3_access|trim),S3_SECRET_KEY:($s3_secret|trim),
       SEAWEEDFS_S3_CONFIG:({identities:[{name:"langfuse",credentials:[{accessKey:($s3_access|trim),secretKey:($s3_secret|trim)}],actions:["Admin","Read","Write"]}]}|tojson)
     }},
-    {path:"platform/healthchecks",data:{SECRET_KEY:($healthchecks_key|trim),SUPERUSER_EMAIL:"admin@homelab.local",SUPERUSER_PASSWORD:($healthchecks_password|trim)}},
     {path:"platform/monitoring",data:{GRAFANA_ADMIN_USER:"admin",GRAFANA_ADMIN_PASSWORD:($grafana_password|trim),GRAFANA_SECRET_KEY:($grafana_key|trim)}},
     {path:"platform/scrutiny",data:{DOCKER_INFLUXDB_INIT_PASSWORD:($scrutiny_password|trim),DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:($scrutiny_token|trim),SCRUTINY_WEB_INFLUXDB_TOKEN:($scrutiny_token|trim)}},
     {path:"platform/wazuh/indexer-certs",data:{"node.pem":$indexer_cert,"node-key.pem":$indexer_key,"root-ca.pem":$root_ca,"admin.pem":$admin_cert,"admin-key.pem":$admin_key,"filebeat.pem":$filebeat_cert,"filebeat-key.pem":$filebeat_key}},

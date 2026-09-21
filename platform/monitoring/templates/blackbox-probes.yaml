@@ -1,0 +1,37 @@
+# Scrapes the exporter itself (so `up`/TargetDown covers the probe path) and
+# probes every user-facing ingress host end to end — DNS, TLS, ingress and app.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: blackbox-exporter
+  labels: {release: monitoring}
+spec:
+  selector:
+    matchLabels: {app: blackbox-exporter}
+  endpoints:
+    - {port: http, path: /metrics, interval: 60s}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: user-facing-https
+  labels: {release: monitoring}
+spec:
+  jobName: blackbox-user-facing
+  interval: 60s
+  module: http_2xx
+  prober:
+    url: http://blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - https://grafana.homelab.pastelariadev.com/api/health
+        - https://prometheus.homelab.pastelariadev.com/-/healthy
+        - https://argocd.k8s.pastelariadev.com/healthz
+        - https://loki.homelab.pastelariadev.com/
+        - https://authentik.homelab.pastelariadev.com/-/health/live/
+        - https://langfuse.homelab.pastelariadev.com/api/public/health
+        - https://immich.homelab.pastelariadev.com/api/server/ping
+        - https://bookmarks.homelab.pastelariadev.com/api/health
+        - https://changedetection.homelab.pastelariadev.com/
+        - https://wazuh.homelab.pastelariadev.com/

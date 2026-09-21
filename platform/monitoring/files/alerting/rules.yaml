@@ -2401,3 +2401,28 @@ groups:
           - refId: C
             datasourceUid: __expr__
             model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [108000]}}]}
+
+  - orgId: 1
+    name: probe-health
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: probe-target-down
+        title: User-facing HTTPS probe failing
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations: {summary: "{{ $labels.instance }}: blackbox probe has not returned HTTP 200 for 5m"}
+        labels: {severity: warning, category: availability}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: prometheus
+            model: {refId: A, instant: true, datasource: {type: prometheus, uid: prometheus}, expr: min by (instance) (probe_success)}
+          - refId: B
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: lt, params: [1]}}]}
