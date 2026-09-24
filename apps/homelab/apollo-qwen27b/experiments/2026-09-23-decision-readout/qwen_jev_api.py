@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 BASE_URL = os.environ.get("QWEN_JEV_BASE_URL", "https://litellm.homelab.pastelariadev.com/v1").rstrip("/")
 MODEL = os.environ.get("QWEN_JEV_MODEL", "qwen-jev")
 COMPLETION_MODEL = os.environ.get("QWEN_JEV_COMPLETION_MODEL", "qwen-chat")
+COMPLETION_THINKING = os.environ.get("QWEN_JEV_COMPLETION_THINKING", "false").strip().lower() in {"1", "true", "yes"}
 API_KEY = os.environ.get("QWEN_JEV_API_KEY") or os.environ.get("LITELLM_API_KEY") or ""
 TIMEOUT = float(os.environ.get("QWEN_JEV_TIMEOUT", "600"))
 MAX_TOKENS = int(os.environ.get("QWEN_JEV_MAX_TOKENS", "256"))
@@ -103,16 +104,26 @@ app = FastAPI(
 )
 
 
-def _request(messages: list[dict[str, str]], model: str, max_tokens: int, temperature: float) -> dict:
+def _request(
+    messages: list[dict[str, str]],
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    chat_template_kwargs: Optional[dict[str, Any]] = None,
+) -> dict:
     headers = {}
     if API_KEY:
         headers["Authorization"] = "Bearer " + API_KEY
+    body: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    if chat_template_kwargs is not None:
+        body["chat_template_kwargs"] = chat_template_kwargs
     try:
-        response = CLIENT.post(
-            BASE_URL + "/chat/completions",
-            headers=headers,
-            json={"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature},
-        )
+        response = CLIENT.post(BASE_URL + "/chat/completions", headers=headers, json=body)
     except httpx.HTTPError as error:
         raise HTTPException(502, f"upstream unreachable: {error}")
     if response.status_code >= 400:
@@ -158,7 +169,13 @@ def complete(request: CompletionRequest):
     if request.system:
         messages.append({"role": "system", "content": request.system})
     messages.append({"role": "user", "content": request.prompt})
-    payload = _request(messages, request.model or COMPLETION_MODEL, request.max_tokens or MAX_TOKENS, request.temperature)
+    payload = _request(
+        messages,
+        request.model or COMPLETION_MODEL,
+        request.max_tokens or MAX_TOKENS,
+        request.temperature,
+        chat_template_kwargs={"enable_thinking": COMPLETION_THINKING},
+    )
     return CompletionResponse(
         model=payload.get("model", request.model or COMPLETION_MODEL),
         content=_content(payload),

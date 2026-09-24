@@ -38,8 +38,8 @@ class QwenJevApiTest(unittest.TestCase):
             self.sent.append(content)
             return json.dumps(DECISION)
 
-        def fake_request(messages, model, max_tokens, temperature):
-            self.chat_calls.append({"messages": messages, "model": model, "max_tokens": max_tokens, "temperature": temperature})
+        def fake_request(messages, model, max_tokens, temperature, chat_template_kwargs=None):
+            self.chat_calls.append({"messages": messages, "model": model, "max_tokens": max_tokens, "temperature": temperature, "chat_template_kwargs": chat_template_kwargs})
             return {
                 "model": model,
                 "choices": [{"message": {"role": "assistant", "content": "Hello from the model."}}],
