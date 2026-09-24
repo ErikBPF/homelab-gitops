@@ -7,16 +7,19 @@
 # sidecar to also serve it as a decision model".
 # Plan: homelab/docs/plans/apollo-decision-model/one-pager.md.
 # Wire format: apolinario/decision-index @ 52a698928a9ae5bdf16b75687c903871db29c6e5.
-# Readout echoes the chat-rendered context, then echoes each option key after it
-# and sums the log-probabilities of the key's own tokens. The remaining ceiling
-# is context capacity: a question whose options do not fit is refused (422),
-# never truncated.
-# DR-07 receipt: Apollo results/s2b-kit-results.jsonl (7/7 ok on a synthetic
-# suite-shaped sample), produced by run-s2-kit.sh.
+# Readout: options are rendered with single-letter labels and ONE
+# /v1/chat/completions request per question asks for exactly one option letter;
+# the sidecar reads the letter distribution at the answer slot, ignores
+# non-letter tokens, maps letters back to keys, and softmaxes. More than 26
+# options has no single-token label and falls back to the chunked echo readout
+# (echo the context, then echo each context+key and sum the key tokens). The
+# remaining ceiling is context capacity: a question whose options do not fit is
+# refused (422), never truncated.
+# DR-07 receipt: Apollo results/s2b-kit-results.jsonl, produced by run-s2-kit.sh.
 
 Feature: Decision readout sidecar over the served Apollo model
   A Decision Index request is answered with a typed distribution over exactly the
-  supplied options, read from the model's own answer-slot log-probabilities.
+  supplied options, read from the model's own answer-slot probabilities.
   A question the engine cannot answer is refused, never guessed.
 
   @DR-01
@@ -37,11 +40,11 @@ Feature: Decision readout sidecar over the served Apollo model
     And the noul value is a probability between zero and one
 
   @DR-03
-  Scenario: A multi-token option key is scored over all of its tokens
+  Scenario: A multi-token option key is ranked by its letter
     Given a question whose option key tokenizes to more than one token
     When the readout sidecar answers the question
     Then the multi-token option can be the most likely answer
-    And its probability reflects the sum over the key's tokens
+    And its probability is the letter distribution read at the answer slot
     And the probabilities still sum to one
 
   @DR-04
@@ -72,3 +75,17 @@ Feature: Decision readout sidecar over the served Apollo model
     When the kit runs over a suite-shaped sample
     Then every response passes the kit's validate
     And each recorded status is ok
+
+  @DR-08
+  Scenario: A non-letter token at the answer slot is ignored
+    Given the model ranks a non-letter token first
+    When the readout sidecar answers the question
+    Then the non-letter token is skipped
+    And the probabilities still sum to one
+
+  @DR-09
+  Scenario: More options than letters falls back to the echo readout
+    Given a question with more options than there are single-token letters
+    When the readout sidecar answers the question
+    Then every option is scored by the chunked echo readout
+    And the probabilities still sum to one

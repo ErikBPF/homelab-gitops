@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Loopback decision-engine readout over a served vLLM model (S1).
 
-Renders a Decision Index question into the served model's chat form, scores each
-option key by the summed log-probability of its tokens at the answer slot, and
+Renders a Decision Index question with letter-labelled options, reads the
+model's answer-slot distribution over those letters in ONE chat request, and
 serves the typed distribution the frozen suite expects at POST /v1/systemone.
 
-Scoring uses /v1/completions with echo=true (max_tokens=0): one request echoes the
-context to learn its tokens, one batched request echoes context+key for every
-option, and each key's tokens are isolated by longest-common-prefix and summed.
-This reads every key's log-probability (no top-logprobs window) and handles
-multi-token keys, which a single answer-slot logprob does not.
+One request per question (not one per option): the previous echo design issued
+n+1 full-context prefills per question because this hybrid model's unified block
+size (864) exceeds a decision prompt, so nothing is prefix-cached. Letter labels
+are single tokens, so the answer-slot logprobs give the whole distribution at
+once, independent per option, with no prompt-logprob memory risk.
+
+Questions with more than 26 options fall back to a chunked echo-score path.
 
     python3 decision_sidecar.py --vllm-url http://127.0.0.1:11542 --model qwen38-27b
 
@@ -31,13 +33,21 @@ SYSTEM_PROMPT = (
     "replying with exactly one option key from the list. Do not explain."
 )
 
+LETTER_SYSTEM_PROMPT = (
+    "You are a decision engine. Read the state, then answer the question by "
+    "replying with exactly one option letter from the list. Do not explain."
+)
+
 # Qwen3.8 ChatML with the thinking block pre-filled empty (enable_thinking=false),
-# so the option key is the model's immediate next token after the prompt.
+# used by the >26-option echo fallback.
 CHAT_TEMPLATE = (
     "<|im_start|>system\n{system}<|im_end|>\n"
     "<|im_start|>user\n{body}<|im_end|>\n"
     "<|im_start|>assistant\n<think>\n\n</think>\n\n"
 )
+
+LETTERS = "abcdefghijklmnopqrstuvwxyz"
+LETTER_FLOOR = 5.0
 
 CAPACITY_MARKERS = (
     "options per choice",
@@ -86,7 +96,29 @@ def text(value):
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
+def _options(criteria):
+    body = ["Options:"]
+    for key, description in criteria.items():
+        body.append(f"{key}: {key if description is None else text(description)}")
+    return body
+
+
 def render_prompt(state, question):
+    body = [
+        "State:",
+        text(state) if state not in ("", None, {}, []) else "(empty)",
+        "",
+        "Question:",
+        text(question.get("instructions", "")),
+        "",
+    ]
+    criteria = question["criteria"] if question["type"] == "choice" else {"false": "False", "true": "True"}
+    body += _options(criteria)
+    body += ["", "Reply with exactly one option key."]
+    return "\n".join(body)
+
+
+def render_lettered(state, question, keys):
     body = [
         "State:",
         text(state) if state not in ("", None, {}, []) else "(empty)",
@@ -96,11 +128,19 @@ def render_prompt(state, question):
         "",
         "Options:",
     ]
-    criteria = question["criteria"] if question["type"] == "choice" else {"false": "False", "true": "True"}
-    for key, description in criteria.items():
-        body.append(f"{key}: {key if description is None else text(description)}")
-    body += ["", "Reply with exactly one option key."]
+    criteria = question.get("criteria") or {}
+    for letter, key in zip(LETTERS, keys):
+        description = criteria.get(key)
+        body.append(f"{letter}) {key if description is None else text(description)}")
+    body += ["", "Reply with exactly one option letter."]
     return "\n".join(body)
+
+
+def letter_of(token):
+    for character in token.strip():
+        if character.isalpha():
+            return character.lower()
+    return None
 
 
 def validate(questions, response):
@@ -131,25 +171,18 @@ def validate(questions, response):
 
 
 class Readout:
-    def __init__(self, vllm_url, model, temperature=1.0, timeout=600):
+    def __init__(self, vllm_url, model, temperature=1.0, timeout=600, batch=16):
         if temperature <= 0:
             raise ValueError("temperature must be > 0")
         self.vllm_url = vllm_url.rstrip("/")
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
+        self.batch = batch
 
-    def _echo(self, prompt):
-        body = {
-            "model": self.model,
-            "prompt": prompt,
-            "echo": True,
-            "max_tokens": 0,
-            "temperature": 0,
-            "logprobs": 1,
-        }
+    def _post(self, path, body):
         request = urllib.request.Request(
-            self.vllm_url + "/v1/completions",
+            self.vllm_url + path,
             data=json.dumps(body).encode(),
             headers={"content-type": "application/json"},
         )
@@ -162,18 +195,63 @@ class Readout:
                 raise Unsupported(message)
             raise
 
-    def _option_scores(self, context, keys):
+    def _echo(self, prompt):
+        return self._post("/v1/completions", {
+            "model": self.model,
+            "prompt": prompt,
+            "echo": True,
+            "max_tokens": 0,
+            "temperature": 0,
+            "logprobs": 1,
+        })
+
+    def _letter_scores(self, state, question, keys):
+        """One chat request; the answer-slot logprobs over the option letters."""
+        letters = LETTERS[: len(keys)]
+        body = render_lettered(state, question, keys)
+        payload = self._post("/v1/chat/completions", {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": LETTER_SYSTEM_PROMPT},
+                {"role": "user", "content": body},
+            ],
+            "max_tokens": 1,
+            "temperature": 0,
+            "logprobs": True,
+            "top_logprobs": max(len(keys), 20),
+            "chat_template_kwargs": {"enable_thinking": False},
+        })
+        usage = payload.get("usage") or {}
+        logprobs = payload["choices"][0].get("logprobs")
+        content = (logprobs or {}).get("content") or []
+        if not content:
+            raise RuntimeError("chat response carried no logprobs at the answer slot")
+        by_letter = {}
+        for item in content[0].get("top_logprobs", []):
+            letter = letter_of(item.get("token", ""))
+            if letter and letter in letters and letter not in by_letter:
+                by_letter[letter] = item["logprob"]
+        present = list(by_letter.values())
+        floor = min(present) - LETTER_FLOOR if present else -LETTER_FLOOR
+        return [by_letter.get(letter, floor) for letter in letters], usage
+
+    def _echo_scores(self, context, keys):
+        """Fallback for >26 options: summed key-token logprobs, chunked."""
         context_tokens = self._echo(context)["choices"][0]["logprobs"]["tokens"]
-        payload = self._echo([context + key for key in keys])
         scores = []
-        for choice in payload["choices"]:
-            tokens = choice["logprobs"]["tokens"]
-            token_logprobs = choice["logprobs"]["token_logprobs"]
-            shared = 0
-            while shared < len(context_tokens) and shared < len(tokens) and tokens[shared] == context_tokens[shared]:
-                shared += 1
-            scores.append(sum(token_logprobs[shared:]))
-        return scores, payload.get("usage") or {}
+        usage = {}
+        for start in range(0, len(keys), self.batch):
+            chunk = keys[start : start + self.batch]
+            payload = self._echo([context + key for key in chunk])
+            usage = payload.get("usage") or usage
+            for choice in payload["choices"]:
+                tokens = choice["logprobs"]["tokens"]
+                token_logprobs = choice["logprobs"]["token_logprobs"]
+                shared = 0
+                while shared < len(context_tokens) and shared < len(tokens) and tokens[shared] == context_tokens[shared]:
+                    shared += 1
+                scores.append(sum(token_logprobs[shared:]))
+        return scores, usage
 
     def __call__(self, state, questions):
         answers = {}
@@ -186,8 +264,11 @@ class Readout:
                 keys = ["false", "true"]
             else:
                 raise Unsupported(f"{key}: unsupported question type {question_type!r}")
-            context = CHAT_TEMPLATE.format(system=SYSTEM_PROMPT, body=render_prompt(state, question))
-            scores, usage = self._option_scores(context, keys)
+            if len(keys) <= len(LETTERS):
+                scores, usage = self._letter_scores(state, question, keys)
+            else:
+                context = CHAT_TEMPLATE.format(system=SYSTEM_PROMPT, body=render_prompt(state, question))
+                scores, usage = self._echo_scores(context, keys)
             peak = max(scores)
             weights = [math.exp((score - peak) / self.temperature) for score in scores]
             total = sum(weights)

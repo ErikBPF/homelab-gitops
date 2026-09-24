@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Checks for qwen_jev_api (no network; _chat is stubbed).
+
+    python3 test_qwen_jev_api.py
+"""
+
+import json
+import unittest
+
+from fastapi.testclient import TestClient
+
+import qwen_jev_api
+
+DECISION = {
+    "model": "qwen38-27b-nvfp4",
+    "answers": {
+        "day": {"type": "choice", "choice": "tuesday", "probabilities": {"monday": 0.0, "tuesday": 1.0, "friday": 0.0}},
+        "is_urgent": {"type": "noul", "noul": 0.12},
+    },
+    "usage": {"input_tokens": 120},
+}
+
+REQUEST = {
+    "state": "The meeting is on Tuesday at 3pm in room B.",
+    "questions": {
+        "day": {"type": "choice", "instructions": "Which day?", "criteria": {"monday": "Monday", "tuesday": "Tuesday", "friday": "Friday"}},
+        "is_urgent": {"type": "noul", "instructions": "Is it urgent?"},
+    },
+}
+
+
+class QwenJevApiTest(unittest.TestCase):
+    def setUp(self):
+        self.sent = []
+
+        def fake_chat(content):
+            self.sent.append(content)
+            return json.dumps(DECISION)
+
+        self._real = qwen_jev_api._chat
+        qwen_jev_api._chat = fake_chat
+        self.client = TestClient(qwen_jev_api.app)
+
+    def tearDown(self):
+        qwen_jev_api._chat = self._real
+
+    def test_health(self):
+        response = self.client.get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+
+    def test_openapi_describes_decide(self):
+        schema = self.client.get("/openapi.json").json()
+        self.assertIn("/decide", schema["paths"])
+        self.assertIn("DecisionRequest", schema["components"]["schemas"])
+
+    def test_decide_forwards_and_parses(self):
+        response = self.client.post("/decide", json=REQUEST)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["model"], "qwen38-27b-nvfp4")
+        self.assertEqual(body["answers"]["day"]["choice"], "tuesday")
+        self.assertAlmostEqual(sum(body["answers"]["day"]["probabilities"].values()), 1.0)
+        self.assertAlmostEqual(body["answers"]["is_urgent"]["noul"], 0.12)
+        forwarded = json.loads(self.sent[0])
+        self.assertEqual(forwarded["model"], qwen_jev_api.MODEL)
+        self.assertEqual(forwarded["state"], REQUEST["state"])
+        self.assertEqual(set(forwarded["questions"]), {"day", "is_urgent"})
+        self.assertEqual(forwarded["questions"]["day"]["criteria"]["tuesday"], "Tuesday")
+
+    def test_non_decision_content_is_502(self):
+        qwen_jev_api._chat = lambda content: "I am not JSON"
+        response = self.client.post("/decide", json=REQUEST)
+        self.assertEqual(response.status_code, 502)
+
+    def test_upstream_failure_is_502(self):
+        def boom(content):
+            raise qwen_jev_api.HTTPException(502, "upstream 500")
+
+        qwen_jev_api._chat = boom
+        response = self.client.post("/decide", json=REQUEST)
+        self.assertEqual(response.status_code, 502)
+
+    def test_malformed_request_is_422(self):
+        response = self.client.post("/decide", json={"questions": "nope"})
+        self.assertEqual(response.status_code, 422)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
