@@ -122,5 +122,11 @@ class QwenJevApiTest(unittest.TestCase):
         self.assertIn("CompletionRequest", schema["components"]["schemas"])
 
 
+    def test_complete_defaults_to_the_text_model(self):
+        response = self.client.post("/complete", json={"prompt": "Say hi."})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.chat_calls[0]["model"], "qwen-chat")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

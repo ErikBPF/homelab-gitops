@@ -11,7 +11,8 @@ served at /docs and the machine-readable schema at /openapi.json.
 
 Config (env):
     QWEN_JEV_BASE_URL  default https://litellm.homelab.pastelariadev.com/v1
-    QWEN_JEV_MODEL     default qwen-jev
+    QWEN_JEV_MODEL     default qwen-jev (decision model for POST /decide)
+    QWEN_JEV_COMPLETION_MODEL default qwen-chat (text model for POST /complete)
     QWEN_JEV_API_KEY   default $LITELLM_API_KEY (empty -> no Authorization header)
     QWEN_JEV_TIMEOUT   default 600 seconds
     QWEN_JEV_MAX_TOKENS default 256 (thinking is on by default)
@@ -27,6 +28,7 @@ from pydantic import BaseModel, Field
 
 BASE_URL = os.environ.get("QWEN_JEV_BASE_URL", "https://litellm.homelab.pastelariadev.com/v1").rstrip("/")
 MODEL = os.environ.get("QWEN_JEV_MODEL", "qwen-jev")
+COMPLETION_MODEL = os.environ.get("QWEN_JEV_COMPLETION_MODEL", "qwen-chat")
 API_KEY = os.environ.get("QWEN_JEV_API_KEY") or os.environ.get("LITELLM_API_KEY") or ""
 TIMEOUT = float(os.environ.get("QWEN_JEV_TIMEOUT", "600"))
 MAX_TOKENS = int(os.environ.get("QWEN_JEV_MAX_TOKENS", "256"))
@@ -76,7 +78,7 @@ class DecisionResponse(BaseModel):
 class CompletionRequest(BaseModel):
     prompt: str = Field(..., description="User message for the upstream chat model")
     system: Optional[str] = Field(None, description="Optional system message")
-    model: Optional[str] = Field(None, description="Override the upstream model (default qwen-jev)")
+    model: Optional[str] = Field(None, description="Override the upstream model (default qwen-chat)")
     max_tokens: Optional[int] = Field(None, description="Override the output token budget")
     temperature: float = Field(0.0, description="Sampling temperature; 0 is deterministic")
 
@@ -156,9 +158,9 @@ def complete(request: CompletionRequest):
     if request.system:
         messages.append({"role": "system", "content": request.system})
     messages.append({"role": "user", "content": request.prompt})
-    payload = _request(messages, request.model or MODEL, request.max_tokens or MAX_TOKENS, request.temperature)
+    payload = _request(messages, request.model or COMPLETION_MODEL, request.max_tokens or MAX_TOKENS, request.temperature)
     return CompletionResponse(
-        model=payload.get("model", request.model or MODEL),
+        model=payload.get("model", request.model or COMPLETION_MODEL),
         content=_content(payload),
         usage=payload.get("usage"),
     )
