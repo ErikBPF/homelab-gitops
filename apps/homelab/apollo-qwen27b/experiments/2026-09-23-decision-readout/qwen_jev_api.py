@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Small REST/OpenAPI tester for the registered `qwen-jev` decision model.
 
-Exposes one typed endpoint, POST /decide, that forwards a Decision Index request
-to a qwen-jev OpenAI chat endpoint and returns the parsed decision. Swagger UI is
+Exposes two endpoints: POST /decide forwards a Decision Index request to a
+qwen-jev OpenAI chat endpoint and returns the parsed decision; POST /complete
+runs a plain text chat completion through the same upstream. Swagger UI is
 served at /docs and the machine-readable schema at /openapi.json.
 
     uvicorn qwen_jev_api:app --host 127.0.0.1 --port 8088
@@ -72,6 +73,24 @@ class DecisionResponse(BaseModel):
     usage: Optional[dict[str, Any]] = None
 
 
+class CompletionRequest(BaseModel):
+    prompt: str = Field(..., description="User message for the upstream chat model")
+    system: Optional[str] = Field(None, description="Optional system message")
+    model: Optional[str] = Field(None, description="Override the upstream model (default qwen-jev)")
+    max_tokens: Optional[int] = Field(None, description="Override the output token budget")
+    temperature: float = Field(0.0, description="Sampling temperature; 0 is deterministic")
+
+    model_config = {
+        "json_schema_extra": {"examples": [{"prompt": "Say hello in one word.", "system": "Be terse."}]}
+    }
+
+
+class CompletionResponse(BaseModel):
+    model: str
+    content: str
+    usage: Optional[dict[str, Any]] = None
+
+
 app = FastAPI(
     title="qwen-jev decision tester",
     version="1.0.0",
@@ -82,7 +101,7 @@ app = FastAPI(
 )
 
 
-def _chat(content: str) -> str:
+def _request(messages: list[dict[str, str]], model: str, max_tokens: int, temperature: float) -> dict:
     headers = {}
     if API_KEY:
         headers["Authorization"] = "Bearer " + API_KEY
@@ -90,22 +109,24 @@ def _chat(content: str) -> str:
         response = CLIENT.post(
             BASE_URL + "/chat/completions",
             headers=headers,
-            json={
-                "model": MODEL,
-                "messages": [{"role": "user", "content": content}],
-                "max_tokens": MAX_TOKENS,
-                "temperature": 0,
-            },
+            json={"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature},
         )
     except httpx.HTTPError as error:
-        raise HTTPException(502, f"qwen-jev upstream unreachable: {error}")
+        raise HTTPException(502, f"upstream unreachable: {error}")
     if response.status_code >= 400:
-        raise HTTPException(502, f"qwen-jev upstream {response.status_code}: {response.text[:500]}")
-    payload = response.json()
+        raise HTTPException(502, f"upstream {response.status_code}: {response.text[:500]}")
+    return response.json()
+
+
+def _content(payload: dict) -> str:
     content = (payload.get("choices") or [{}])[0].get("message", {}).get("content")
     if not content:
-        raise HTTPException(502, "qwen-jev returned empty content; raise QWEN_JEV_MAX_TOKENS")
+        raise HTTPException(502, "upstream returned empty content; raise max_tokens")
     return content
+
+
+def _chat(content: str) -> str:
+    return _content(_request([{"role": "user", "content": content}], MODEL, MAX_TOKENS, 0))
 
 
 @app.get("/health")
@@ -127,6 +148,20 @@ def decide(request: DecisionRequest):
         return DecisionResponse.model_validate_json(content)
     except Exception as error:
         raise HTTPException(502, f"qwen-jev returned non-decision content: {content[:300]!r} ({error})")
+
+
+@app.post("/complete", response_model=CompletionResponse, summary="Plain text chat completion")
+def complete(request: CompletionRequest):
+    messages = []
+    if request.system:
+        messages.append({"role": "system", "content": request.system})
+    messages.append({"role": "user", "content": request.prompt})
+    payload = _request(messages, request.model or MODEL, request.max_tokens or MAX_TOKENS, request.temperature)
+    return CompletionResponse(
+        model=payload.get("model", request.model or MODEL),
+        content=_content(payload),
+        usage=payload.get("usage"),
+    )
 
 
 if __name__ == "__main__":

@@ -32,17 +32,29 @@ REQUEST = {
 class QwenJevApiTest(unittest.TestCase):
     def setUp(self):
         self.sent = []
+        self.chat_calls = []
 
         def fake_chat(content):
             self.sent.append(content)
             return json.dumps(DECISION)
 
+        def fake_request(messages, model, max_tokens, temperature):
+            self.chat_calls.append({"messages": messages, "model": model, "max_tokens": max_tokens, "temperature": temperature})
+            return {
+                "model": model,
+                "choices": [{"message": {"role": "assistant", "content": "Hello from the model."}}],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
+            }
+
         self._real = qwen_jev_api._chat
+        self._real_request = qwen_jev_api._request
         qwen_jev_api._chat = fake_chat
+        qwen_jev_api._request = fake_request
         self.client = TestClient(qwen_jev_api.app)
 
     def tearDown(self):
         qwen_jev_api._chat = self._real
+        qwen_jev_api._request = self._real_request
 
     def test_health(self):
         response = self.client.get("/health")
@@ -84,6 +96,30 @@ class QwenJevApiTest(unittest.TestCase):
     def test_malformed_request_is_422(self):
         response = self.client.post("/decide", json={"questions": "nope"})
         self.assertEqual(response.status_code, 422)
+
+
+    def test_complete_returns_text_and_forwards_messages(self):
+        response = self.client.post(
+            "/complete",
+            json={"prompt": "Say hi.", "system": "Be terse.", "model": "qwen-chat", "max_tokens": 32},
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["content"], "Hello from the model.")
+        self.assertEqual(body["model"], "qwen-chat")
+        self.assertEqual(body["usage"]["completion_tokens"], 3)
+        call = self.chat_calls[0]
+        self.assertEqual(call["model"], "qwen-chat")
+        self.assertEqual(call["max_tokens"], 32)
+        self.assertEqual(
+            call["messages"],
+            [{"role": "system", "content": "Be terse."}, {"role": "user", "content": "Say hi."}],
+        )
+
+    def test_openapi_describes_complete(self):
+        schema = self.client.get("/openapi.json").json()
+        self.assertIn("/complete", schema["paths"])
+        self.assertIn("CompletionRequest", schema["components"]["schemas"])
 
 
 if __name__ == "__main__":
