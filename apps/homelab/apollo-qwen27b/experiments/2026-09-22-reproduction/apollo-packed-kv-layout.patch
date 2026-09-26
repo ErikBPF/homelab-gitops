@@ -1,0 +1,29 @@
+--- a/lmcache/integration/vllm/kv_cache_group_edits.py
++++ b/lmcache/integration/vllm/kv_cache_group_edits.py
+@@ -636,7 +636,25 @@
+             )
+         token_axis = 1 if kv_layout == "NHD" else 2
+         logical_block_size = spec.block_size
+-        ratio = _logical_block_ratio(spec, kv_cache, kv_cache.shape[token_axis])
++        try:
++            ratio = _logical_block_ratio(spec, kv_cache, kv_cache.shape[token_axis])
++        except ValueError as hinted_error:
++            # vLLM 0.30 can register packed pages as a K/V-first strided view.
++            # Swap the middle axes back without copying the cache bytes.
++            transposed = kv_cache.transpose(1, 2)
++            try:
++                ratio = _logical_block_ratio(
++                    spec, transposed, transposed.shape[token_axis]
++                )
++                kv_cache = transposed
++            except ValueError:
++                other_axis = 3 - token_axis
++                try:
++                    ratio = _logical_block_ratio(
++                        spec, kv_cache, kv_cache.shape[other_axis]
++                    )
++                except ValueError:
++                    raise hinted_error
+ 
+         num_blocks = kv_cache.shape[0] // ratio
+         elems_per_page = spec.page_size_bytes // kv_cache.element_size()

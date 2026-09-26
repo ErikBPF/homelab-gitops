@@ -1,0 +1,9 @@
+FROM docker.io/vllm/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40
+
+# LMCache PR 4731: vLLM 0.30 packs attention K/V into rank-4 kernel pages.
+COPY lmcache-packed-kv.patch /tmp/lmcache-packed-kv.patch
+RUN patch --fuzz=0 -d /usr/local/lib/python3.12/dist-packages -p1 < /tmp/lmcache-packed-kv.patch \
+    && rm /tmp/lmcache-packed-kv.patch
+COPY apollo-packed-kv-layout.patch /tmp/apollo-packed-kv-layout.patch
+RUN patch --fuzz=0 -d /usr/local/lib/python3.12/dist-packages -p1 < /tmp/apollo-packed-kv-layout.patch \
+    && rm /tmp/apollo-packed-kv-layout.patch
