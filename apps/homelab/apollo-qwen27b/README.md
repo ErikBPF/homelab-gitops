@@ -20,7 +20,7 @@ Prerequisites retained from the verified capacity trial:
   Shared vLLM source and downloaded model files remain read-only mounts.
 - Restrict the API before launch: an INPUT jump for destination
   `100.77.14.27:11542` must be the first INPUT rule and leads to chain `apollo-qwen-personal`. That chain accepts
-  loopback, accepts source `100.76.140.121` on `tailscale0`, then rejects all
+  loopback, accepts source `100.103.52.100` on `tailscale0`, then rejects all
   other traffic. No public/LAN bind. Tailscale authenticates Discovery;
   no reusable backend secret is created. LMCache stays on localhost:11550. The launch script checks the exact jump and
   ordered allowlist before starting the container; it refuses missing, unreadable,

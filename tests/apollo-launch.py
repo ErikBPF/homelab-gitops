@@ -9,7 +9,7 @@ import unittest
 LAUNCH = Path(__file__).resolve().parents[1] / "apps/homelab/apollo-qwen27b/launch.sh"
 CHAIN = """-N apollo-qwen-personal
 -A apollo-qwen-personal -i lo -j ACCEPT
--A apollo-qwen-personal -s 100.76.140.121/32 -i tailscale0 -j ACCEPT
+-A apollo-qwen-personal -s 100.103.52.100/32 -i tailscale0 -j ACCEPT
 -A apollo-qwen-personal -j REJECT --reject-with icmp-port-unreachable"""
 JUMP = "-A INPUT -d 100.77.14.27/32 -p tcp -m tcp --dport 11542 -j apollo-qwen-personal"
 
