@@ -6,7 +6,7 @@ chain_rules=$(sudo -n iptables -S apollo-qwen-personal)
 [[ $(sed -n '2p' <<<"$input_rules") == '-A INPUT -d 100.77.14.27/32 -p tcp -m tcp --dport 11542 -j apollo-qwen-personal' ]]
 [[ $chain_rules == '-N apollo-qwen-personal
 -A apollo-qwen-personal -i lo -j ACCEPT
--A apollo-qwen-personal -s 100.76.140.121/32 -i tailscale0 -j ACCEPT
+-A apollo-qwen-personal -s 100.103.52.100/32 -i tailscale0 -j ACCEPT
 -A apollo-qwen-personal -j REJECT --reject-with icmp-port-unreachable' ]]
 trial=/mnt/microvms/ai/validation/20260910-qwen27b-personal
 podman=(sudo -n /mnt/microvms/ai-evaluation/runtimes/tools/podman/bin/podman --root /mnt/microvms/ai/cache/podman-root --runroot /run/apollo-ftw-containers)
