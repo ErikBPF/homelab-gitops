@@ -254,6 +254,10 @@ class Readout:
         return scores, usage
 
     def __call__(self, state, questions):
+        cache = self.__dict__.setdefault("_cache", {})
+        cache_key = json.dumps({"state": state, "questions": questions}, sort_keys=True, ensure_ascii=False, default=str)
+        if cache_key in cache:
+            return dict(cache[cache_key])
         answers = {}
         input_tokens = 0
         for key, question in questions.items():
@@ -284,6 +288,9 @@ class Readout:
             validate(questions, response)
         except Unsupported as error:
             raise RuntimeError(f"readout self-check failed: {error}") from error
+        cache[cache_key] = dict(response)
+        if len(cache) > 256:
+            cache.pop(next(iter(cache)))
         return response
 
 
