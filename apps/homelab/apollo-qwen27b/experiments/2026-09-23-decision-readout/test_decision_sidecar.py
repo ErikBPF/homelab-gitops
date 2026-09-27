@@ -3,19 +3,25 @@
 
 Runs the sidecar's HTTP surface against a stub vLLM, so no GPU or model is
 needed. The stub answers the lettered chat request with a canned answer-slot
-distribution and the echo fallback with canned token log-probabilities.
+distribution and the echo fallback with canned token log-probabilities. It also
+counts upstream calls, can rank a non-letter token first, and can hold requests
+in flight so the concurrency contract is observable without a GPU.
 
     python3 test_decision_sidecar.py
 """
 
 import json
 import math
+import os
+import sys
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import decision_sidecar
 
 FAVOUR_A = {"a": -0.1, "b": -3.0, "c": -8.0}
@@ -40,24 +46,42 @@ def softmax_top(values):
 
 
 class StubVLLM(BaseHTTPRequestHandler):
+    def _enter(self):
+        with self.server.lock:
+            self.server.calls += 1
+            self.server.in_flight += 1
+            self.server.max_in_flight = max(self.server.max_in_flight, self.server.in_flight)
+
+    def _exit(self):
+        with self.server.lock:
+            self.server.in_flight -= 1
+
     def do_POST(self):
-        length = int(self.headers.get("content-length", 0))
-        raw = self.rfile.read(length) or b"{}"
-        body = json.loads(raw)
-        if "HUGE" in raw.decode("utf-8", "replace"):
-            self._send(422, {"error": f"This model's {CAPACITY_MARKER} is 200000 tokens"})
-            return
-        if self.path.endswith("/chat/completions"):
-            self._send(200, self._chat(body))
-        else:
-            self._send(200, self._echo(body))
+        self._enter()
+        try:
+            if self.server.delay:
+                time.sleep(self.server.delay)
+            length = int(self.headers.get("content-length", 0))
+            raw = self.rfile.read(length) or b"{}"
+            body = json.loads(raw)
+            if "HUGE" in raw.decode("utf-8", "replace"):
+                self._send(422, {"error": f"This model's {CAPACITY_MARKER} is 200000 tokens"})
+                return
+            if self.path.endswith("/chat/completions"):
+                self._send(200, self._chat(body))
+            else:
+                self._send(200, self._echo(body))
+        finally:
+            self._exit()
 
     def _chat(self, body):
         content = " ".join(m.get("content", "") for m in body.get("messages", []) if isinstance(m.get("content"), str))
         top = FAVOUR_B if "b) true" in content else FAVOUR_A
-        top_logprobs = [{"token": token, "logprob": -9.0} for token in ("\n\n", "</think>")] + [
+        top_logprobs = [{"token": token, "logprob": -9.0} for token in ("\n\n", " response")] + [
             {"token": letter, "logprob": value} for letter, value in top.items()
         ]
+        if self.server.non_letter_top:
+            top_logprobs.append({"token": "\n", "logprob": -0.01})
         return {
             "choices": [{"index": 0, "logprobs": {"content": [{"top_logprobs": top_logprobs}]}}],
             "usage": {"prompt_tokens": 42, "completion_tokens": 1, "total_tokens": 43},
@@ -99,10 +123,12 @@ class DecisionSidecarTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.stub = ThreadingHTTPServer(("127.0.0.1", 0), StubVLLM)
+        cls.stub.lock = threading.Lock()
+        cls.reset_stub()
         cls.stub_thread = threading.Thread(target=cls.stub.serve_forever, daemon=True)
         cls.stub_thread.start()
-        stub_url = f"http://127.0.0.1:{cls.stub.server_address[1]}"
-        readout = decision_sidecar.Readout(vllm_url=stub_url, model="stub-model")
+        cls.stub_url = f"http://127.0.0.1:{cls.stub.server_address[1]}"
+        readout = decision_sidecar.Readout(vllm_url=cls.stub_url, model="stub-model")
         cls.server = decision_sidecar.make_server("127.0.0.1", 0, readout)
         cls.server_thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.server_thread.start()
@@ -112,6 +138,14 @@ class DecisionSidecarTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.stub.shutdown()
+
+    @classmethod
+    def reset_stub(cls):
+        cls.stub.calls = 0
+        cls.stub.in_flight = 0
+        cls.stub.max_in_flight = 0
+        cls.stub.delay = 0
+        cls.stub.non_letter_top = False
 
     def _post(self, path, payload):
         request = urllib.request.Request(
@@ -127,11 +161,11 @@ class DecisionSidecarTest(unittest.TestCase):
             error.close()
             return error.code, body
 
-    def systemone(self, state, questions):
-        return self._post("/v1/systemone", {"model": "qwen38-27b", "state": state, "questions": questions})
+    def decide(self, state, questions):
+        return self._post("/v1/decide", {"model": "qwen38-27b", "state": state, "questions": questions})
 
     def test_choice_distribution_is_valid_and_correct(self):
-        status, body = self.systemone(
+        status, body = self.decide(
             "The color is red.",
             {"color": {"type": "choice", "instructions": "Which color is named?", "criteria": {"red": "red", "blue": "blue"}}},
         )
@@ -146,7 +180,7 @@ class DecisionSidecarTest(unittest.TestCase):
         self.assertIn("usage", body)
 
     def test_noul_returns_a_probability(self):
-        status, body = self.systemone(
+        status, body = self.decide(
             "The color is red.",
             {"color": {"type": "noul", "instructions": "Is the color red?"}},
         )
@@ -157,7 +191,7 @@ class DecisionSidecarTest(unittest.TestCase):
         self.assertGreater(answer["noul"], 0.5)
 
     def test_multitoken_option_key_is_ranked_by_letter(self):
-        status, body = self.systemone(
+        status, body = self.decide(
             "Which city?",
             {"city": {"type": "choice", "instructions": "Which city is named?", "criteria": {"new york city": "new york city", "boston": "boston"}}},
         )
@@ -168,7 +202,7 @@ class DecisionSidecarTest(unittest.TestCase):
 
     def test_more_than_26_options_uses_echo_fallback(self):
         keys = [f"option-{i}" for i in range(27)]
-        status, body = self.systemone(
+        status, body = self.decide(
             "Pick one.",
             {"q": {"type": "choice", "instructions": "Which option?", "criteria": {k: k for k in keys}}},
         )
@@ -178,7 +212,7 @@ class DecisionSidecarTest(unittest.TestCase):
         self.assertAlmostEqual(sum(answer["probabilities"].values()), 1.0, places=9)
 
     def test_capacity_rejection_passes_through_as_422(self):
-        status, body = self.systemone(
+        status, body = self.decide(
             "HUGE state",
             {"color": {"type": "choice", "instructions": "Which color is named?", "criteria": {"red": "red", "blue": "blue"}}},
         )
@@ -186,7 +220,7 @@ class DecisionSidecarTest(unittest.TestCase):
         self.assertIn(CAPACITY_MARKER, body["error"])
 
     def test_unknown_question_type_is_rejected(self):
-        status, _ = self.systemone(
+        status, _ = self.decide(
             "The color is red.",
             {"score": {"type": "score", "instructions": "Rate the color."}},
         )
@@ -220,6 +254,125 @@ class DecisionSidecarTest(unittest.TestCase):
             text = response.read().decode()
         self.assertIn("data: ", text)
         self.assertIn("[DONE]", text)
+
+    def _readout(self, cache_size=256, **spec_kwargs):
+        spec = decision_sidecar.ModelSpec(**spec_kwargs)
+        return decision_sidecar.Readout(vllm_url=self.stub_url, model="stub-model", spec=spec, cache_size=cache_size)
+
+    def test_descriptor_selects_the_readout_route(self):
+        lettered = self._readout(readout="lettered")
+        self.assertEqual(lettered.mode, "lettered")
+        scores, _, _ = lettered._letter_scores(
+            "The color is red.",
+            {"type": "choice", "instructions": "Which color is named?", "criteria": {"red": "red", "blue": "blue"}},
+            ["red", "blue"],
+        )
+        self.assertAlmostEqual(scores[0] - scores[1], FAVOUR_A["a"] - FAVOUR_A["b"], places=9)
+
+        echoed = self._readout(readout="echo")
+        self.reset_stub()
+        answers = echoed("The color is red.", {"color": {"type": "choice", "instructions": "Which color is named?", "criteria": {"red": "red", "blue": "blue"}}})
+        self.assertEqual(answers["answers"]["color"]["choice"], "red")
+
+    def test_probe_falls_back_to_echo_when_a_letter_is_not_first(self):
+        self.reset_stub()
+        self.stub.non_letter_top = True
+        readout = self._readout(readout="auto")
+        self.assertIsNone(readout.mode)
+        self.assertEqual(readout.probe(), "echo")
+        self.assertEqual(readout.mode, "echo")
+        self.stub.non_letter_top = False
+
+    def test_probe_keeps_lettered_when_a_letter_is_first(self):
+        self.reset_stub()
+        readout = self._readout(readout="auto")
+        self.assertEqual(readout.probe(), "lettered")
+
+    def test_declared_echo_without_a_template_is_refused(self):
+        with self.assertRaises(decision_sidecar.Unsupported):
+            decision_sidecar.Readout(vllm_url=self.stub_url, model="stub-model", spec=decision_sidecar.ModelSpec(readout="echo", chat_template=None))
+
+    def test_cache_serves_a_repeat_without_a_second_upstream_call(self):
+        readout = self._readout(readout="lettered")
+        question = {"c": {"type": "choice", "instructions": "Which color?", "criteria": {"red": "red", "blue": "blue"}}}
+        self.reset_stub()
+        readout("The color is red.", question)
+        first = self.stub.calls
+        readout("The color is red.", question)
+        self.assertEqual(self.stub.calls, first)
+
+    def test_cache_evicts_the_least_recently_used_entry(self):
+        readout = self._readout(readout="lettered", cache_size=2)
+        question = {"c": {"type": "choice", "instructions": "Which color?", "criteria": {"red": "red", "blue": "blue"}}}
+        self.reset_stub()
+        readout("first", question)
+        readout("second", question)
+        readout("third", question)
+        after_three = self.stub.calls
+        readout("first", question)
+        self.assertEqual(self.stub.calls, after_three + 1)
+        readout("third", question)
+        self.assertEqual(self.stub.calls, after_three + 1)
+
+    def test_descriptor_loads_and_defaults(self):
+        spec = decision_sidecar.load_spec("qwen38-27b-nvfp4")
+        self.assertEqual(spec.readout, "auto")
+        self.assertEqual(spec.chat_template, decision_sidecar.CHAT_TEMPLATE)
+        self.assertFalse(spec.enable_thinking)
+        self.assertEqual(spec.engine_profile, "full")
+        fallback = decision_sidecar.load_spec("no-such-model")
+        self.assertEqual(fallback, decision_sidecar.ModelSpec())
+
+    def test_lettered_without_template_refuses_an_oversized_question(self):
+        readout = self._readout(readout="lettered", chat_template=None)
+        keys = [f"option-{i}" for i in range(27)]
+        with self.assertRaises(decision_sidecar.Unsupported):
+            readout("Pick one.", {"q": {"type": "choice", "instructions": "Which?", "criteria": {k: k for k in keys}}})
+
+    def test_concurrent_decisions_are_not_serialized(self):
+        self.reset_stub()
+        self.stub.delay = 0.3
+        question = {"c": {"type": "choice", "instructions": "Which color?", "criteria": {"red": "red", "blue": "blue"}}}
+        results = []
+        lock = threading.Lock()
+
+        def ask(n):
+            status, body = self.decide(f"state-{n}", question)
+            with lock:
+                results.append((status, body))
+
+        threads = [threading.Thread(target=ask, args=(n,)) for n in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.stub.delay = 0
+        self.assertEqual([status for status, _ in results], [200] * 4)
+        for _, body in results:
+            self.assertAlmostEqual(sum(body["answers"]["c"]["probabilities"].values()), 1.0, places=9)
+        self.assertGreater(self.stub.max_in_flight, 1)
+
+    def test_questions_in_one_decision_read_concurrently(self):
+        self.reset_stub()
+        self.stub.delay = 0.3
+        questions = {
+            "color": {"type": "choice", "instructions": "Which color?", "criteria": {"red": "red", "blue": "blue"}},
+            "urgent": {"type": "noul", "instructions": "Is it urgent?"},
+        }
+        status, body = self.decide("A parallel-read state.", questions)
+        self.stub.delay = 0
+        self.assertEqual(status, 200)
+        self.assertEqual(set(body["answers"]), set(questions))
+        self.assertGreaterEqual(self.stub.max_in_flight, 2)
+
+    def test_frozen_kit_alias_path_still_answers(self):
+        status, body = self._post(
+            "/v1/systemone",
+            {"model": "qwen38-27b", "state": "The color is red.",
+             "questions": {"color": {"type": "choice", "instructions": "Which color is named?", "criteria": {"red": "red", "blue": "blue"}}}},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body["answers"]["color"]["choice"], "red")
 
 
 if __name__ == "__main__":

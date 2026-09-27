@@ -24,7 +24,8 @@ echo "starting engine"
 
 echo "starting sidecar inside $engine"
 "${podman[@]}" exec -d "$engine" env PYTHONDONTWRITEBYTECODE=1 python3 /trial/decision_sidecar.py \
-    --vllm-url http://127.0.0.1:11542 --model qwen38-27b --host 127.0.0.1 --port "$sidecar_port"
+    --vllm-url http://127.0.0.1:11542 --model qwen38-27b --descriptor qwen38-27b-nvfp4 \
+    --host 127.0.0.1 --port "$sidecar_port"
 
 for _ in $(seq 1 30); do
     if "${podman[@]}" exec "$engine" python3 -c \
