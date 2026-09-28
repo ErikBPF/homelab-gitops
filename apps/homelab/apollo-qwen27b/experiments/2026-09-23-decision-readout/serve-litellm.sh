@@ -2,7 +2,7 @@
 # Bring the Gittensor engine + decision sidecar up for LiteLLM on Apollo.
 #
 # Binds vLLM and the sidecar to the Apollo tailnet IP and installs a runtime
-# iptables rule that admits only discovery (100.76.140.121). The durable rule
+# iptables rule that admits only discovery (100.103.52.100). The durable rule
 # belongs in desktop-nixos; this is the runtime equivalent of the earlier
 # apollo-qwen-personal precedent.
 set -euo pipefail
@@ -12,7 +12,7 @@ model=/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795
 base=docker.io/vllm/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40
 image=localhost/apollo-qwen38-lmcache:trial
 host=100.77.14.27
-peer=100.76.140.121
+peer=100.103.52.100
 served_name=qwen38-27b-nvfp4
 sidecar_port=11560
 max_model_len=${MAX_MODEL_LEN:-200000}
