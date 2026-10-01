@@ -1,5 +1,14 @@
 apiVersion: 1
 
+# Tombstone: removing a rule from `groups` does NOT delete it from Grafana's DB
+# (file-provisioned alerting is not pruned on reload). Retired rules stay listed
+# here so a restored Grafana database converges to the same source state.
+# `litellm-semantic-readiness-failed` is retired while the Apollo/Qwen stack is
+# rebuilt; its qwen-chat route dependency made any backend blip page as critical.
+deleteRules:
+  - orgId: 1
+    uid: litellm-semantic-readiness-failed
+
 groups:
   - orgId: 1
     name: recovery-health
@@ -92,38 +101,6 @@ groups:
               expr: >-
                 ((min(openbao_authenticated_probe_success{instance="discovery"}) != bool 1) or vector(1))
                 + (((time() - max(openbao_authenticated_probe_timestamp_seconds{instance="discovery"})) > bool 600) or vector(1))
-          - refId: B
-            datasourceUid: __expr__
-            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              refId: C
-              type: threshold
-              expression: B
-              datasource: {type: __expr__, uid: __expr__}
-              conditions: [{evaluator: {type: gt, params: [0]}}]
-
-      - uid: litellm-semantic-readiness-failed
-        title: LiteLLM semantic readiness failed
-        condition: C
-        for: 5m
-        noDataState: Alerting
-        execErrState: KeepLast
-        annotations:
-          summary: "LiteLLM DB, qwen-chat route, or local completion probe failed"
-        labels: {severity: critical}
-        data:
-          - refId: A
-            relativeTimeRange: {from: 900, to: 0}
-            datasourceUid: prometheus
-            model:
-              refId: A
-              instant: true
-              datasource: {type: prometheus, uid: prometheus}
-              expr: >-
-                (count(litellm_semantic_ready{instance="discovery"}) != bool 1)
-                + (max(litellm_semantic_ready{instance="discovery"}) < bool 1)
           - refId: B
             datasourceUid: __expr__
             model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}

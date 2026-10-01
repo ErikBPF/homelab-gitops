@@ -47,9 +47,6 @@ readiness = {
     "vault-agent-renders-stale": {
         'vault_agent_required_renders_ready{instance="discovery"}': 1,
     },
-    "litellm-semantic-readiness-failed": {
-        'litellm_semantic_ready{instance="discovery"}': 1,
-    },
     "restic-kepler-offsite-transport-failed": {
         'restic_kepler_offsite_transport_ready{instance="kepler"}': 1,
     },

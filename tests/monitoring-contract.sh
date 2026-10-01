@@ -21,6 +21,8 @@ test "$(yq -r '.kube-prometheus-stack.kubelet.serviceMonitor.relabelings[] | sel
 test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrapeConfigs // "absent"' "$root/platform/monitoring/values.yaml")" = absent
 ! grep -Fq 'wazuh_unifi_last_event_seconds' "$root/platform/monitoring/files/alerting/rules.yaml"
 yq -e '.deleteRules[] | select(.orgId == 1 and .uid == "security-control-unifi-siem-silent")' "$root/platform/monitoring/files/alerting/rules.yaml" >/dev/null
+yq -e '.deleteRules[] | select(.orgId == 1 and .uid == "litellm-semantic-readiness-failed")' "$root/platform/monitoring/files/alerting/recovery-rules.yaml" >/dev/null
+! yq -e '.groups[].rules[] | select(.uid == "litellm-semantic-readiness-failed")' "$root/platform/monitoring/files/alerting/recovery-rules.yaml" >/dev/null 2>&1
 if yq -r '.groups[].rules[] | select(.labels.category == "security") | .annotations.summary' \
   "$root/platform/monitoring/files/alerting/rules.yaml" | \
   grep -Eq '\$labels\.(source_ip|ssh_user|auth_method|fingerprint)|\$values\.'; then
