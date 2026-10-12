@@ -1,41 +1,84 @@
-# Apollo personal Qwen27B runtime
+# Apollo Qwen3.8-27B NVFP4 runtime
 
-User-authorized running experiment, 2026-09-10. This is a host Podman runtime,
-not an Argo application or a reboot-qualified deployment.
+Host Podman runtime for Apollo's local inference: **vLLM (TP=2 on the two RTX
+5060 Ti)** serving `Qwen3.8-27B-NVFP4` with **LMCache** as the KV store, fronted
+by the `pqnld` decision sidecar (separate, not managed here). This is a host
+service, not an Argo application.
 
-Runtime directory: `/mnt/microvms/ai/validation/20260910-qwen27b-personal`.
-Container: `apollo-qwen27b-personal`. Copy these four scripts into the runtime
-directory and run `bash launch.sh` on Apollo after the prerequisites below.
-No expiry timer; supervisor stops both children if either exits, and Podman
-retries failure up to three times. Model: Qwen3.8-27B NVIDIA NVFP4, MTP2,
-90,000 context, FP8 KV, batch 1600; two 5060 Tis, eight CPUs, 80 GiB/no swap.
-LMCache uses eight GiB host RAM. RTX 3070 unused.
+**Status:** configuration regenerated 2026-10-11 from the running containers
+(`apollo-qwen38-vllm`, `apollo-qwen38-lmcache`). The previous scripts described a
+different model path (`/mnt/microvms`), a different model (NVIDIA NVFP4), 90k
+context, and a single-container supervisor; none of that matched the live stack.
 
-Prerequisites retained from the verified capacity trial:
+## Layout
 
-- Copy its isolated `lmcache-site` directory and create `tmp` here. The source
-  trial is `/mnt/microvms/ai/validation/20260910-qwen27b-lmcache-capacity`.
-- Mount the existing `apollo-vllm-nightly` dependency container with the same
-  Podman root/runroot as `launch.sh`; write its path to `vllm-dependency-root.txt`.
-  Shared vLLM source and downloaded model files remain read-only mounts.
-- Restrict the API before launch: an INPUT jump for destination
-  `100.77.14.27:11542` must be the first INPUT rule and leads to chain `apollo-qwen-personal`. That chain accepts
-  loopback, accepts source `100.103.52.100` on `tailscale0`, then rejects all
-  other traffic. No public/LAN bind. Tailscale authenticates Discovery;
-  no reusable backend secret is created. LMCache stays on localhost:11550. The launch script checks the exact jump and
-  ordered allowlist before starting the container; it refuses missing, unreadable,
-  or broadened rules. This preflight does not monitor later firewall changes.
+| What | Path |
+|---|---|
+| Podman root | `/mnt/data/ai/cache/podman-root` |
+| Podman runroot | `/run/apollo-ftw-containers` |
+| Model | `/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795` → `/model` |
+| Cache | `/mnt/data/ai/cache` → `/cache` (vLLM/`HF_HOME`/XDG) |
+| Scripts (host) | `/etc/apollo-ai/` → mounted read-only at `/trial` |
 
-Logs: `vllm.log`, `lmcache.log`. Health: `http://100.77.14.27:11542/health`
-from Apollo or Discovery. Existing developer reset endpoint is restricted by
-the same network rule and used only for the validation probe.
+## Pinned images
 
-Stop with the Podman executable/root/runroot in `launch.sh`:
-`stop -t 30 apollo-qwen27b-personal`. Remove only the matching INPUT jump and
-owned firewall chain after stopping. Unmount the dependency container only
-after all consumers are stopped. Keep model/cache data.
+- `VLLM_IMAGE` — `localhost/apollo-qwen38-lmcache@sha256:dce3794…` (image id).
+  Built from [`experiments/2026-09-22-reproduction/Containerfile.lmcache`](experiments/2026-09-22-reproduction/Containerfile.lmcache)
+  (upstream `vllm/vllm-openai` + LMCache PR 4731 packed-KV patches). Rebuild and
+  re-pin the id whenever that Containerfile changes.
+- `LMCACHE_IMAGE` — `docker.io/vllm/vllm-openai@sha256:5f5e535…` (upstream base).
 
-The mounted dependency root and runtime firewall rules are not reboot durable;
-host reboot or firewall reload needs explicit recovery before exposing the API.
-Promotion requires packaging the patched dependencies and declarative host
-lifecycle/network policy. Do not claim this experiment provides that promotion.
+Both containers run `--pull=never`, `--network=host`, `--user 1000:100`,
+`--security-opt=no-new-privileges`, and the explicit NVIDIA/DRI device list.
+
+## Runtime configuration
+
+`serve-vllm.sh`: `--max-model-len 200000`, `--max-num-seqs 8`,
+`--kv-cache-dtype fp8`, `--max-num-batched-tokens 1727`,
+`--gpu-memory-utilization 0.90`, `--load-format ipc_cache`, MTP
+`num_speculative_tokens=6`, `qwen3_xml` tool parser, `preserve_thinking`,
+LMCache connector to `127.0.0.1:11550` (no autostart).
+
+`serve-lmcache.sh`: `--chunk-size 864 --separate-object-groups --l1-size-gb 8
+--l1-init-size-gb 8 --eviction-policy LRU --max-gpu-workers 2 --max-cpu-workers 2`
+(prometheus 11551, HTTP 11552).
+
+## Install
+
+On Apollo:
+
+```sh
+sudo ./install.sh            # /etc/apollo-ai + /etc/systemd/system/apollo-ai.service, enable --now
+sudo ./install.sh --no-start # install + enable only
+```
+
+`launch.sh` keeps the original firewall preflight: it refuses to start unless the
+INPUT jump for `100.77.14.27:11542` is the first rule and the
+`apollo-qwen-personal` chain is exactly loopback + Discovery (`100.103.52.100`,
+`tailscale0`) + REJECT. It also asserts the `/mnt/data` filesystem, both GPU UUIDs,
+and the model/script paths.
+
+`apollo-ai.service` runs `launch.sh run` in the foreground with
+`Restart=always`; if either container exits, the whole runtime restarts. This is
+the reboot-durable path that the previous single-container `supervise.sh` did not
+provide.
+
+## Operations
+
+```sh
+systemctl status apollo-ai
+journalctl -u apollo-ai -f
+curl -s http://100.77.14.27:11542/health
+/etc/apollo-ai/launch.sh status
+```
+
+## Remaining gaps (promotion)
+
+- The unit and scripts are installed imperatively into `/etc`; a declarative
+  NixOS unit in `desktop-nixos` (next to `apollo-ai-storage.service`) is the
+  promotion target.
+- The patched vLLM image is a local build pinned by image id; promotion needs it
+  pushed and pulled by digest from a registry.
+- The firewall rules remain operator-managed; only the preflight is automated.
+
+Research and benchmark artifacts live under [`experiments/`](experiments/).

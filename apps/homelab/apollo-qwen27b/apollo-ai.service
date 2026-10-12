@@ -1,0 +1,19 @@
+[Unit]
+Description=Apollo Qwen3.8-27B NVFP4 vLLM + LMCache runtime
+Documentation=https://github.com/ErikBPF/homelab-gitops/tree/main/apps/homelab/apollo-qwen27b
+After=network-online.target mnt-data.mount apollo-ai-storage.service
+Wants=network-online.target
+Requires=mnt-data.mount apollo-ai-storage.service
+
+[Service]
+Type=simple
+ExecStart=/etc/apollo-ai/launch.sh run
+ExecStop=/etc/apollo-ai/launch.sh down
+Restart=always
+RestartSec=10
+TimeoutStartSec=infinity
+TimeoutStopSec=120
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
