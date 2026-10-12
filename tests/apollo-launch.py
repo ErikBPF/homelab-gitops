@@ -13,20 +13,47 @@ CHAIN = """-N apollo-qwen-personal
 -A apollo-qwen-personal -j REJECT --reject-with icmp-port-unreachable"""
 JUMP = "-A INPUT -d 100.77.14.27/32 -p tcp -m tcp --dport 11542 -j apollo-qwen-personal"
 
+SUDO = """#!/usr/bin/env bash
+if [[ " $* " == *" iptables "* ]]; then
+  [[ $FAIL != yes ]] || exit 1
+  if [[ " $* " == *" INPUT "* ]]; then printf "%s\\n" "$INPUT_RULES"; else printf "%s\\n" "$CHAIN_RULES"; fi
+  exit 0
+fi
+echo CONTAINER_STARTED
+"""
+
+
 class Launch(unittest.TestCase):
+    def _env(self, directory, **overrides):
+        """Fake host commands plus the paths preflight must see."""
+        root = Path(directory)
+        (root / "sudo").write_text(SUDO)
+        (root / "sudo").chmod(0o755)
+        (root / "findmnt").write_text("#!/usr/bin/env bash\necho /dev/sdc1\n")
+        (root / "findmnt").chmod(0o755)
+        (root / "nvidia-smi").write_text(
+            "#!/usr/bin/env bash\n"
+            "if [[ ${@: -1} == 1 ]]; then echo GPU-af808452-3544-e84a-b33a-fc5588ede436; "
+            "else echo GPU-818843e6-ce30-5d98-a4b4-8d8580aaa049; fi\n"
+        )
+        (root / "nvidia-smi").chmod(0o755)
+        runtime = root / "runtime"
+        runtime.mkdir(exist_ok=True)
+        (runtime / "serve-vllm.sh").write_text("")
+        (runtime / "serve-lmcache.sh").write_text("")
+        model = root / "model"
+        model.mkdir(exist_ok=True)
+        (model / "config.json").write_text("{}")
+        return dict(
+            os.environ,
+            PATH=str(root) + ":" + os.environ["PATH"],
+            RUNTIME=str(runtime),
+            MODEL_DIR=str(model),
+            **overrides,
+        )
+
     def test_firewall_required_before_container_start(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            commands = {
-                "sudo": '#!/usr/bin/env bash\nif [[ $2 == iptables ]]; then\n  [[ $FAIL != yes ]] || exit 1\n  if [[ $4 == INPUT ]]; then printf "%s\\n" "$INPUT_RULES"; else printf "%s\\n" "$CHAIN_RULES"; fi\nelse echo CONTAINER_STARTED; fi\n',
-                "findmnt": '#!/usr/bin/env bash\necho /dev/md127\n',
-                "nvidia-smi": '#!/usr/bin/env bash\nif [[ ${@: -1} == 1 ]]; then echo GPU-af808452-3544-e84a-b33a-fc5588ede436; else echo GPU-818843e6-ce30-5d98-a4b4-8d8580aaa049; fi\n',
-                "cat": '#!/usr/bin/env bash\necho /fake-dependency\n',
-            }
-            for name, body in commands.items():
-                path = root / name
-                path.write_text(body)
-                path.chmod(0o755)
             for name, chain, rules, fail, allowed in [
                 ("restricted", CHAIN, "-P INPUT ACCEPT\n" + JUMP, "no", True),
                 ("missing", "", "-P INPUT ACCEPT", "no", False),
@@ -35,10 +62,26 @@ class Launch(unittest.TestCase):
                 ("read_failure", CHAIN, "-P INPUT ACCEPT\n" + JUMP, "yes", False),
             ]:
                 with self.subTest(name=name):
-                    env = dict(os.environ, PATH=str(root) + ":" + os.environ["PATH"], CHAIN_RULES=chain, INPUT_RULES=rules, FAIL=fail)
+                    env = self._env(directory, CHAIN_RULES=chain, INPUT_RULES=rules, FAIL=fail)
                     result = subprocess.run(["bash", str(LAUNCH)], env=env, capture_output=True, text=True)
                     self.assertEqual("CONTAINER_STARTED" in result.stdout, allowed)
                     self.assertEqual(result.returncode == 0, allowed)
+
+    def test_run_supervisor_fails_when_a_child_ends(self):
+        """`run` is the systemd mode: it must not report success after a child exits."""
+        with tempfile.TemporaryDirectory() as directory:
+            env = self._env(directory, CHAIN_RULES=CHAIN, INPUT_RULES="-P INPUT ACCEPT\n" + JUMP, FAIL="no")
+            result = subprocess.run(["bash", str(LAUNCH), "run"], env=env, capture_output=True, text=True)
+            self.assertIn("CONTAINER_STARTED", result.stdout)
+            self.assertNotEqual(result.returncode, 0)
+
+    def test_run_respects_the_firewall_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self._env(directory, CHAIN_RULES="", INPUT_RULES="-P INPUT ACCEPT", FAIL="no")
+            result = subprocess.run(["bash", str(LAUNCH), "run"], env=env, capture_output=True, text=True)
+            self.assertNotIn("CONTAINER_STARTED", result.stdout)
+            self.assertNotEqual(result.returncode, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
