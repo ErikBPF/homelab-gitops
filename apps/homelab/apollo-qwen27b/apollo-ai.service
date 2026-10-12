@@ -9,6 +9,10 @@ Requires=mnt-data.mount apollo-ai-storage.service
 Type=simple
 ExecStart=/etc/apollo-ai/launch.sh run
 ExecStop=/etc/apollo-ai/launch.sh down
+# Self-heal: either container exiting (or a failed preflight) restarts the pair.
+# The 10s gap keeps the default start-rate limit from firing, so a persistent
+# failure (missing firewall/mount) retries until the condition is fixed. Watch
+# `journalctl -u apollo-ai` for the preflight reason.
 Restart=always
 RestartSec=10
 TimeoutStartSec=infinity

@@ -22,14 +22,20 @@ context, and a single-container supervisor; none of that matched the live stack.
 
 ## Pinned images
 
-- `VLLM_IMAGE` — `localhost/apollo-qwen38-lmcache@sha256:dce3794…` (image id).
-  Built from [`experiments/2026-09-22-reproduction/Containerfile.lmcache`](experiments/2026-09-22-reproduction/Containerfile.lmcache)
-  (upstream `vllm/vllm-openai` + LMCache PR 4731 packed-KV patches). Rebuild and
-  re-pin the id whenever that Containerfile changes.
+- `VLLM_IMAGE` — `sha256:dce3794…`. The tag is
+  `localhost/apollo-qwen38-lmcache:trial`, built from
+  [`experiments/2026-09-22-reproduction/Containerfile.lmcache`](experiments/2026-09-22-reproduction/Containerfile.lmcache)
+  (upstream `vllm/vllm-openai` + LMCache PR 4731 packed-KV patches). A bare image
+  ID is used because a local build has no repository digest; rebuild and re-pin
+  the id whenever that Containerfile changes.
 - `LMCACHE_IMAGE` — `docker.io/vllm/vllm-openai@sha256:5f5e535…` (upstream base).
 
+The preflight asserts both images exist before starting, so a missing image
+fails loudly instead of restart-looping.
+
 Both containers run `--pull=never`, `--network=host`, `--user 1000:100`,
-`--security-opt=no-new-privileges`, and the explicit NVIDIA/DRI device list.
+`--cap-drop=ALL`, `--security-opt=no-new-privileges`, and the explicit NVIDIA/DRI
+device list.
 
 ## Runtime configuration
 

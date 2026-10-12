@@ -12,21 +12,21 @@ RUNROOT=${PODMAN_RUNROOT:-/run/apollo-ftw-containers}
 RUNTIME=${RUNTIME:-/etc/apollo-ai}
 MODEL_DIR=${MODEL_DIR:-/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795}
 CACHE_DIR=${CACHE_DIR:-/mnt/data/ai/cache}
-# Pinned by digest. VLLM_IMAGE is the locally patched build of Containerfile.lmcache
-# (LMCache PR 4731 + Apollo packed-KV layout); rebuild and re-pin its id when that
-# Containerfile changes. LMCACHE_IMAGE is the upstream base, already digest-pinned.
-VLLM_IMAGE=${VLLM_IMAGE:-localhost/apollo-qwen38-lmcache@sha256:dce379422d6420af4006eacb78c677d2e864446858ab6b31b28aad2e86c6a7bf}
+# Pinned by content. VLLM_IMAGE is the locally built `localhost/apollo-qwen38-lmcache:trial`
+# (Containerfile.lmcache: LMCache PR 4731 + Apollo packed-KV layout). A bare image
+# ID is used because a local build has no repository digest; rebuild and re-pin
+# this id when that Containerfile changes. LMCACHE_IMAGE is the upstream base,
+# pinned by its repository digest.
+VLLM_IMAGE=${VLLM_IMAGE:-sha256:dce379422d6420af4006eacb78c677d2e864446858ab6b31b28aad2e86c6a7bf}
 LMCACHE_IMAGE=${LMCACHE_IMAGE:-docker.io/vllm/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40}
 VLLM_NAME=apollo-qwen38-vllm
 LMCACHE_NAME=apollo-qwen38-lmcache
 
 if [[ ${EUID} -eq 0 ]]; then SUDO=(); else SUDO=(sudo -n); fi
 if [[ -z ${PODMAN_BIN:-} ]]; then
-  for candidate in \
-    /mnt/data/ai-evaluation/runtimes/tools/podman/bin/podman \
-    /mnt/microvms/ai-evaluation/runtimes/tools/podman/bin/podman; do
-    [[ -x $candidate ]] && PODMAN_BIN=$candidate && break
-  done
+  # The vendored podman is pinned on the AI volume, not in the host PATH.
+  candidate=/mnt/data/ai-evaluation/runtimes/tools/podman/bin/podman
+  [[ -x $candidate ]] && PODMAN_BIN=$candidate
 fi
 PODMAN_BIN=${PODMAN_BIN:-$(command -v podman)}
 podman=("${SUDO[@]}" "$PODMAN_BIN" --root "$ROOT" --runroot "$RUNROOT")
@@ -52,6 +52,8 @@ preflight() {
   [[ $(findmnt -n -o SOURCE /mnt/data) == /dev/sdc1 ]]
   [[ $(nvidia-smi --query-gpu=uuid --format=csv,noheader -i 1) == GPU-af808452-3544-e84a-b33a-fc5588ede436 ]]
   [[ $(nvidia-smi --query-gpu=uuid --format=csv,noheader -i 2) == GPU-818843e6-ce30-5d98-a4b4-8d8580aaa049 ]]
+  "${podman[@]}" image exists "$VLLM_IMAGE"
+  "${podman[@]}" image exists "$LMCACHE_IMAGE"
   [[ -r $RUNTIME/serve-vllm.sh && -r $RUNTIME/serve-lmcache.sh && -r $MODEL_DIR/config.json ]]
 }
 
@@ -63,7 +65,7 @@ stop() {
 run_lmcache() {
   "${podman[@]}" run "$1" --name "$LMCACHE_NAME" --pull=never --network=host \
     --user 1000:100 --cpus=4 --memory=12g --memory-swap=12g --shm-size=64m \
-    --security-opt=no-new-privileges "${GPU_DEVICES[@]}" \
+    --cap-drop=ALL --security-opt=no-new-privileges "${GPU_DEVICES[@]}" \
     -v "$RUNTIME:/trial:ro" \
     --entrypoint /bin/bash "$LMCACHE_IMAGE" /trial/serve-lmcache.sh
 }
@@ -71,7 +73,7 @@ run_lmcache() {
 run_vllm() {
   "${podman[@]}" run "$1" --name "$VLLM_NAME" --pull=never --network=host \
     --user 1000:100 --cpus=8 --memory=80g --memory-swap=80g --shm-size=64m \
-    --security-opt=no-new-privileges "${GPU_DEVICES[@]}" \
+    --cap-drop=ALL --security-opt=no-new-privileges "${GPU_DEVICES[@]}" \
     -v "$MODEL_DIR:/model:ro" -v "$RUNTIME:/trial:ro" -v "$CACHE_DIR:/cache" \
     --entrypoint /bin/bash "$VLLM_IMAGE" /trial/serve-vllm.sh
 }
