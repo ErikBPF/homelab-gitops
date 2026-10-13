@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Apollo LMCache server (multiprocess, CPU/host RAM L1 only).
-# Regenerated 2026-10-11 from the running container `apollo-qwen38-lmcache-server`.
+# Apollo LMCache server. Runs in the same container as vLLM (see supervise.sh):
+# KV-cache registration only completes when both share the CUDA/IPC namespace.
+#
+# L1 is host RAM (8 GiB); the two GPU workers exist so vLLM's KV registration
+# succeeds. Verified on Apollo 2026-10-12.
 set -euo pipefail
 
 export LMCACHE_TRACK_USAGE=false

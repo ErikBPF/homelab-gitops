@@ -1,90 +1,63 @@
 # Apollo Qwen3.8-27B NVFP4 runtime
 
 Host Podman runtime for Apollo's local inference: **vLLM (TP=2 on the two RTX
-5060 Ti)** serving `Qwen3.8-27B-NVFP4` with **LMCache** as the KV store, fronted
-by the `pqnld` decision sidecar (separate, not managed here). This is a host
-service, not an Argo application.
+5060 Ti) + LMCache in one container**, serving `Qwen3.8-27B-NVFP4`. The `pqnld`
+decision sidecar is separate (host port 11560, in `dibuild`).
 
-**Status:** configuration regenerated 2026-10-11 from the running containers
-(`apollo-qwen38-vllm`, `apollo-qwen38-lmcache`). The previous scripts described a
-different model path (`/mnt/microvms`), a different model (NVIDIA NVFP4), 90k
-context, and a single-container supervisor; none of that matched the live stack.
+**This directory is the manual/host-side reference.** The deployed, reboot-durable
+service is declared in `desktop-nixos` (Apollo host module), which wraps the same
+recipe in a systemd unit.
+
+## Verified configuration (Apollo, 2026-10-12)
+
+| Setting | Value |
+|---|---|
+| model | `/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795` → `/model` |
+| context | **105000** (probed ceiling with LMCache attached; 107500 fails) |
+| parallel | `--max-num-seqs 4` (≥2 verified concurrently) |
+| vLLM util | **0.80** — 0.90 leaves LMCache's KV registration no GPU headroom (`CUDA error: out of memory`) |
+| KV dtype | fp8, `--enable-prefix-caching`, `--enable-chunked-prefill` |
+| speculation | MTP, `num_speculative_tokens=6` |
+| LMCache | chunk 864, `--separate-object-groups`, L1 8 GiB host RAM, LRU, 2 GPU / 2 CPU workers |
+
+Two constraints worth keeping:
+- **One container.** KV registration only completes when LMCache and vLLM share
+  the CUDA/IPC namespace; as separate containers vLLM stalled on
+  `register_kv_caches`.
+- **Headroom for LMCache.** vLLM must not take the whole card, or LMCache's
+  registration OOMs.
+
+## Usage
+
+```sh
+sudo ./launch.sh start      # detached; manual use
+sudo ./launch.sh status
+sudo ./launch.sh down
+sudo ./launch.sh run        # foreground supervisor mode for a systemd unit
+```
+
+`launch.sh` runs one container (`apollo-qwen38`) with a read-only model mount and
+the patched image pinned by id (see `experiments/2026-09-22-reproduction/Containerfile.lmcache`;
+a local build has no repository digest). `preflight` refuses to start unless:
+
+- the INPUT jumps for `100.77.14.27:11542` and `:11560` target the
+  `apollo-qwen-litellm` chain, and that chain is exactly loopback + Discovery
+  (`100.103.52.100`, `tailscale0`, both ports) + REJECT;
+- `/mnt/data` is the expected filesystem;
+- both GPU UUIDs are present;
+- the pinned image and the model/script paths exist.
+
+The tailscale `ts-input` chain precedes those jumps and accepts `-i tailscale0`,
+so the allowlist constrains non-tailscale sources only — tailnet-wide access is
+the current operator policy.
 
 ## Layout
 
 | What | Path |
 |---|---|
-| Podman root | `/mnt/data/ai/cache/podman-root` |
-| Podman runroot | `/run/apollo-ftw-containers` |
-| Model | `/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795` → `/model` |
-| Cache | `/mnt/data/ai/cache` → `/cache` (vLLM/`HF_HOME`/XDG) |
-| Scripts (host) | `/etc/apollo-ai/` → mounted read-only at `/trial` |
-
-## Pinned images
-
-- `VLLM_IMAGE` — `sha256:dce3794…`. The tag is
-  `localhost/apollo-qwen38-lmcache:trial`, built from
-  [`experiments/2026-09-22-reproduction/Containerfile.lmcache`](experiments/2026-09-22-reproduction/Containerfile.lmcache)
-  (upstream `vllm/vllm-openai` + LMCache PR 4731 packed-KV patches). A bare image
-  ID is used because a local build has no repository digest; rebuild and re-pin
-  the id whenever that Containerfile changes.
-- `LMCACHE_IMAGE` — `docker.io/vllm/vllm-openai@sha256:5f5e535…` (upstream base).
-
-The preflight asserts both images exist before starting, so a missing image
-fails loudly instead of restart-looping.
-
-Both containers run `--pull=never`, `--network=host`, `--user 1000:100`,
-`--cap-drop=ALL`, `--security-opt=no-new-privileges`, and the explicit NVIDIA/DRI
-device list.
-
-## Runtime configuration
-
-`serve-vllm.sh`: `--max-model-len 200000`, `--max-num-seqs 8`,
-`--kv-cache-dtype fp8`, `--max-num-batched-tokens 1727`,
-`--gpu-memory-utilization 0.90`, `--load-format ipc_cache`, MTP
-`num_speculative_tokens=6`, `qwen3_xml` tool parser, `preserve_thinking`,
-LMCache connector to `127.0.0.1:11550` (no autostart).
-
-`serve-lmcache.sh`: `--chunk-size 864 --separate-object-groups --l1-size-gb 8
---l1-init-size-gb 8 --eviction-policy LRU --max-gpu-workers 2 --max-cpu-workers 2`
-(prometheus 11551, HTTP 11552).
-
-## Install
-
-On Apollo:
-
-```sh
-sudo ./install.sh            # /etc/apollo-ai + /etc/systemd/system/apollo-ai.service, enable --now
-sudo ./install.sh --no-start # install + enable only
-```
-
-`launch.sh` keeps the original firewall preflight: it refuses to start unless the
-INPUT jump for `100.77.14.27:11542` is the first rule and the
-`apollo-qwen-personal` chain is exactly loopback + Discovery (`100.103.52.100`,
-`tailscale0`) + REJECT. It also asserts the `/mnt/data` filesystem, both GPU UUIDs,
-and the model/script paths.
-
-`apollo-ai.service` runs `launch.sh run` in the foreground with
-`Restart=always`; if either container exits, the whole runtime restarts. This is
-the reboot-durable path that the previous single-container `supervise.sh` did not
-provide.
-
-## Operations
-
-```sh
-systemctl status apollo-ai
-journalctl -u apollo-ai -f
-curl -s http://100.77.14.27:11542/health
-/etc/apollo-ai/launch.sh status
-```
-
-## Remaining gaps (promotion)
-
-- The unit and scripts are installed imperatively into `/etc`; a declarative
-  NixOS unit in `desktop-nixos` (next to `apollo-ai-storage.service`) is the
-  promotion target.
-- The patched vLLM image is a local build pinned by image id; promotion needs it
-  pushed and pulled by digest from a registry.
-- The firewall rules remain operator-managed; only the preflight is automated.
+| Podman root / runroot | `/mnt/data/ai/cache/podman-root` / `/run/apollo-ftw-containers` |
+| Model | `/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795` |
+| Cache | `/mnt/data/ai/cache` → `/cache` |
+| Scripts | this directory → `/trial:ro` |
 
 Research and benchmark artifacts live under [`experiments/`](experiments/).
