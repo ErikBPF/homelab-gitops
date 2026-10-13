@@ -23,6 +23,10 @@ test "$(yq -r '.kube-prometheus-stack.prometheus.prometheusSpec.additionalScrape
 yq -e '.deleteRules[] | select(.orgId == 1 and .uid == "security-control-unifi-siem-silent")' "$root/platform/monitoring/files/alerting/rules.yaml" >/dev/null
 yq -e '.deleteRules[] | select(.orgId == 1 and .uid == "litellm-semantic-readiness-failed")' "$root/platform/monitoring/files/alerting/recovery-rules.yaml" >/dev/null
 ! yq -e '.groups[].rules[] | select(.uid == "litellm-semantic-readiness-failed")' "$root/platform/monitoring/files/alerting/recovery-rules.yaml" >/dev/null 2>&1
+for uid in buzz-relay-down buzz-backup-stale buzz-restore-drill-stale buzz-offsite-restore-drill-stale; do
+  yq -e ".deleteRules[] | select(.orgId == 1 and .uid == \"$uid\")" "$root/platform/monitoring/files/alerting/buzz-rules.yaml" >/dev/null
+done
+test "$(yq -r '.groups | length' "$root/platform/monitoring/files/alerting/buzz-rules.yaml")" = 0
 if yq -r '.groups[].rules[] | select(.labels.category == "security") | .annotations.summary' \
   "$root/platform/monitoring/files/alerting/rules.yaml" | \
   grep -Eq '\$labels\.(source_ip|ssh_user|auth_method|fingerprint)|\$values\.'; then
@@ -46,6 +50,7 @@ done
 
 render=$(mktemp)
 helm template monitoring "$root/platform/monitoring" >"$render"
+test "$(yq -r 'select(.kind == "ConfigMap" and .metadata.name == "grafana-alerting") | .data["buzz-rules.yaml"]' "$render" | yq -r '.deleteRules | length')" = 4
 ! yq -e 'select(.kind == "PrometheusRule") | .spec.groups[].rules[]? | select(.alert == "PrometheusNotConnectedToAlertmanagers")' "$render" >/dev/null 2>&1
 yq -e 'select(.kind == "PrometheusRule") | .spec.groups[].rules[]? | select(.alert == "KubeletDown")' "$render" >/dev/null
 test "$(yq -r 'select(.kind == "ServiceMonitor" and .metadata.name == "monitoring-kube-prometheus-kubelet") | .spec.endpoints[] | select(.path == null) | .relabelings[] | select(.targetLabel == "cluster") | .replacement' "$render")" = homelab
