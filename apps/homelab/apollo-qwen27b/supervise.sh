@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
+# Run LMCache and vLLM as two processes of one container. Either exiting makes
+# the combined service unavailable, so the container (and the unit that owns it)
+# restarts. Logs go to the container's stdout/stderr.
 set -euo pipefail
-export PYTHONPATH=/trial/lmcache-site:/site
+
 children=()
 cleanup() {
   trap - EXIT TERM INT
@@ -8,10 +11,13 @@ cleanup() {
   wait || true
 }
 trap cleanup EXIT TERM INT
-bash /trial/serve-lmcache.sh >> /trial/lmcache.log 2>&1 &
+
+bash /trial/serve-lmcache.sh &
 children+=("$!")
-bash /trial/serve-vllm.sh >> /trial/vllm.log 2>&1 &
+# Give LMCache a head start so vLLM's registration finds the MP server up.
+sleep 8
+bash /trial/serve-vllm.sh &
 children+=("$!")
+
 wait -n "${children[@]}"
-# A clean child exit still means the combined service is unavailable.
 exit 1

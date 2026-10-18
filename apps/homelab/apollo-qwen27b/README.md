@@ -1,41 +1,63 @@
-# Apollo personal Qwen27B runtime
+# Apollo Qwen3.8-27B NVFP4 runtime
 
-User-authorized running experiment, 2026-09-10. This is a host Podman runtime,
-not an Argo application or a reboot-qualified deployment.
+Host Podman runtime for Apollo's local inference: **vLLM (TP=2 on the two RTX
+5060 Ti) + LMCache in one container**, serving `Qwen3.8-27B-NVFP4`. The `pqnld`
+decision sidecar is separate (host port 11560, in `dibuild`).
 
-Runtime directory: `/mnt/microvms/ai/validation/20260910-qwen27b-personal`.
-Container: `apollo-qwen27b-personal`. Copy these four scripts into the runtime
-directory and run `bash launch.sh` on Apollo after the prerequisites below.
-No expiry timer; supervisor stops both children if either exits, and Podman
-retries failure up to three times. Model: Qwen3.8-27B NVIDIA NVFP4, MTP2,
-90,000 context, FP8 KV, batch 1600; two 5060 Tis, eight CPUs, 80 GiB/no swap.
-LMCache uses eight GiB host RAM. RTX 3070 unused.
+**This directory is the manual/host-side reference.** The deployed, reboot-durable
+service is declared in `desktop-nixos` (Apollo host module), which wraps the same
+recipe in a systemd unit.
 
-Prerequisites retained from the verified capacity trial:
+## Verified configuration (Apollo, 2026-10-12)
 
-- Copy its isolated `lmcache-site` directory and create `tmp` here. The source
-  trial is `/mnt/microvms/ai/validation/20260910-qwen27b-lmcache-capacity`.
-- Mount the existing `apollo-vllm-nightly` dependency container with the same
-  Podman root/runroot as `launch.sh`; write its path to `vllm-dependency-root.txt`.
-  Shared vLLM source and downloaded model files remain read-only mounts.
-- Restrict the API before launch: an INPUT jump for destination
-  `100.77.14.27:11542` must be the first INPUT rule and leads to chain `apollo-qwen-personal`. That chain accepts
-  loopback, accepts source `100.103.52.100` on `tailscale0`, then rejects all
-  other traffic. No public/LAN bind. Tailscale authenticates Discovery;
-  no reusable backend secret is created. LMCache stays on localhost:11550. The launch script checks the exact jump and
-  ordered allowlist before starting the container; it refuses missing, unreadable,
-  or broadened rules. This preflight does not monitor later firewall changes.
+| Setting | Value |
+|---|---|
+| model | `/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795` → `/model` |
+| context | **105000** (probed ceiling with LMCache attached; 107500 fails) |
+| parallel | `--max-num-seqs 4` (≥2 verified concurrently) |
+| vLLM util | **0.80** — 0.90 leaves LMCache's KV registration no GPU headroom (`CUDA error: out of memory`) |
+| KV dtype | fp8, `--enable-prefix-caching`, `--enable-chunked-prefill` |
+| speculation | MTP, `num_speculative_tokens=6` |
+| LMCache | chunk 864, `--separate-object-groups`, L1 8 GiB host RAM, LRU, 2 GPU / 2 CPU workers |
 
-Logs: `vllm.log`, `lmcache.log`. Health: `http://100.77.14.27:11542/health`
-from Apollo or Discovery. Existing developer reset endpoint is restricted by
-the same network rule and used only for the validation probe.
+Two constraints worth keeping:
+- **One container.** KV registration only completes when LMCache and vLLM share
+  the CUDA/IPC namespace; as separate containers vLLM stalled on
+  `register_kv_caches`.
+- **Headroom for LMCache.** vLLM must not take the whole card, or LMCache's
+  registration OOMs.
 
-Stop with the Podman executable/root/runroot in `launch.sh`:
-`stop -t 30 apollo-qwen27b-personal`. Remove only the matching INPUT jump and
-owned firewall chain after stopping. Unmount the dependency container only
-after all consumers are stopped. Keep model/cache data.
+## Usage
 
-The mounted dependency root and runtime firewall rules are not reboot durable;
-host reboot or firewall reload needs explicit recovery before exposing the API.
-Promotion requires packaging the patched dependencies and declarative host
-lifecycle/network policy. Do not claim this experiment provides that promotion.
+```sh
+sudo ./launch.sh start      # detached; manual use
+sudo ./launch.sh status
+sudo ./launch.sh down
+sudo ./launch.sh run        # foreground supervisor mode for a systemd unit
+```
+
+`launch.sh` runs one container (`apollo-qwen38`) with a read-only model mount and
+the patched image pinned by id (see `experiments/2026-09-22-reproduction/Containerfile.lmcache`;
+a local build has no repository digest). `preflight` refuses to start unless:
+
+- the INPUT jumps for `100.77.14.27:11542` and `:11560` target the
+  `apollo-qwen-litellm` chain, and that chain is exactly loopback + Discovery
+  (`100.103.52.100`, `tailscale0`, both ports) + REJECT;
+- `/mnt/data` is the expected filesystem;
+- both GPU UUIDs are present;
+- the pinned image and the model/script paths exist.
+
+The tailscale `ts-input` chain precedes those jumps and accepts `-i tailscale0`,
+so the allowlist constrains non-tailscale sources only — tailnet-wide access is
+the current operator policy.
+
+## Layout
+
+| What | Path |
+|---|---|
+| Podman root / runroot | `/mnt/data/ai/cache/podman-root` / `/run/apollo-ftw-containers` |
+| Model | `/mnt/data/ai/models/gittensor/Qwen3.8-27B-NVFP4-RTX5090-0cc2795` |
+| Cache | `/mnt/data/ai/cache` → `/cache` |
+| Scripts | this directory → `/trial:ro` |
+
+Research and benchmark artifacts live under [`experiments/`](experiments/).

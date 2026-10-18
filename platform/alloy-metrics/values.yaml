@@ -211,7 +211,7 @@ alloy:
             source_labels = ["__name__"]
             // Quorum, leader churn, DB growth, fsync and peer latency: enough
             // to diagnose control-plane health without shipping every series.
-            regex  = "up|etcd_server_has_leader|etcd_server_is_leader|etcd_server_leader_changes_seen_total|etcd_server_proposals_(applied|committed|failed|pending)|etcd_mvcc_db_total_size_in_(bytes|use_in_bytes)|etcd_disk_(backend_commit|wal_fsync)_duration_seconds_(bucket|sum|count)|etcd_network_peer_round_trip_time_seconds_(bucket|sum|count)|process_resident_memory_bytes"
+            regex  = "up|etcd_server_has_leader|etcd_server_is_leader|etcd_server_leader_changes_seen_total|etcd_server_proposals_(applied_total|committed_total|failed_total|pending)|etcd_mvcc_db_total_size_in_(bytes|use_in_bytes)|etcd_disk_(backend_commit|wal_fsync)_duration_seconds_(bucket|sum|count)|etcd_network_peer_round_trip_time_seconds_(bucket|sum|count)|process_resident_memory_bytes"
             action = "keep"
           }
           forward_to = [prometheus.remote_write.discovery.receiver]
