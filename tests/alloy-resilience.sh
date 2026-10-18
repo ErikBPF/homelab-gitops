@@ -13,4 +13,15 @@ grep -q 'prometheus.scrape "alloy"' "$values"
 grep -q 'prometheus_remote_storage_samples_pending' "$values"
 grep -q 'prometheus_remote_storage_samples_retried_total' "$values"
 grep -q 'http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/write' "$values"
-! grep -q '100.76.140.121:9090' "$values"
+! grep -q '100.103.52.100:9090' "$values"
+
+python3 - "$values" <<'PY'
+import pathlib, re, sys
+block = pathlib.Path(sys.argv[1]).read_text().split('prometheus.relabel "etcd_keep" {', 1)[1]
+pattern = re.search(r'regex\s*=\s*"([^"]+)"', block).group(1)
+for metric in ['up', 'etcd_server_has_leader', 'etcd_server_proposals_applied_total',
+               'etcd_server_proposals_committed_total', 'etcd_server_proposals_failed_total',
+               'etcd_server_proposals_pending']:
+    assert re.fullmatch(pattern, metric), f"etcd relabel filter drops {metric}"
+assert not re.fullmatch(pattern, 'unrelated_unused_metric')
+PY

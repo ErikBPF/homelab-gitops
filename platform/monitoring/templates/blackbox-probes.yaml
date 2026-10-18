@@ -25,10 +25,9 @@ spec:
   targets:
     staticConfig:
       static:
-        # The `.k8s.pastelariadev.com` zone (argocd, cognee, demo) is NXDOMAIN
-        # from inside the cluster — CoreDNS forwards it to a resolver without
-        # the local rewrite — so those ingress paths cannot be probed from
-        # here. Argocd's in-cluster availability is owned by the alloy scrape.
+        # `.k8s.pastelariadev.com` resolves in-cluster only while kepler's
+        # coredns-custom forwards that zone to adguard (desktop-nixos #350).
+        - https://argocd.k8s.pastelariadev.com/healthz
         - https://grafana.homelab.pastelariadev.com/api/health
         - https://prometheus.homelab.pastelariadev.com/-/healthy
         - https://loki.homelab.pastelariadev.com/

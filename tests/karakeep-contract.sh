@@ -26,7 +26,7 @@ done
 test "$(yq -r 'select(.kind == "ExternalSecret") | .spec.secretStoreRef.name' "$render")" = vault-home-services
 test "$(yq -r 'select(.kind == "ExternalSecret") | .spec.dataFrom[0].extract.key' "$render")" = home-services/karakeep
 test "$(yq -r 'select(.kind == "Ingress") | .spec.rules[0].host' "$render")" = bookmarks.homelab.pastelariadev.com
-test "$(yq -r 'select(.kind == "PersistentVolumeClaim") | .spec.storageClassName' "$render" | sed '/^---$/d' | sort -u)" = $'local-path\nnfs-fast'
+test "$(yq -r 'select(.kind == "PersistentVolumeClaim") | .spec.storageClassName' "$render" | sed '/^---$/d' | sort -u)" = $'nfs-fast\nnfs-slow'
 test "$(yq -r 'select(.kind == "NetworkPolicy" and .metadata.name == "default-deny") | .spec.policyTypes | join(",")' "$render")" = Ingress,Egress
 
 python3 "$root/scripts/check-first-wave-resources.py" "$render"
