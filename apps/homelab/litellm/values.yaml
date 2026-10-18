@@ -1,0 +1,21 @@
+# First-party manifests: upstream 1.98.0/1.100.1 hardcode unpinned, resource-less
+# busybox test Pods, and standalone PostgreSQL ignores existing Secret credentials.
+image:
+  repository: ghcr.io/berriai/litellm-database
+  tag: "1.100.0"
+  digest: sha256:2657abe0f6a9c01a78d74825be2785964d439ac030d9d4befdce8257c37a3741
+replicaCount: 1
+resources:
+  requests: {cpu: 250m, memory: 512Mi}
+  limits: {cpu: "2", memory: 2Gi}
+service: {port: 4000}
+# Open WebUI model ID. In-process mock_response returns fixed text, not real
+# inference or input echo; no provider credential or external endpoint is used.
+modelName: spike-echo
+postgres:
+  image: docker.io/library/postgres:18@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941
+  size: 10Gi
+  storageClass: local-path
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}

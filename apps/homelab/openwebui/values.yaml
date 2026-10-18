@@ -1,0 +1,75 @@
+open-webui:
+  fullnameOverride: openwebui
+  namespaceOverride: openwebui
+  replicaCount: 1
+  workload: {kind: Deployment}
+  strategy: {type: Recreate} # One SQLite writer and a ReadWriteOnce local-path PVC.
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: v0.11.3@sha256:41daa0cf2561a5d4c8d1ff31ee2a98d93ab4d3ac2605cac69366ff6a3374a933
+  ollama: {enabled: false}
+  pipelines: {enabled: false}
+  tika: {enabled: false}
+  terminals: {enabled: false}
+  websocket:
+    enabled: true
+    manager: "" # In-memory WebSockets are sufficient for one replica; no Redis sidecar.
+    redis: {enabled: false}
+  service: {type: ClusterIP, port: 80, containerPort: 8080}
+  ingress:
+    enabled: true
+    class: traefik # Upstream calls this "class", not "className".
+    host: openwebui.homelab.pastelariadev.com
+    tls: false
+  persistence:
+    enabled: true
+    provider: local
+    storageClass: local-path
+    accessModes: [ReadWriteOnce]
+    size: 5Gi
+  resources:
+    requests: {cpu: 200m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+  copyAppData:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  readinessProbe:
+    httpGet: {path: /health, port: http}
+  openaiBaseApiUrl: http://litellm.litellm.svc.cluster.local:4000/v1
+  openaiApiKeyExistingSecret: openwebui-app-secrets
+  openaiApiKeyExistingSecretKey: OPENAI_API_KEY
+  # Chart 16.5.0 maps these to OAUTH_*/OPENID_* env vars and secretKeyRefs.
+  sso:
+    enabled: true
+    enableSignup: true
+    oidc:
+      enabled: true
+      clientExistingSecret: openwebui-app-secrets
+      clientIdExistingSecretKey: OAUTH_CLIENT_ID
+      clientExistingSecretKey: OAUTH_CLIENT_SECRET
+      providerUrl: https://authentik.homelab.pastelariadev.com/application/o/openwebui/.well-known/openid-configuration
+      providerName: Authentik
+      scopes: openid email profile
+  # Verified against v0.11.3 backend/open_webui/{config.py,env.py}:
+  # https://github.com/open-webui/open-webui/tree/v0.11.3/backend/open_webui
+  extraEnvVars:
+    - {name: WEBUI_URL, value: "http://openwebui.homelab.pastelariadev.com"}
+    - {name: ENABLE_OAUTH, value: "true"}
+    - {name: OPENID_REDIRECT_URI, value: "http://openwebui.homelab.pastelariadev.com/oauth/oidc/callback"}
+    - name: WEBUI_SECRET_KEY
+      valueFrom:
+        secretKeyRef: {name: openwebui-app-secrets, key: WEBUI_SECRET_KEY}
+    - {name: ENABLE_FORWARD_USER_INFO_HEADERS, value: "true"}
+    # Must match LiteLLM's model_list entry; this spike uses its credential-free echo model.
+    - {name: DEFAULT_MODELS, value: spike-echo}
+    # Authentik controls admission; OAuth users can chat immediately, not wait as pending.
+    - {name: DEFAULT_USER_ROLE, value: user}
+    - {name: ENABLE_SIGNUP, value: "false"}
+    - {name: ENABLE_LOGIN_FORM, value: "false"}
+    # Avoid external model downloads/update checks; the full image includes embedding assets.
+    - {name: OFFLINE_MODE, value: "true"}
+    # Keep OAuth env-driven without disabling persistence of admin-registered MCP tools.
+    - {name: ENABLE_OAUTH_PERSISTENT_CONFIG, value: "false"}
+  # Admin registers http://mcp-echo.mcp-echo.svc.cluster.local:8080/mcp as
+  # a Streamable HTTP MCP server in the UI. Its registration persists on the PVC.

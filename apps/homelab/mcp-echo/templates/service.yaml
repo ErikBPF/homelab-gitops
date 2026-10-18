@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Service
+metadata: {name: mcp-echo, namespace: mcp-echo}
+spec:
+  type: ClusterIP
+  selector: {app: mcp-echo}
+  ports:
+    - {name: http, port: {{ .Values.service.port }}, targetPort: http, protocol: TCP}

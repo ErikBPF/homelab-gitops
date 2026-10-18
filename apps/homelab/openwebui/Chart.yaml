@@ -1,0 +1,8 @@
+apiVersion: v2
+name: openwebui-wrapper
+version: 1.0.0
+dependencies:
+  # Official upstream: https://github.com/open-webui/helm-charts
+  - name: open-webui
+    version: 16.5.0
+    repository: https://open-webui.github.io/helm-charts
