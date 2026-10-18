@@ -35,6 +35,7 @@ for contract in \
   tests/resource-contract.sh \
   tests/platform-prerequisites-contract.sh \
   tests/lane-secretstore-contract.sh \
+  tests/aster-authentik-reader-contract.sh \
   tests/authentik-contract.sh \
   tests/authentik-backup.py \
   tests/test_authentik_restore_drill.py \
