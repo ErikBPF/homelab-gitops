@@ -29,3 +29,21 @@ resources:
   - demo.yaml
   - airflow.yaml
   - cognee.yaml
+
+# Every child Application syncs `main` automatically. Main is protected by the
+# required kubeconform check and changes only through reviewed PRs; `prune`
+# removes resources deleted from git and `selfHeal` reverts out-of-band edits.
+patches:
+  - target:
+      group: argoproj.io
+      kind: Application
+    patch: |-
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: automated-sync
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
