@@ -1,5 +1,7 @@
-# App-of-apps: kubectl apply'd once by `just bootstrap`. Root and child
-# Applications stay manual while main is unprotected.
+# App-of-apps: kubectl apply'd once by `just bootstrap`. Main is protected by a
+# required kubeconform check, so root and child Applications sync `main`
+# automatically; `just sync <sha> <app>` stays the exact-revision escape hatch
+# for rollback and one-time operations.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,5 +20,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: argocd
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true

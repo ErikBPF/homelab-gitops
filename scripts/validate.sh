@@ -27,7 +27,7 @@ kubeconform -strict -summary -ignore-missing-schemas "${manifests[@]}"
 
 for contract in \
   tests/apollo-launch.py \
-  tests/manual-sync-containment.sh \
+  tests/automated-sync-containment.sh \
   tests/operational-context.sh \
   tests/first-wave-image-pins.py \
   tests/harbor-runtime-images.py \
@@ -35,6 +35,7 @@ for contract in \
   tests/resource-contract.sh \
   tests/platform-prerequisites-contract.sh \
   tests/lane-secretstore-contract.sh \
+  tests/aster-authentik-reader-contract.sh \
   tests/authentik-contract.sh \
   tests/authentik-backup.py \
   tests/test_authentik_restore_drill.py \

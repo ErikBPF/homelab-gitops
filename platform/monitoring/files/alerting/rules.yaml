@@ -203,6 +203,61 @@ groups:
                     type: gt
                     params: [0]
 
+      - uid: container-unhealthy
+        title: Container unhealthy (>5 min)
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "{{ $labels.host }}/{{ $labels.name }}: container reports unhealthy for >5 min — check its healthcheck and logs"
+          runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#container-and-systemd-alerts
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                max by (host, name, project) (container_health_unhealthy{host="discovery"}) == 1
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+
   # Backup dead-man's-switch. restic-tofu-state (discovery) writes
   # restic_tofu_state_last_success_seconds to the node_exporter textfile dir on
   # each successful daily backup (06:30). This fires if no success in 30h (a
