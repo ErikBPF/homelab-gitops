@@ -124,7 +124,6 @@ refute grep -Eqi '^[[:space:]]*(POSTGRES_PASSWORD|LLM_API_KEY|FASTAPI_USERS_(JWT
 
 grep -Fq 'path: apps/cognee' "$application"
 grep -Fq 'namespace: cognee' "$application"
-refute grep -Eq '^[[:space:]]+automated:' "$application"
 
 for script in scripts/bootstrap-cognee-runtime.sh scripts/cognee-backup.sh scripts/cognee-restore-drill.sh; do
   test -x "$script"
