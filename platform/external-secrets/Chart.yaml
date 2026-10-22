@@ -4,5 +4,5 @@ description: External Secrets Operator + a ClusterSecretStore for Vault@discover
 version: 0.1.0
 dependencies:
   - name: external-secrets
-    version: 2.12.0 # Renovate-managed (charts.external-secrets.io)
+    version: 2.13.0 # Renovate-managed (charts.external-secrets.io)
     repository: https://charts.external-secrets.io
