@@ -24,7 +24,6 @@ test "$(helm template airflow apps/homelab/airflow --namespace airflow | yq ea -
 ! grep -Fq 'apache/airflow:' "$values"
 grep -Fq 'key: lab/airflow' "$secrets"
 grep -Fq 'type: kubernetes.io/dockerconfigjson' "$secrets"
-! grep -Eq '^\s+automated:' "$application"
 test "$(grep -Fc 'kind: PersistentVolumeClaim' "$application")" -eq 2
 grep -Fq 'name: airflow-dags' "$application"
 grep -Fq 'name: airflow-logs' "$application"

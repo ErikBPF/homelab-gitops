@@ -1,12 +1,10 @@
 name: validate
 
-# Argo sync is manual and exact-revision while main is unprotected. This still
-# renders every release before an operator can select the reviewed commit.
+# Main is protected by this workflow's kubeconform job, so the job must run on
+# every pull request — including docs-only ones — or the required check would
+# never report. Argo syncs the merged main automatically.
 on:
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
   workflow_dispatch:
 
 permissions:
