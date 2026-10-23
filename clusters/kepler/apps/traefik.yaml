@@ -1,7 +1,6 @@
-# Wave -1: ingress. Replaces the Nix-deployed ingress-nginx as the default class.
-# CUTOVER (after Argo + Traefik are up + verified): remove ingress-nginx from
-# desktop-nixos kepler autoDeployCharts; the kepler L4 LB (.250->30443) is unchanged
-# since Traefik reuses NodePort 30443. Then repoint the argocd ingress to traefik.
+# Wave -1: ingress. Cutover complete — ingress-nginx is removed from the Nix
+# autoDeployCharts, every Ingress uses ingressClassName: traefik, and the kepler
+# L4 LB fronts traefik's NodePort 30444 (`traefikIngressPort` in desktop-nixos).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
