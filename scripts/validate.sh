@@ -31,6 +31,7 @@ for contract in \
   tests/operational-context.sh \
   tests/first-wave-image-pins.py \
   tests/harbor-runtime-images.py \
+  tests/chart-image-parity.py \
   tests/path-boundary-contract.sh \
   tests/resource-contract.sh \
   tests/platform-prerequisites-contract.sh \
