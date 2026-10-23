@@ -1,16 +1,16 @@
-# Traefik replaces ingress-nginx — STAGED to avoid a NodePort clash:
-#   Phase 1 (now): coexist. Non-default class, alt NodePorts (30444/30081) since
-#     ingress-nginx still holds 30443/30080. Validate Traefik via worker:30444.
-#   Phase 2 (cutover): remove ingress-nginx from the Nix autoDeployCharts, then
-#     flip isDefaultClass=true + ports back to 30443/30080 (kepler L4 LB unchanged)
-#     + repoint the argocd ingress to traefik.
+# Traefik is the cluster default ingress; ingress-nginx is gone (removed from the
+# Nix autoDeployCharts). The kepler L4 LB fronts the traefik NodePort 30444
+# (`traefikIngressPort` in desktop-nixos), so that port is permanent — do not
+# "flip back" to 30443. Every Ingress in this repo uses ingressClassName: traefik.
 # PSA baseline: Traefik runs non-root + drops caps by default → baseline-clean.
 traefik:
   image:
     registry: harbor.homelab.pastelariadev.com
     repository: dockerhub/library/traefik
-    tag: v3.7.11
-    digest: sha256:5203c3f39ca70de6790d964624e042463ffbd57715bc82be155cf224c0dd5144
+    # Keep in step with the chart's appVersion (42.0.0 -> v3.7.14); the
+    # chart-image-parity contract fails a chart bump without this pin.
+    tag: v3.7.14
+    digest: sha256:575fa15b135078fe5e50aa847987d96dbddd7b093c172429618404df73f3fa7c
   priorityClassName: homelab-platform-critical
   deployment:
     replicas: 1 # lab; bump for HA later

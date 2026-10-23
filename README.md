@@ -47,8 +47,10 @@ have to move together — chart 4.13.5 shipped flags that the pinned v4.13.4
 binary rejected and crash-looped the CSI controller after auto-sync deployed it.
 
 `tests/chart-image-parity.py` enforces that invariant for wrappers that pin an
-image (currently `platform/csi-driver-nfs`); a chart bump without the matching
-image pin fails CI. Add a pairing there when a new wrapper pins an image.
+image, in two shapes: chart version == image version (`platform/csi-driver-nfs`)
+and chart appVersion == image version (`platform/traefik`). A chart bump without
+the matching image pin fails CI. Add a pairing there when a new wrapper pins an
+image.
 
 ## Bootstrap
 

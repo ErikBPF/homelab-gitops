@@ -18,7 +18,7 @@ argo-cd:
   server:
     ingress:
       enabled: true
-      ingressClassName: traefik # existing Nix-deployed ingress-nginx
+      ingressClassName: traefik # cluster default (ingress-nginx retired)
       hostname: argocd.k8s.pastelariadev.com
     resources:
       requests: { cpu: 10m, memory: 64Mi }
