@@ -37,6 +37,21 @@ apps/home-services/<service> household-facing non-media workloads
 Wrapper-chart convention (Chart.yaml = one pinned dependency + values.yaml)
 mirrors the `datahomelab-gitops` reference — Renovate-friendly.
 
+## Dependency updates
+
+Renovate keeps Helm charts, GitHub Actions and Nix flake inputs current, but it
+does **not** bump the Harbor image pins in `platform/*/values.yaml`: the
+registry is not resolvable from GitHub runners, so the shared preset disables
+those dependencies. A wrapper's chart version and its pinned image therefore
+have to move together — chart 4.13.5 shipped flags that the pinned v4.13.4
+binary rejected and crash-looped the CSI controller after auto-sync deployed it.
+
+`tests/chart-image-parity.py` enforces that invariant for wrappers that pin an
+image, in two shapes: chart version == image version (`platform/csi-driver-nfs`)
+and chart appVersion == image version (`platform/traefik`). A chart bump without
+the matching image pin fails CI. Add a pairing there when a new wrapper pins an
+image.
+
 ## Bootstrap
 
 ```
@@ -45,32 +60,29 @@ just status        # argocd app list
 just ui            # how to reach the Argo UI
 ```
 
-Sync the root first at the reviewed merge commit:
+Argo CD syncs `main` automatically. Every change lands through a reviewed pull
+request whose required `kubeconform` check passed, so the merged revision is the
+deployed revision; `prune` removes resources deleted from git and `selfHeal`
+reverts out-of-band edits. Pull requests change only the intent — watch the app
+in Argo (or `just status`) for the sync result and health.
+
+Manual exact-revision sync remains the escape hatch for rollback and one-time
+operations. Sync the root first, then the affected child, and check each
+operation result, revision, and health before the next:
 
 ```bash
-SHA="$(git rev-parse HEAD)" # checked-out reviewed merge commit
+SHA="$(git rev-parse HEAD)" # prior known-good commit for a rollback
 just sync "$SHA" root
 ```
-
-`just sync` submits an operation through the Kubernetes API using your selected
-context; it does not wait for completion. Check the application's
-`status.operationState` and `just status` for successful completion, the requested
-revision, and health before proceeding. An active operation is rejected; a
-resource-version precondition prevents overwriting a concurrent request.
-
-After root completion, select one reviewed child at a time and check its
-operation result, revision, and health before selecting the next:
 
 ```sh
 app=jaeger # example; choose the application being updated
 just sync "$SHA" "$app"
 ```
 
-One-time retirements and applications with unmet prerequisites are separate
-operations, not part of a routine update.
-
-For rollback, set `SHA` to the prior known-good commit and repeat both sync
-commands.
+`just sync` submits an operation through the Kubernetes API using your selected
+context; it does not wait for completion. An active operation is rejected; a
+resource-version precondition prevents overwriting a concurrent request.
 
 Uses your existing kubeconfig (context `homelab`). The Argo UI is exposed
 via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).

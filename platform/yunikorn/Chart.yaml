@@ -3,5 +3,5 @@ name: yunikorn-lab
 version: 0.1.0
 dependencies:
   - name: yunikorn
-    version: 1.9.0
+    version: 1.10.0
     repository: https://apache.github.io/yunikorn-release

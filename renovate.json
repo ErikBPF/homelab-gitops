@@ -19,6 +19,12 @@
       "description": "Pin digests off — these are versioned Helm charts, not images",
       "matchManagers": ["helmv3"],
       "pinDigests": false
+    },
+    {
+      "description": "Wrapper charts that pin a Harbor image: Renovate cannot bump the image (the registry is unreachable from GitHub runners), so the chart-image-parity contract fails the PR until the pin moves in the same change. The label marks the required companion edit.",
+      "matchManagers": ["helmv3"],
+      "matchFileNames": ["platform/csi-driver-nfs/**", "platform/traefik/**"],
+      "addLabels": ["needs-image-bump"]
     }
   ]
 }
