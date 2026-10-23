@@ -5,4 +5,8 @@ version: 0.1.0
 dependencies:
   - name: csi-driver-nfs
     version: 4.13.4 # Renovate-managed (kubernetes-csi/csi-driver-nfs)
+    # Hold at 4.13.4: values.yaml pins the nfsplugin IMAGE at v4.13.4, and 4.13.5
+    # passes --enable-snapshot-compression/--max-snapshot-* flags the v4.13.4
+    # binary rejects, crash-looping the controller. Bump chart and image together
+    # after the v4.13.5 image is mirrored to Harbor.
     repository: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
