@@ -37,6 +37,19 @@ apps/home-services/<service> household-facing non-media workloads
 Wrapper-chart convention (Chart.yaml = one pinned dependency + values.yaml)
 mirrors the `datahomelab-gitops` reference — Renovate-friendly.
 
+## Dependency updates
+
+Renovate keeps Helm charts, GitHub Actions and Nix flake inputs current, but it
+does **not** bump the Harbor image pins in `platform/*/values.yaml`: the
+registry is not resolvable from GitHub runners, so the shared preset disables
+those dependencies. A wrapper's chart version and its pinned image therefore
+have to move together — chart 4.13.5 shipped flags that the pinned v4.13.4
+binary rejected and crash-looped the CSI controller after auto-sync deployed it.
+
+`tests/chart-image-parity.py` enforces that invariant for wrappers that pin an
+image (currently `platform/csi-driver-nfs`); a chart bump without the matching
+image pin fails CI. Add a pairing there when a new wrapper pins an image.
+
 ## Bootstrap
 
 ```
