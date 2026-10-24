@@ -29,6 +29,9 @@ resources:
   - demo.yaml
   - airflow.yaml
   - cognee.yaml
+  - litellm.yaml
+  - mcp-echo.yaml
+  - openwebui.yaml
 
 # Every child Application syncs `main` automatically. Main is protected by the
 # required kubeconform check and changes only through reviewed PRs; `prune`

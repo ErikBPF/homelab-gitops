@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-echo
+  namespace: mcp-echo
+  labels: {app: mcp-echo}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {app: mcp-echo}
+  template:
+    metadata:
+      labels: {app: mcp-echo}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: mcp-echo
+          image: {{ .Values.image | quote }}
+          command: [python3]
+          args: [{{ printf "%s/server.py" .Values.script.mountPath | quote }}, "--port", {{ .Values.service.port | quote }}]
+          ports:
+            - {name: http, containerPort: {{ .Values.service.port }}, protocol: TCP}
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: {path: /headers, port: http}
+          livenessProbe:
+            httpGet: {path: /headers, port: http}
+          volumeMounts:
+            - name: script
+              mountPath: {{ .Values.script.mountPath | quote }}
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: mcp-echo
+            defaultMode: 0555

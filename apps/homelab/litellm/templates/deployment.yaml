@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: litellm}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: litellm}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: litellm}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: litellm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}@{{ .Values.image.digest }}"
+          args: ["--config", "/app/config.yaml", "--port", {{ .Values.service.port | quote }}]
+          ports: [{name: http, containerPort: {{ .Values.service.port }}}]
+          env:
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef: {name: litellm-secrets, key: LITELLM_MASTER_KEY}
+            - name: LITELLM_SALT_KEY
+              valueFrom:
+                secretKeyRef: {name: litellm-secrets, key: LITELLM_SALT_KEY}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: litellm-secrets, key: POSTGRES_PASSWORD}
+            # Kubernetes expands previously declared env vars, not shell commands.
+            # Provision a URL-safe password (e.g. random hex) in Vault.
+            - name: DATABASE_URL
+              value: "postgresql://litellm:$(POSTGRES_PASSWORD)@postgres.litellm.svc.cluster.local:5432/litellm"
+            - {name: LITELLM_LOCAL_MODEL_COST_MAP, value: "True"}
+            - {name: LITELLM_TELEMETRY, value: "False"}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          startupProbe:
+            httpGet: {path: /health/readiness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /health/readiness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health/liveliness, port: http}
+            periodSeconds: 15
+            timeoutSeconds: 5
+          volumeMounts:
+            - {name: config, mountPath: /app/config.yaml, subPath: config.yaml, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: litellm-config}

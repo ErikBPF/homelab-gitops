@@ -88,6 +88,9 @@ spec:
     - {server: https://kubernetes.default.svc, namespace: cognee}
     - {server: https://kubernetes.default.svc, namespace: demo}
     - {server: https://kubernetes.default.svc, namespace: langfuse}
+    - {server: https://kubernetes.default.svc, namespace: litellm}
+    - {server: https://kubernetes.default.svc, namespace: mcp-echo}
+    - {server: https://kubernetes.default.svc, namespace: openwebui}
     - {server: https://kubernetes.default.svc, namespace: trace-demo}
   clusterResourceWhitelist:
     - {group: "", kind: PersistentVolume}

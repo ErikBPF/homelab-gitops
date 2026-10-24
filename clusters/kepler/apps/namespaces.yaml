@@ -52,11 +52,23 @@ metadata: {name: langfuse}
 ---
 apiVersion: v1
 kind: Namespace
+metadata: {name: litellm}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-echo}
+---
+apiVersion: v1
+kind: Namespace
 metadata: {name: monitoring}
 ---
 apiVersion: v1
 kind: Namespace
 metadata: {name: observability}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: openwebui}
 ---
 apiVersion: v1
 kind: Namespace
