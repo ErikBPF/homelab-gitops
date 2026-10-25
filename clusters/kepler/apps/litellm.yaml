@@ -11,5 +11,15 @@ spec:
     targetRevision: main
     path: apps/homelab/litellm
   destination: {server: https://kubernetes.default.svc, namespace: litellm}
+  # The API server defaults apiVersion/kind/volumeMode inside volumeClaimTemplates;
+  # without this the postgres StatefulSet stays permanently OutOfSync.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates[]?.apiVersion
+        - .spec.volumeClaimTemplates[]?.kind
+        - .spec.volumeClaimTemplates[]?.spec.volumeMode
+        - .spec.volumeClaimTemplates[]?.status
   syncPolicy:
-    syncOptions: [ServerSideApply=true]
+    syncOptions: [ServerSideApply=true, RespectIgnoreDifferences=true]
