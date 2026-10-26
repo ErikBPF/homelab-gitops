@@ -116,6 +116,7 @@ for spec in datasource-prometheus-health:prometheus datasource-loki-health:loki;
   test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .data[] | select(.refId == \"A\") | .datasourceUid" "${alert_files[@]}")" = "$datasource"
 done
 test "$(yq -r '.policies[0].group_by | join(",")' "$root/platform/monitoring/files/alerting/policies.yaml")" = grafana_folder,alertname,datasource_uid
+grep -Fq 'Additional instances omitted ({{ len .Alerts.Firing }} firing, {{ len .Alerts.Resolved }} resolved)' "$root/platform/monitoring/files/alerting/templates.yaml"
 
 unhealthy_expr=$(yq -r '.groups[].rules[] | select(.uid == "container-unhealthy") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'container_health_unhealthy{host="discovery"}' <<<"$unhealthy_expr"
