@@ -1516,6 +1516,68 @@ groups:
                     type: gt
                     params: [0]
 
+  # Orion Strata chat. desktop-nixos strata-chat-health-probe writes
+  # strata_chat_health and a probe timestamp via the textfile collector every
+  # 30s. The old llamacpp scrape was removed because Strata serves JSON at
+  # /metrics; a missing metric or an old timestamp is treated as alerting.
+  - orgId: 1
+    name: platform-strata
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: strata-chat-health
+        title: Orion Strata chat health probe failed or stale
+        condition: C
+        for: 10m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: "Orion Strata chat is unhealthy or its health probe is stale — check http://100.72.85.73:8080/health and the strata-chat service on Orion"
+        labels:
+          severity: critical
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: (1 - strata_chat_health) or ((time() - strata_chat_health_probe_timestamp_seconds) > 300)
+          - refId: B
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+
   # Failed systemd units (desktop-nixos fleet-upgrade-hardening RFC P2,
   # 2026-07-12). Critical units previously sat failed for hours with zero
   # alerts; the failures were found only by looking. The
