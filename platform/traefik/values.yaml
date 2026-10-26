@@ -7,10 +7,10 @@ traefik:
   image:
     registry: harbor.homelab.pastelariadev.com
     repository: dockerhub/library/traefik
-    # Keep in step with the chart's appVersion (42.0.0 -> v3.7.14); the
+    # Keep in step with the chart's appVersion (42.1.3 -> v3.7.16); the
     # chart-image-parity contract fails a chart bump without this pin.
-    tag: v3.7.14
-    digest: sha256:575fa15b135078fe5e50aa847987d96dbddd7b093c172429618404df73f3fa7c
+    tag: v3.7.16
+    digest: sha256:1336e85aaed293bd63d005086e0dd013b04078b26aaeb1c18b26a2f928af7e65
   priorityClassName: homelab-platform-critical
   deployment:
     replicas: 1 # lab; bump for HA later
