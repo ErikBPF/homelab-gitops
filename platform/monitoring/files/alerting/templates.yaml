@@ -35,7 +35,7 @@ templates:
       {{ template "homelab.discord.alert" . }}
       {{- end }}{{ end }}
       {{- if or (gt (len .Alerts.Firing) 4) (gt (len .Alerts.Resolved) 2) }}
-      Additional instances omitted; open Rule for the complete group.
+      Additional instances omitted ({{ len .Alerts.Firing }} firing, {{ len .Alerts.Resolved }} resolved); open Rule for the complete group.
       {{- end }}
       {{- if .Alerts.Resolved }}
       Resolved means Grafana stopped firing; verify recovery and telemetry in the rule history.

@@ -5,6 +5,7 @@ root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 
 helm repo add authentik https://charts.goauthentik.io >/dev/null 2>&1 || true
+helm repo add open-webui https://open-webui.github.io/helm-charts >/dev/null 2>&1 || true
 
 while IFS= read -r chart; do
   dir=$(dirname "$chart")
@@ -44,6 +45,9 @@ for contract in \
   tests/karakeep-contract.sh \
   tests/immich-contract.sh \
   tests/langfuse-contract.sh \
+  tests/litellm-contract.sh \
+  tests/mcp-echo-contract.sh \
+  tests/openwebui-contract.sh \
   tests/monitoring-contract.sh \
   tests/monitoring-promql.py \
   tests/grafana-alert-template_test.go \

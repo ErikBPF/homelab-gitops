@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: openwebui}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-runtime, namespace: openwebui}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}
+      ports: [{protocol: TCP, port: 8080}]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: litellm}}
+      ports: [{protocol: TCP, port: 4000}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: mcp-echo}}
+      ports: [{protocol: TCP, port: 8080}]
+    # Copy Cognee's ingress-front-door allowlist (apps/cognee/resources.yaml).
+    # Pod DNS for authentik.homelab.pastelariadev.com resolves to 192.168.10.210
+    # (verified 2026-09-13), not a Traefik pod/ClusterIP. OIDC discovery/token
+    # exchange needs this internal HTTPS front door; a namespaceSelector alone
+    # would miss it. No public internet egress. Recheck this /32 if DNS changes.
+    - to: [{ipBlock: {cidr: 192.168.10.210/32}}]
+      ports: [{protocol: TCP, port: 443}]

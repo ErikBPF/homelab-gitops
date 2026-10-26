@@ -45,7 +45,7 @@ for name in ('authentik', 'monitoring'):
     assert all(dep['repository'] in expected for dep in chart['dependencies']), name
 PYTEST
 
-test "$(yq -r 'select(.metadata.name == "homelab") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "airflow,cognee,demo,langfuse,trace-demo"
+test "$(yq -r 'select(.metadata.name == "homelab") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "airflow,cognee,demo,langfuse,litellm,mcp-echo,openwebui,trace-demo"
 test "$(yq -r 'select(.metadata.name == "home-services") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "changedetection,immich,karakeep"
 
 if grep -R -l '^kind: Namespace$' "$root/apps/homelab" "$root/apps/home-services"; then

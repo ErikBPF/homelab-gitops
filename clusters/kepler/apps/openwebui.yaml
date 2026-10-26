@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openwebui
+  namespace: argocd
+  annotations: {argocd.argoproj.io/sync-wave: "16"}
+spec:
+  project: homelab
+  source:
+    repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
+    targetRevision: main
+    path: apps/homelab/openwebui
+  destination: {server: https://kubernetes.default.svc, namespace: openwebui}
+  syncPolicy:
+    syncOptions: [ServerSideApply=true]

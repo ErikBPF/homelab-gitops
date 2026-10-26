@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: litellm-config}
+data:
+  config.yaml: |
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
+      database_url: os.environ/DATABASE_URL
+      disable_spend_logs: false
+      disable_error_logs: false
+    litellm_settings:
+      json_logs: true
+      request_timeout: 600
+    router_settings: {}
+    model_list:
+      - model_name: {{ .Values.modelName | quote }}
+        litellm_params:
+          model: openai/gpt-4o-mini
+          mock_response: "Spike mock response; no provider was called."
