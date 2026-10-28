@@ -5,7 +5,7 @@ version: 0.1.0
 dependencies:
   - name: csi-driver-nfs
     version: 4.13.6 # Renovate-managed (kubernetes-csi/csi-driver-nfs)
-    # Chart and image move together: 4.13.5 passes snapshot flags the v4.13.4
-    # binary rejects, which crash-looped the controller when only the chart
-    # moved. tests/chart-image-parity.py enforces the pairing.
+    # Chart and image move together: 4.13.6 pairs with the v4.13.6 binary.
+    # Moving only one crash-looped the controller. tests/chart-image-parity.py
+    # enforces the pairing.
     repository: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
