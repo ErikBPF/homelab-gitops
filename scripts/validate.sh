@@ -27,11 +27,14 @@ mapfile -t manifests < <(
 kubeconform -strict -summary -ignore-missing-schemas "${manifests[@]}"
 
 for contract in \
+  tests/security-notification.py \
   tests/apollo-launch.py \
   tests/automated-sync-containment.sh \
   tests/operational-context.sh \
   tests/first-wave-image-pins.py \
   tests/harbor-runtime-images.py \
+  tests/test_image_advisory.py \
+  tests/test_image_archive_advisory.py \
   tests/chart-image-parity.py \
   tests/path-boundary-contract.sh \
   tests/resource-contract.sh \
