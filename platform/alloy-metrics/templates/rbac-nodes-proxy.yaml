@@ -1,6 +1,6 @@
-# The alloy chart's default RBAC covers discovery (nodes/pods/services list+watch)
-# but not nodes/proxy, which the cAdvisor-via-apiserver-proxy scrape needs. Grant
-# it explicitly to the alloy-metrics SA.
+# Chart RBAC covers namespaced service discovery. This separate role preserves
+# node discovery and the current API proxy scrape. The proxy grant remains
+# powerful until direct kubelet metrics and trusted TLS are proven together.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
