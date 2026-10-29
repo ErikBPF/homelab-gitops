@@ -20,14 +20,16 @@ data:
         def parse_request(self):
             parsed = super().parse_request()
             if parsed:
-                # Look for X-OpenWebUI identity headers without filtering any others.
+                # Keep X-OpenWebUI identity diagnostics while redacting credential/cookie values.
                 logging.info("%s %s\n%s", self.command, self.path,
-                             "\n".join(f"{k}: {v}" for k, v in self.headers.raw_items()))
+                             "\n".join(f"{k}: {v}" for k, v in self.headers_json()))
             return parsed
 
         def headers_json(self):
             # Ordered pairs preserve repeated names and original casing.
-            return list(self.headers.raw_items())
+            sensitive = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
+            return [(name, "[REDACTED]" if name.casefold() in sensitive else value)
+                    for name, value in self.headers.raw_items()]
 
         def reply(self, payload=None, status=200):
             body = json.dumps(payload, indent=2).encode() if payload is not None else b""
@@ -84,7 +86,7 @@ data:
                     response["result"] = {"protocolVersion": version, "capabilities": {"tools": {}},
                                           "serverInfo": {"name": "mcp-echo", "version": "1.0.0"}}
                 case "tools/list":
-                    response["result"] = {"tools": [{"name": "echo_headers", "description": "Return received HTTP headers",
+                    response["result"] = {"tools": [{"name": "echo_headers", "description": "Return headers with Authorization, Proxy-Authorization, Cookie and Set-Cookie values redacted",
                         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}}]}
                 case "tools/call":
                     if params.get("name") != "echo_headers":

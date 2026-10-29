@@ -68,7 +68,10 @@ alloy:
           targets           = discovery.relabel.cadvisor.output
           scheme            = "https"
           bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-          tls_config { insecure_skip_verify = true }
+          tls_config {
+            ca_file     = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+            server_name = "kubernetes.default.svc"
+          }
           scrape_interval   = "60s"
           sample_limit      = 25000
           forward_to        = [prometheus.remote_write.discovery.receiver]
@@ -98,7 +101,10 @@ alloy:
           targets           = discovery.relabel.kubelet.output
           scheme            = "https"
           bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-          tls_config { insecure_skip_verify = true }
+          tls_config {
+            ca_file     = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+            server_name = "kubernetes.default.svc"
+          }
           scrape_interval   = "60s"
           forward_to        = [prometheus.relabel.kubelet_keep.receiver]
         }
