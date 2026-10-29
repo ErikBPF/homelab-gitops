@@ -9,5 +9,5 @@ dependencies:
     version: 1.18.0 # Renovate-managed
     repository: https://traefik.github.io/charts
   - name: traefik
-    version: 42.0.0 # Renovate-managed (traefik.github.io/charts)
+    version: 42.1.3 # Renovate-managed (traefik.github.io/charts)
     repository: https://traefik.github.io/charts

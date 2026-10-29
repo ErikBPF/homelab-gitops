@@ -4,7 +4,7 @@ csi-driver-nfs:
     baseRepo: harbor.homelab.pastelariadev.com/k8s
     nfs:
       repository: harbor.homelab.pastelariadev.com/k8s/sig-storage/nfsplugin
-      tag: v4.13.5@sha256:19162ec4fb3f56a7e53f578721b0d5b8e9c691c27d2789aecb17e9de60a94595
+      tag: v4.13.6@sha256:40663419bac36836b8e4ef6929199e35920e28f6a74a46892e1c125ea5f0ce0b
     csiProvisioner:
       tag: v6.3.0@sha256:a4b0b1a37605b7b04a293e136edf7006ec1786a8eb3f4e5a945f81d667dcc371
     csiResizer:
