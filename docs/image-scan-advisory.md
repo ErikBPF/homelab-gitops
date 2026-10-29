@@ -1,12 +1,15 @@
-# Local advisory image evidence: SBOM pilot
+# Local advisory evidence: SBOM and image archive pilots
 
 The accepted policy is **“Advisory evidence first (recommended)”** (question
 `call_95bfd504bf844137a65ece1f4ba9749e`, item 0, coordination revision 14).
 Vulnerabilities do not block promotion. Scanner failures remain failures.
-This first H5 slice scans an explicitly supplied local CycloneDX 1.5/1.6 npm
+The SBOM mode scans an explicitly supplied local CycloneDX 1.5/1.6 npm
 inventory with Trivy 0.70.0. Its immutable subject is the SBOM byte digest;
 association with an image digest remains **unverified**. It establishes neither
 whole-image coverage nor a production security verdict.
+The opt-in archive mode below generates its own SBOM from the same local
+archive used for vulnerability reporting. Registry and deployed-image
+association remain unverified.
 
 ## Run locally
 
@@ -74,6 +77,69 @@ remain under `.local/image-advisory/`, protected by a narrow local Git exclude
 and private permissions. Draft 1 archive SHA256:
 `a7746e866c948ff7ec54e70bef3abc72f365b7cea3c4a2ff89a5984919ab7344`.
 Full owner validation and independent review are coordinated separately.
+
+## Local Docker archive mode
+
+Use `--image-archive` with `--expected-sbom` to scan a trusted, explicitly
+selected local Docker archive. The expected CycloneDX file declares the npm
+name/version inventory that both native outputs must contain. The runner
+generates a separate native CycloneDX SBOM from the archive; a supplied SBOM
+alone does not establish image association.
+
+Generate the tiny synthetic controls in a new disposable directory:
+
+```sh
+python3 tests/fixtures/image-advisory/build_archives.py /absolute/path/to/new-fixtures
+python3 scripts/scan-image-advisory.py \
+  --image-archive /absolute/path/to/new-fixtures/vulnerable.docker.tar \
+  --expected-sbom tests/fixtures/image-advisory/vulnerable.cdx.json \
+  --trivy /absolute/path/to/verified/trivy \
+  --cache-dir /absolute/path/to/disposable/trivy-cache \
+  --output-dir /absolute/path/to/new-private-evidence
+```
+
+The immutable subject is the archive byte SHA256. The config digest is
+explicitly scanner-reported and must agree between the native JSON and generated
+SBOM. It is distinct from the archive digest, Trivy's opaque artifact ID and a
+registry manifest digest. No registry manifest or deployed-image identity is
+established. The private bundle retains the archive, expected inventory,
+generated SBOM, native report and collection metadata.
+
+This pilot accepts archives up to 64 MiB and npm-only coverage. Empty,
+incomplete, extra, OS or other ecosystem inventories fail collection. Source,
+scanner, database, snapshot, configuration or previously written report
+mutation also prevents a success receipt. JSON and subprocess limits match the
+SBOM mode. Findings at every severity remain advisory; successful collection
+prints `IMAGE_ARCHIVE_ADVISORY_OK`, while collection errors return nonzero.
+
+`python3 tests/test_image_archive_advisory.py` checks these boundaries alongside
+the unchanged SBOM tests in the owner validator. The fixture generator creates
+only synthetic package metadata; it never pulls or runs a container. Native
+controls should run in a disposable network namespace. The wrapper does not
+extract archives or select a daemon or registry. Native Trivy accepts Docker
+archives and OCI directories; OCI tar input is outside this mode's tested path.
+
+Native local verification used the two generated 20 KiB archives: lodash
+produced seven findings and the left-pad control produced none; both collections
+succeeded. Corrupt archive and corrupt database controls returned nonzero and
+wrote no success receipt. All four ran in isolated user/network namespaces.
+The eleven archive contracts first recorded 35 assertion failures against an
+importable stub, then passed; the thirteen existing SBOM contracts pass unchanged.
+The retained RED archive has SHA256
+`a54ecc32e823b3f410659a41bfa930228cbcbe36c999a2e5166d38764c8aa018`;
+the importable stub has SHA256
+`f77d10f3df5899290ec01dd43aff17e59883d7dacae3e2c2d94ab7f28a9cde0f`.
+Independent review then added permanent timeout coverage at both native stages.
+Those assertions already passed against the implementation; they are coverage
+completion, not part of the initial RED.
+
+The full local owner validator passed 22 charts, six Kustomizations and 39
+contract entries. Schema validation events were 515 valid, zero invalid or
+erroneous, and 175 skipped for missing schemas; repeated rendered objects mean
+these are not counts of unique resources. The timeout-only test extension happened
+during that run; final focused tests and syntax checks passed separately.
+Hosted validation checks the complete final commit. Rendering and these
+synthetic controls do not prove deployment or production runtime behavior.
 
 ## Provenance and remaining work
 
