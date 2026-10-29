@@ -24,7 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify security channel
-        if: always() && github.event_name == 'push' && steps.gitleaks.outcome == 'failure'
+        if: always() && steps.gitleaks.outcome == 'failure'
         env:
           WEBHOOK: ${{ secrets.DISCORD_SECURITY_WEBHOOK }}
           CLEYTIN_USER_ID: "1532710143517659356"

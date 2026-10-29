@@ -82,7 +82,28 @@ logs = io.StringIO()
 handler = logging.StreamHandler(logs)
 logging.getLogger().addHandler(handler)
 logging.getLogger().setLevel(logging.INFO)
-headers = [('X-OpenWebUI-User-Id', 'probe-user'), ('X-Duplicate', 'first'), ('X-Duplicate', 'second'), ('Authorization', 'Bearer disposable-probe')]
+# Synthetic values only: every credential/cookie variant must stay out of diagnostics.
+public_headers = [
+    ('X-OpenWebUI-User-Id', 'probe-user'),
+    ('X-OpenWebUI-User-Name', 'Probe User'),
+    ('X-OpenWebUI-User-Email', 'probe@example.invalid'),
+    ('X-OpenWebUI-User-Role', 'user'),
+    ('X-Duplicate', 'first'), ('X-Duplicate', 'second'),
+]
+sensitive_headers = [
+    ('Authorization', 'Bearer auth-canary-first'),
+    ('aUtHoRiZaTiOn', 'Bearer auth-canary-second'),
+    ('Proxy-Authorization', 'Basic proxy-canary-first'),
+    ('pRoXy-AuThOrIzAtIoN', 'Basic proxy-canary-second'),
+    ('Cookie', 'session=cookie-canary-first'),
+    ('cOoKiE', 'session=cookie-canary-second'),
+    ('Set-Cookie', 'session=set-cookie-canary-first'),
+    ('sEt-CoOkIe', 'session=set-cookie-canary-second'),
+]
+headers = public_headers + sensitive_headers
+expected_headers = [list(pair) for pair in public_headers] + [[name, '[REDACTED]'] for name, _ in sensitive_headers]
+diagnostic_outputs = {}
+received_headers = {}
 
 def request(method, path, payload=None, accept='application/json'):
     body = json.dumps(payload) if payload is not None else ''
@@ -106,8 +127,8 @@ with namespace['ThreadingTCPServer'](('127.0.0.1', 0), namespace['Handler']) as 
     try:
         status, content_type, body = request('GET', '/headers')
         assert status == 200 and content_type == 'application/json'
-        received = json.loads(body)
-        assert all(list(pair) in received for pair in headers)
+        received_headers['/headers'] = json.loads(body)
+        diagnostic_outputs['/headers'] = body
         assert '\n  [' in body, 'headers must be pretty JSON'
         status, _, body = request('GET', '/v1/models')
         assert status == 200 and json.loads(body)['data'][0]['id'] == 'echo-stub'
@@ -132,17 +153,31 @@ with namespace['ThreadingTCPServer'](('127.0.0.1', 0), namespace['Handler']) as 
         assert request('POST', '/mcp', {'jsonrpc': '2.0', 'method': 'notifications/initialized'})[::2] == (202, '')
         status, _, body = request('POST', '/mcp', {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'})
         assert status == 200 and [t['name'] for t in json.loads(body)['result']['tools']] == ['echo_headers']
-        status, _, body = request('POST', '/mcp', {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'echo_headers'}})
-        received = json.loads(json.loads(body)['result']['content'][0]['text'])
-        assert status == 200 and all(list(pair) in received for pair in headers)
+        for accept in ('application/json', 'text/event-stream'):
+            status, content_type, body = request('POST', '/mcp', {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'echo_headers'}}, accept)
+            assert status == 200 and content_type == accept
+            label = f'MCP {accept}'
+            diagnostic_outputs[label] = body
+            if accept == 'text/event-stream':
+                body = body.split('data: ', 1)[1].strip()
+            result = json.loads(body)['result']
+            assert result['isError'] is False
+            assert result['content'][0]['type'] == 'text'
+            received_headers[label] = json.loads(result['content'][0]['text'])
         status, _, body = request('POST', '/mcp', {'jsonrpc': '2.0', 'id': 4, 'method': 'missing'})
         assert status == 200 and json.loads(body)['error']['code'] == -32601
         assert request('POST', '/mcp', [1, 2])[0] == 400
         assert request('GET', '/mcp')[0] == 405
         assert request('DELETE', '/unknown')[0] == 501
         output = logs.getvalue()
-        for name, value in headers:
-            assert f'{name}: {value}' in output
+        diagnostic_outputs['request logs'] = output
+        leaks = [label for label, text in diagnostic_outputs.items() if any(value in text for _, value in sensitive_headers)]
+        assert not leaks, f'sensitive header canaries leaked through: {", ".join(leaks)}'
+        for label, received in received_headers.items():
+            # HTTP adds Host/encoding/length headers; the supplied pairs must retain order and casing.
+            supplied = [pair for pair in received if pair[0] in {name for name, _ in headers}]
+            assert supplied == expected_headers, f'{label}: header projection changed'
+        assert '\n'.join(f'{name}: {value}' for name, value in expected_headers) in output
         for method, path in [('GET', '/headers'), ('POST', '/v1/chat/completions'), ('POST', '/mcp'), ('DELETE', '/unknown')]:
             assert f'{method} {path}' in output
         assert 'BODY-MUST-NOT-APPEAR' not in output
