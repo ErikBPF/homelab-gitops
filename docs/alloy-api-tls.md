@@ -51,6 +51,18 @@ advisory-scanner paths passed their thirteen focused tests and syntax checks.
 This composed result does not claim a full run of that later revision or of
 newer chart versions arriving on the merge target.
 
+## Same-image disposable proof
+
+On 2026-10-30, the aligned v1.21.2 image passed the two-node permission/metrics
+replica and the separate TLS matrix. Both actual scrape blocks accepted trusted
+controls and rejected wrong-CA/name endpoints with observed x509 errors before
+HTTP authentication. The isolated insecure mutation reached those endpoints and
+made the denial validator fail; restoring verification restored rejection.
+Both guest pairs stopped. The [reproduction guide](alloy-disposable-proof.md)
+records exact pins, results and limits. This proves the selected image's local
+behavior; Harbor availability and deployed certificate correctness remain
+unverified. The earlier loopback evidence above remains historical.
+
 ## Deployment and recovery
 
 Before rollout, verify that the rendered pod retains its service-account token
@@ -65,7 +77,7 @@ kubelet series. If verification fails, correct the API-server certificate chain,
 name, or projected CA instead of permanently disabling verification. Reverting
 the two TLS blocks restores the old behavior but reopens credential-interception
 risk; any emergency rollback needs an explicit, time-bounded exception. No
-cluster access, deployment, or credential collection was part of this source fix.
+production cluster access, deployment, or credential collection was part of this source fix.
 
 The TLS fields and API-server authentication pattern follow the
 [official Alloy scrape reference](https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.scrape/#tls_config).

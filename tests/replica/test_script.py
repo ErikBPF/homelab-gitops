@@ -2,8 +2,8 @@ import base64
 import hashlib
 import json
 import os
-from pathlib import Path
 import shlex
+from pathlib import Path
 
 
 def require(condition, message):
@@ -332,6 +332,11 @@ with os.fdopen(fd, "w") as f:
     version = server.succeed(
         "k3s kubectl -n monitoring exec deployment/alloy-metrics -c alloy -- /bin/alloy --version"
     ).strip()
+    write_guest("/run/alloy-replica/version.txt", version)
+    version_check = "import pathlib,sys; sys.path.insert(0,sys.argv[1]); from tls_fixture import check_version; check_version(pathlib.Path('/run/alloy-replica/version.txt').read_text(),sys.argv[2])"
+    server.succeed(
+        shlex.join(["python3", "-c", version_check, REPLICA, pins["image_version"]])
+    )
     server.wait_until_succeeds(metric_command(), timeout=180)
     write_guest("/run/alloy-replica/run-id", RUN_ID)
     require(
@@ -339,6 +344,7 @@ with os.fdopen(fd, "w") as f:
         "run ID did not execute",
     )
     receipt = {
+        "proof": "permissions",
         "run_id": RUN_ID,
         "nodes": node_names,
         "image": payload["image"],

@@ -1,7 +1,7 @@
 @unautomated @disposable
 Feature: Observe Alloy permission reduction and authenticated scraping in a local replica
-  # Draft contract, not an executed test. Intended binding:
-  # tests/replica/alloy-security.nix and its GitOps-owned test script.
+  # Unautomated Gherkin contract. Procedural native runners:
+  # tests/replica/alloy-security.nix and its GitOps-owned test scripts.
   # Slice A and B are separate bounded native test runs.
 
   Background:

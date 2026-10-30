@@ -13,6 +13,9 @@ test:
 test-alloy-replica image_archive:
     bash tests/replica/run.sh {{quote(image_archive)}}
 
+test-alloy-tls-replica image_archive:
+    bash tests/replica/run.sh --tls {{quote(image_archive)}}
+
 capacity:
     bash scripts/capacity.sh
 
