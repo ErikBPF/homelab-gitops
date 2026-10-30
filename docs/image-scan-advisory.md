@@ -82,7 +82,7 @@ Full owner validation and independent review are coordinated separately.
 
 Use `--image-archive` with `--expected-sbom` to scan a trusted, explicitly
 selected local Docker archive. The expected CycloneDX file declares the npm
-name/version inventory that both native outputs must contain. The runner
+and/or supported Debian package inventory that both native outputs must contain. The runner
 generates a separate native CycloneDX SBOM from the archive; a supplied SBOM
 alone does not establish image association.
 
@@ -105,8 +105,8 @@ registry manifest digest. No registry manifest or deployed-image identity is
 established. The private bundle retains the archive, expected inventory,
 generated SBOM, native report and collection metadata.
 
-This pilot accepts archives up to 64 MiB and npm-only coverage. Empty,
-incomplete, extra, OS or other ecosystem inventories fail collection. Source,
+This pilot accepts archives up to 64 MiB, npm packages, and the Debian coverage
+described below. Empty, incomplete, extra or unsupported inventories fail collection. Source,
 scanner, database, snapshot, configuration or previously written report
 mutation also prevents a success receipt. JSON and subprocess limits match the
 SBOM mode. Findings at every severity remain advisory; successful collection
@@ -141,6 +141,67 @@ during that run; final focused tests and syntax checks passed separately.
 Hosted validation checks the complete final commit. Rendering and these
 synthetic controls do not prove deployment or production runtime behavior.
 
+## Debian package coverage in archive mode
+
+Archive mode additionally accepts Debian 12 `dpkg` inventories from Linux/amd64
+images, with `amd64` or architecture-independent `all` packages. Other operating
+systems, releases, image/package architectures and scanner-reported end-of-support
+states fail collection. Standalone `--sbom` remains npm-only. This is package
+metadata coverage, not binary inspection, complete filesystem coverage or a
+whole-image security verdict.
+
+The expected file uses ordinary CycloneDX components: one `operating-system`
+component named `debian`, its exact scanner-visible release (for example,
+`12.0`), and `library` components with Debian package URLs. A package URL such as
+`pkg:deb/debian/openssl@3.0.9-1?arch=amd64&distro=debian-12.0` preserves the
+architecture and distribution. Epochs belong in the `epoch` qualifier and in
+the component's full version: `2:3.0.9-1` corresponds to
+`pkg:deb/debian/openssl@3.0.9-1?arch=all&distro=debian-12.0&epoch=2`.
+Unknown or duplicate qualifiers are rejected, and at most three qualifier fields
+are parsed. The collector compares ecosystem,
+name, full version/release/epoch, architecture and distribution across expected
+inventory, native package results and generated SBOM. Native OS and image
+platform metadata must also agree with this supported scope.
+
+Use a separately reviewed expected inventory; a previous scanner-native
+CycloneDX export can provide the format, but an export from the same unchecked
+candidate is not an independent statement of intended packages. Keep its OS
+component and qualified package URLs. Do not strip qualifiers to make an
+inventory mismatch pass. Distro spelling comes from the actual archive's
+release metadata, not a guessed tag or registry name.
+
+Generate four deterministic local controls and their expected inventories:
+
+```sh
+python3 tests/fixtures/image-advisory/build_debian_archives.py /absolute/path/to/new-debian-fixtures
+python3 scripts/scan-image-advisory.py \
+  --image-archive /absolute/path/to/new-debian-fixtures/debian-mixed.docker.tar \
+  --expected-sbom /absolute/path/to/new-debian-fixtures/debian-mixed.cdx.json \
+  --trivy /absolute/path/to/verified/trivy \
+  --cache-dir /absolute/path/to/disposable/trivy-cache \
+  --output-dir /absolute/path/to/new-private-evidence
+```
+
+The fixtures contain only synthetic package-manager metadata, never real
+application binaries. The native Debian controls observed 53 findings for
+`openssl@3.0.9-1`, zero for `base-files@12.4+deb12u12`, 60 for the OpenSSL/lodash
+mixed fixture, and one for the synthetic epoch/`all` package fixture with the
+recorded 2026-10-29 database. Every successful collection remained advisory.
+These counts depend on that database and do not claim the fixtures are usable
+images or that scanner findings establish binary exploitability.
+
+`python3 tests/test_image_debian_advisory.py` joins the owner validator.
+The initial ten tests produced five assertion failures against the unchanged
+collector, with no setup errors. Later assertions caught misleading CLI
+coverage text and missing image-platform validation before those fixes.
+Independent review then found that a below-limit JSON input could exhaust memory
+by supplying a very large qualifier list. A subprocess regression observed the
+failure under a 192 MiB address-space limit before the parser was bounded to the
+three supported qualifier fields. The final thirteen Debian tests and all
+twenty-four unchanged npm/archive tests pass. Native positive,
+mismatched-inventory, corrupt-input/database and stale
+database controls are retained privately with source and output hashes.
+
 ## Provenance and remaining work
 
 The [official 0.70.0 release](https://github.com/aquasecurity/trivy/releases/tag/v0.70.0)
@@ -162,7 +223,7 @@ and [report flags](https://github.com/aquasecurity/trivy/blob/v0.70.0/pkg/flag/r
 The existing agent-evals declarative adapter accepts configuration findings;
 it is not reused or expanded into an image report platform here.
 
-Production image association, OS and other ecosystems, registry credentials,
+Production image association, other OS distributions and ecosystems, registry credentials,
 scheduled rescans, promotion thresholds, exceptions and provenance signatures
 remain outside this pilot. No production workflow or deployment was changed.
 Recovery is to remove this local command and its offline runner entry; retain

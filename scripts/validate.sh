@@ -35,6 +35,7 @@ for contract in \
   tests/harbor-runtime-images.py \
   tests/test_image_advisory.py \
   tests/test_image_archive_advisory.py \
+  tests/test_image_debian_advisory.py \
   tests/chart-image-parity.py \
   tests/path-boundary-contract.sh \
   tests/resource-contract.sh \
@@ -57,6 +58,7 @@ for contract in \
   tests/grafana-alert-status.sh \
   tests/wazuh-contract.sh \
   tests/runtime-secret-bootstrap.sh \
+  tests/cloudflare-token-handoff.sh \
   tests/grafana-admin-rotation.sh \
   tests/airflow-contract.sh \
   tests/cognee-contract.sh \

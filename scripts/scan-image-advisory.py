@@ -1,4 +1,4 @@
-"""Collect advisory npm evidence from an explicit local SBOM or image archive."""
+"""Collect advisory evidence from a local npm SBOM or npm/Debian image archive."""
 
 import argparse
 from datetime import datetime, timezone
@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-from urllib.parse import unquote
+from urllib.parse import parse_qsl, unquote
 
 
 VERSION = "0.70.0"
@@ -62,25 +62,59 @@ def read_json(path):
     return parse(read_raw(path))
 
 
-def inventory(bom):
+def debian_identity(name, version, purl):
+    """Keep Debian release, epoch, architecture and distro in package identity."""
+    require(isinstance(name, str) and re.fullmatch(r"[a-z0-9][a-z0-9+.-]+", name) is not None)
+    require(isinstance(version, str) and re.fullmatch(r"(?:[1-9][0-9]*:)?[0-9][A-Za-z0-9.+~-]*", version) is not None)
+    require(isinstance(purl, str) and purl.startswith("pkg:deb/debian/") and "#" not in purl)
+    path, separator, query = purl[15:].partition("?")
+    require(bool(separator))
+    qualifiers = parse_qsl(query, keep_blank_values=True, strict_parsing=True, max_num_fields=3)
+    values = dict(qualifiers)
+    require(len(values) == len(qualifiers) and set(values) in ({"arch", "distro"}, {"arch", "distro", "epoch"}))
+    epoch, bare = version.split(":", 1) if ":" in version else (None, version)
+    require(values.get("epoch") == epoch)
+    require(unquote(path) == name + "@" + bare)
+    require(values["arch"] in ("amd64", "all"))
+    require(re.fullmatch(r"debian-12(?:\.[0-9]+)?", values["distro"]) is not None)
+    return "deb", name, version, values["arch"], values["distro"]
+
+
+def inventory(bom, *, archive=False):
     require(bom.get("bomFormat") == "CycloneDX" and bom.get("specVersion") in ("1.5", "1.6"))
     require(type(bom.get("version")) is int and bom["version"] >= 1)
     components = bom.get("components")
     require(isinstance(components, list) and 0 < len(components) <= 10000)
-    packages = set()
+    packages, operating_system = set(), None
     for component in components:
-        require(isinstance(component, dict) and component.get("type") == "library")
+        require(isinstance(component, dict))
         require(not component.get("components"))
+        if component.get("type") == "operating-system":
+            require(archive and operating_system is None and component.get("name") == "debian")
+            version = component.get("version")
+            require(isinstance(version, str) and re.fullmatch(r"12(?:\.[0-9]+)?", version) is not None)
+            operating_system = "debian-" + version
+            continue
+        require(component.get("type") == "library")
         name, version, group = (component.get(key, "") for key in ("name", "version", "group"))
         require(all(isinstance(value, str) for value in (name, version, group)))
+        purl = component.get("purl")
+        if archive and isinstance(purl, str) and purl.startswith("pkg:deb/"):
+            require(not group)
+            identity = debian_identity(name, version, purl)
+            require(identity not in packages)
+            packages.add(identity)
+            continue
         name = group + "/" + name if group else name
         require(re.fullmatch(r"(?:@[a-z0-9._-]+/)?[a-z0-9._-]+", name) is not None)
         require(re.fullmatch(r"[A-Za-z0-9._+~-]+", version) is not None)
-        purl = component.get("purl")
         require(isinstance(purl, str) and purl.startswith("pkg:npm/"))
         require(unquote(purl[8:]) == name + "@" + version)
-        require((name, version) not in packages)
-        packages.add((name, version))
+        identity = "npm", name, version, "", ""
+        require(identity not in packages)
+        packages.add(identity)
+    distributions = {identity[4] for identity in packages if identity[0] == "deb"}
+    require(bool(packages) and distributions == ({operating_system} if operating_system else set()))
     return packages
 
 
@@ -92,21 +126,39 @@ def native_summary(report, expected, artifact_type="cyclonedx"):
     packages, findings = set(), 0
     severities = {key: 0 for key in ("UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL")}
     for result in results:
-        require(isinstance(result, dict) and result.get("Class") == "lang-pkgs" and result.get("Type") in ("npm", "node-pkg"))
+        require(isinstance(result, dict))
+        debian = result.get("Class") == "os-pkgs" and result.get("Type") == "debian"
+        require((debian and artifact_type == "container_image") or
+                (result.get("Class") == "lang-pkgs" and result.get("Type") in ("npm", "node-pkg")))
         require(not any(result.get(key) for key in ("Misconfigurations", "Secrets", "Licenses", "CustomResources", "ExperimentalModifiedFindings")))
         rows = result.get("Packages")
         require(isinstance(rows, list) and bool(rows))
         for package in rows:
             require(isinstance(package, dict))
-            pair = package.get("Name"), package.get("Version")
-            require(all(isinstance(item, str) and item for item in pair))
-            packages.add(pair)
+            name, version = package.get("Name"), package.get("Version")
+            require(all(isinstance(item, str) and item for item in (name, version)))
+            identity = "npm", name, version, "", ""
+            if debian:
+                release, epoch = package.get("Release", ""), package.get("Epoch", 0)
+                require(isinstance(release, str) and type(epoch) is int and epoch >= 0)
+                version = (str(epoch) + ":" if epoch else "") + version + ("-" + release if release else "")
+                identifier = package.get("Identifier")
+                require(isinstance(identifier, dict) and package.get("AnalyzedBy") == "dpkg")
+                identity = debian_identity(name, version, identifier.get("PURL"))
+                require(identity[3] == package.get("Arch") and identity not in packages)
+            packages.add(identity)
         vulnerabilities = result.get("Vulnerabilities", [])
         require(isinstance(vulnerabilities, list))
         for finding in vulnerabilities:
             require(isinstance(finding, dict))
-            pair = finding.get("PkgName"), finding.get("InstalledVersion")
-            require(all(isinstance(item, str) for item in pair) and pair in expected)
+            name, version = finding.get("PkgName"), finding.get("InstalledVersion")
+            require(all(isinstance(item, str) for item in (name, version)))
+            identity = "npm", name, version, "", ""
+            if debian:
+                identifier = finding.get("PkgIdentifier")
+                require(isinstance(identifier, dict))
+                identity = debian_identity(name, version, identifier.get("PURL"))
+            require(identity in expected)
             require(isinstance(finding.get("VulnerabilityID"), str) and bool(finding["VulnerabilityID"]))
             severity = finding.get("Severity")
             require(isinstance(severity, str) and severity in severities)
@@ -119,11 +171,22 @@ def native_summary(report, expected, artifact_type="cyclonedx"):
 def archive_identity(report, bom, expected, snapshot):
     """Correlate native outputs; an image config ID is not a registry manifest ID."""
     metadata = report.get("Metadata")
-    require(isinstance(metadata, dict) and not metadata.get("OS"))
+    require(isinstance(metadata, dict))
+    distributions = {identity[4] for identity in expected if identity[0] == "deb"}
+    if distributions:
+        operating_system = metadata.get("OS")
+        require(isinstance(operating_system, dict) and operating_system.get("Family") == "debian")
+        require(isinstance(operating_system.get("Name"), str))
+        require({"debian-" + operating_system["Name"]} == distributions)
+        require(operating_system.get("Eosl", False) is False)
+        config = metadata.get("ImageConfig")
+        require(isinstance(config, dict) and config.get("architecture") == "amd64" and config.get("os") == "linux")
+    else:
+        require(not metadata.get("OS"))
     image_id = metadata.get("ImageID")
     require(isinstance(image_id, str) and re.fullmatch(r"sha256:[a-f0-9]{64}", image_id) is not None)
     require(report.get("ArtifactName") == str(snapshot))
-    require(inventory(bom) == expected)
+    require(inventory(bom, archive=True) == expected)
     metadata = bom.get("metadata")
     require(isinstance(metadata, dict))
     tools = metadata.get("tools")
@@ -145,7 +208,7 @@ def scan(sbom, trivy, cache, output, *, image_archive=None):
     sbom, trivy, cache, output = (Path(path).absolute() for path in (sbom, trivy, cache, output))
     raw_sbom = read_raw(sbom)
     bom = parse(raw_sbom)
-    expected = inventory(bom)
+    expected = inventory(bom, archive=image_archive is not None)
     raw_archive = None
     if image_archive is not None:
         image_archive = Path(image_archive).absolute()
@@ -234,7 +297,11 @@ def scan(sbom, trivy, cache, output, *, image_archive=None):
         archive_evidence = {"generated_sbom_sha256": identities[output / "generated-sbom.cdx.json"],
                             "expected_inventory_sha256": identities[sbom],
                             "sbom_association": "generated-from-same-archive",
-                            "coverage": {"ecosystems": ["npm"], "whole_image": "not-established"}}
+                            "coverage": {"ecosystems": sorted({identity[0] for identity in expected}),
+                                         "whole_image": "not-established"}}
+        if any(identity[0] == "deb" for identity in expected):
+            archive_evidence["coverage"]["operating_system"] = {
+                "family": "debian", "version": report["Metadata"]["OS"]["Name"]}
     require(all(digest(path) == identity for path, identity in identities.items()))
     receipt = {"schema_version": 1, "mode": "advisory", "collection_status": "ok",
                "security_verdict": "not-established", "started_at": started.isoformat(),
@@ -272,7 +339,8 @@ def main(argv=None):
         print("IMAGE_ADVISORY_ERROR: collection failed; no security verdict (" + type(error).__name__ + ").", file=sys.stderr)
         return 1
     if args.image_archive is not None:
-        print("IMAGE_ARCHIVE_ADVISORY_OK: findings=" + str(receipt["findings"]) + "; npm only; deployed image association unverified.")
+        ecosystems = ",".join(receipt["coverage"]["ecosystems"])
+        print("IMAGE_ARCHIVE_ADVISORY_OK: findings=" + str(receipt["findings"]) + "; " + ecosystems + " only; deployed image association unverified.")
     else:
         print("IMAGE_ADVISORY_OK: findings=" + str(receipt["findings"]) + "; SBOM only; image association unverified.")
     return 0
