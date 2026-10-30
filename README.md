@@ -52,6 +52,9 @@ and chart appVersion == image version (`platform/traefik`). A chart bump without
 the matching image pin fails CI. Add a pairing there when a new wrapper pins an
 image.
 
+See [the disposable Alloy proof](docs/alloy-disposable-proof.md) for the optional
+local replica fixture, artifact pins and current evidence limits.
+
 ## Bootstrap
 
 ```

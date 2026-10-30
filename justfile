@@ -9,6 +9,10 @@ ns  := "argocd"
 test:
     bash scripts/validate.sh
 
+# Disposable local QEMU test only; never uses the host Kubernetes context.
+test-alloy-replica image_archive:
+    bash tests/replica/run.sh {{quote(image_archive)}}
+
 capacity:
     bash scripts/capacity.sh
 

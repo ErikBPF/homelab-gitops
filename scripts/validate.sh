@@ -64,6 +64,8 @@ for contract in \
   tests/cognee-contract.sh \
   tests/test_cognee_reader_provision.py \
   tests/alloy-resilience.sh \
+  tests/test_alloy_replica.py \
+  tests/replica/test_guest_probe.py \
   tests/core-scheduling.sh \
   tests/demo-keda-ownership.sh \
   tests/repository-transport.sh \
