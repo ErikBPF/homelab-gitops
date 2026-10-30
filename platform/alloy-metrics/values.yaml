@@ -18,6 +18,16 @@ alloy:
     create: true
     name: alloy-metrics # deterministic, for the nodes/proxy ClusterRoleBinding
 
+  # The configured service discovery reads only these two namespaces. Node
+  # discovery and the existing scrape route use the separate nodes/proxy role.
+  rbac:
+    namespaces: [traefik, argocd]
+    rules:
+      - apiGroups: [""]
+        resources: [services]
+        verbs: [get, list, watch]
+    clusterRules: []
+
   alloy:
     resources:
       requests: { cpu: 25m, memory: 128Mi }

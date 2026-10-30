@@ -38,3 +38,5 @@ for metric in ['up', 'etcd_server_has_leader', 'etcd_server_proposals_applied_to
     assert re.fullmatch(pattern, metric), f"etcd relabel filter drops {metric}"
 assert not re.fullmatch(pattern, 'unrelated_unused_metric')
 PY
+
+python3 tests/alloy-rbac.py
