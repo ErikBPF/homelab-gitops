@@ -35,6 +35,7 @@ for contract in \
   tests/harbor-runtime-images.py \
   tests/test_image_advisory.py \
   tests/test_image_archive_advisory.py \
+  tests/test_image_debian_advisory.py \
   tests/chart-image-parity.py \
   tests/path-boundary-contract.sh \
   tests/resource-contract.sh \
