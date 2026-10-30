@@ -18,5 +18,12 @@ chmod 600 "$tmp/api-token"
 
 kubectl --context homelab -n monitoring create secret generic cloudflare-api-token \
   --from-file=api-token="$tmp/api-token" --dry-run=client -o yaml \
-  | kubectl --context homelab apply -f - >/dev/null
+  | kubectl --context homelab apply --server-side --force-conflicts -f - >/dev/null
+
+# A client-side apply records the whole manifest — token included — in the
+# last-applied annotation. Server-side apply does not remove it, so drop it.
+kubectl --context homelab -n monitoring patch secret cloudflare-api-token \
+  --type=merge \
+  -p '{"metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":null}}}' >/dev/null
+
 echo "Monitoring DNS-01 token installed"

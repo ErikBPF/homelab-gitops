@@ -57,6 +57,7 @@ for contract in \
   tests/grafana-alert-status.sh \
   tests/wazuh-contract.sh \
   tests/runtime-secret-bootstrap.sh \
+  tests/cloudflare-token-handoff.sh \
   tests/grafana-admin-rotation.sh \
   tests/airflow-contract.sh \
   tests/cognee-contract.sh \
