@@ -1,9 +1,11 @@
 """Exercise actual Helm payload preparation and preboot refusal controls."""
 
 import copy
+import json
 import pathlib
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 
@@ -11,8 +13,9 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests/replica"))
-from check_payload import check_payload
-from prepare_payload import prepare
+from check_payload import check_payload, check_tls_payload, scrape
+from prepare_payload import check_artifacts, prepare, tls_documents
+from tls_fixture import tls_config
 
 
 class ReplicaPayload(unittest.TestCase):
@@ -47,6 +50,65 @@ class ReplicaPayload(unittest.TestCase):
 
     def test_actual_prepared_chart_is_contained(self):
         check_payload(self.documents, self.config, self.run_id)
+
+    def test_chart_app_version_matches_verified_image_version(self):
+        pins = json.loads((ROOT / "tests/replica/artifacts.json").read_text())
+        with tarfile.open(
+            ROOT / "platform/alloy-metrics/charts/alloy-1.14.3.tgz"
+        ) as archive:
+            chart = yaml.safe_load(archive.extractfile("alloy/Chart.yaml").read())
+        self.assertEqual(chart["appVersion"], pins["image_version"])
+
+    def test_artifact_chain_matches_actual_chart_and_source(self):
+        pins = json.loads((ROOT / "tests/replica/artifacts.json").read_text())
+        check_artifacts(ROOT / "platform/alloy-metrics", pins)
+        changes = {
+            "image_version": "v1.21.20",
+            "image_index_digest": "sha256:" + "0" * 64,
+            "image_manifest_digest": "sha256:" + "0" * 64,
+            "image_config_digest": "sha256:" + "0" * 64,
+            "image_archive_sha256": "0" * 64,
+            "chart_version": "1.13.1",
+            "platform": "linux/arm64",
+        }
+        for name, value in changes.items():
+            with self.subTest(field=name), self.assertRaises(AssertionError):
+                check_artifacts(
+                    ROOT / "platform/alloy-metrics", dict(pins, **{name: value})
+                )
+
+    def test_tls_configs_retain_actual_scrape_blocks(self):
+        for phase in ["secure", "mutation", "restored"]:
+            config = tls_config(self.config, self.run_id, phase)
+            for name in ["cadvisor", "kubelet"]:
+                block = scrape(config, name)
+                if phase == "mutation":
+                    self.assertEqual(block.count("insecure_skip_verify = true"), 1)
+                    block = block.replace("\n    insecure_skip_verify = true", "")
+                self.assertEqual(block, scrape(self.config, name))
+            self.assertNotIn("10.250.0.", config)
+            self.assertNotIn('role = "node"', config)
+        with self.assertRaises(AssertionError):
+            tls_config(self.config, self.run_id, "unknown")
+
+    def test_tls_manifest_boundary(self):
+        for phase in ["secure", "mutation", "restored"]:
+            docs = tls_documents(self.config, self.run_id, phase)
+            check_tls_payload(docs, self.config, self.run_id, phase)
+            changed = copy.deepcopy(docs)
+            changed[0]["data"][
+                "config.alloy"
+            ] += '\nprometheus.scrape "extra" { targets = [] forward_to = [] }\n'
+            with self.assertRaises(AssertionError):
+                check_tls_payload(changed, self.config, self.run_id, phase)
+            changed = copy.deepcopy(docs)
+            changed[1]["spec"]["automountServiceAccountToken"] = True
+            with self.assertRaises(AssertionError):
+                check_tls_payload(changed, self.config, self.run_id, phase)
+            changed = copy.deepcopy(docs)
+            changed[3]["subsets"][0]["addresses"][0]["ip"] = "10.250.0.11"
+            with self.assertRaises(AssertionError):
+                check_tls_payload(changed, self.config, self.run_id, phase)
 
     def test_actual_fresh_run_ids_are_contained(self):
         for run_id in [

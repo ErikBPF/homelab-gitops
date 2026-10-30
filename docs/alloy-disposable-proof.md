@@ -1,50 +1,58 @@
-# Disposable Alloy permission and metrics proof
+# Disposable Alloy permission, metrics and TLS proof
 
-Slice A passed on 2026-10-30 with run ID
-`e8ec8c78-1d41-47e2-8f4f-5068b7a6e377`. A two-node disposable Kubernetes replica ran the pinned Alloy scraper and
-delivered the required fresh series; both guests stopped successfully. Production configuration and image pins were unchanged.
+The aligned image passed both local replica runs on 2026-10-30. The executed
+binary was **Alloy v1.21.2**, revision `a69b1ae`, matching chart 1.14.3's declared
+appVersion. Both two-node guest pairs stopped successfully. The production source
+change is only the image digest; no production deployment or Harbor access was
+performed. Harbor availability remains a prerequisite before landing or deploying
+that pin.
 
-The native test observed four direct API reads—Secret, ConfigMap, pod log and a
-Service in an unrelated namespace—return HTTP 200 with expected synthetic
-contents under the former broad grants. Applying the scoped chart without pruning
-retained that access. Removing the exact former ClusterRole and binding changed
-all four reads to Kubernetes Forbidden HTTP 403. Node reads and Service discovery
-in `traefik` and `argocd` continued to work through the actual ServiceAccount
-identity, including its normal authentication groups.
+A passed in 190.25 seconds with run ID
+`d06e42b5-1046-460b-86bc-55a4e6e7f4f3`. Four real direct reads—Secret,
+ConfigMap, pod log and an unrelated-namespace Service—returned HTTP 200 with known
+synthetic contents under legacy grants. Applying scoped RBAC without pruning kept
+that access. Removing the exact former role and binding changed all four to
+Kubernetes Forbidden 403. Allowed node reads and Service discovery in `traefik`
+and `argocd` continued through the actual ServiceAccount identity.
 
-The isolated receiver observed `container_cpu_usage_seconds_total`,
-`container_memory_working_set_bytes`, `kubelet_node_name` and
-`kubelet_running_pods` from both nodes. Synthetic Traefik and Argo series also
-arrived through their configured discovery routes. The receiver had an empty data
-directory and no independent scrape jobs; its unique cluster label bound the
-samples to this run. Readiness alone cannot pass these assertions.
+A fresh receiver observed cAdvisor CPU/memory and kubelet identity/pod-count
+series from both nodes, plus synthetic Traefik and Argo discovery series. It had
+no previous samples or independent scrape jobs; the unique run label bound the
+samples to this execution.
 
-## Pinned inputs and version distinction
+B passed in 299.06 seconds with run ID
+`b617aa41-2f72-43f8-a629-a93d7134d6f5`. The same image executed both actual
+scrape blocks against six local TLS witnesses. A synthetic token with no
+Kubernetes privilege occupied the existing token path. Trusted, wrong-CA and
+wrong-name certificates exercised each scrape separately.
 
-[The artifact manifest](../tests/replica/artifacts.json) records the full chart,
-image index, Linux/amd64 manifest, configuration and deterministic archive hashes.
-The substrate is the published Desktop revision
-`bdfe7e2ef605a2988873d6a2694498128fe569da`; builds never read another checkout.
+| Phase | Trusted endpoints | Four wrong-certificate endpoints | Fresh endpoint samples |
+|---|---|---|---|
+| Secure, 60.03s | Authenticated HTTP and metrics | TLS attempts and Alloy x509 errors; zero HTTP/authentication | 4 |
+| Insecure mutation, 44.63s | Authenticated HTTP and metrics | Authenticated HTTP and metrics; denial validator failed | 12 |
+| Restored, 68.71s | Authenticated HTTP and metrics | TLS attempts and Alloy x509 errors; zero HTTP/authentication | 4 |
 
-| Input | Verified value |
-|---|---|
-| Helm chart | Alloy 1.14.3, declaring appVersion v1.21.2 |
-| Executed image | Alloy **v1.18.1**, revision `6012ec4`, Linux/amd64 |
-| Runtime repository digest | `docker.io/grafana/alloy@sha256:754409730f1a4ed9781f8a2ea3b6a8c55750ee125a267ecf8fb449f9a25c109a` |
-| OCI archive SHA-256 | `9e20208ef7ba49a1aa9e770251b71da77769fff9129cefdd2fbd73a509e9a241` |
-
-The chart's declared app version is not the observed binary version. This
-version-alignment difference remains a separate compatibility follow-up; the
-fixture retains the configured image. Both nodes must resolve its exact
-repository digest and configuration digest through CRI before any canary starts.
-The running Alloy pod's image identity is checked again.
+These are observed witness snapshots and receiver samples. Each transition
+terminated the prior pod, restarted witnesses and reset counters; distinct phase
+labels and fresh Alloy storage prevented reuse. Administrative readiness used a
+separate listener. Actual target URLs, health, scrape times and certificate errors
+were retained with selected metric labels and values. Readiness, silence,
+`up=0`, timeouts or missing targets cannot establish rejection.
 
 ## Reproduce locally
 
-Use x86_64 Linux with accessible KVM, a local Nix daemon supporting the `kvm` and
-`nixos-test` features, Python 3.11+, Bash, coreutils and `just`. The published
-substrate declares two guests, each with two vCPUs, 2048 MiB RAM and an 8 GiB disk.
-Closure downloads and assembly depend on the local cache.
+[The artifact manifest](../tests/replica/artifacts.json) pins chart, image index,
+Linux/amd64 manifest, configuration, archive and expected binary version. The
+published Desktop substrate is revision
+`bdfe7e2ef605a2988873d6a2694498128fe569da`; builds never read a sibling checkout.
+The selected image manifest is
+`sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7`.
+The deterministic archive SHA-256 is
+`3570ce6b7c660cdf6988f57c4abb7044faef46f52e09f7cd65225a4cd130b4a7`.
+
+Use x86_64 Linux, accessible KVM, a local Nix daemon supporting `kvm` and
+`nixos-test`, Python 3.11+, Bash, coreutils and `just`. Each run uses two guests,
+each with two vCPUs, 2048 MiB RAM and an 8 GiB disk.
 
 ```sh
 image_root=$(mktemp -d -t alloy-replica-image.XXXXXXXX)
@@ -52,36 +60,27 @@ python3 tests/replica/acquire_image.py "$image_root/archive"
 bash tests/replica/run.sh --dry-run "$image_root/archive/alloy-linux-amd64.oci.tar"
 timeout --signal=TERM --kill-after=60s 2700s \
   just test-alloy-replica "$image_root/archive/alloy-linux-amd64.oci.tar"
+timeout --signal=TERM --kill-after=60s 2700s \
+  just test-alloy-tls-replica "$image_root/archive/alloy-linux-amd64.oci.tar"
 ```
 
-Acquisition uses anonymous public requests, validates every pinned blob and
-platform mapping, and creates the exact deterministic archive. Existing output
-directories are rejected. No host registry authentication or Harbor fallback is
-used. The wrapper verifies the archive, copies it into the local Nix store and
-creates a fresh UUID for each invocation.
+Acquisition is anonymous and verifies every pinned blob/platform mapping, with no
+host registry credentials or Harbor fallback. The wrapper clears inherited
+environment, selects only the public Nix cache, disables remote builders and
+bounds local jobs. Guests restrict external networking and expose no forwarded
+ports. Images resolve through CRI on both nodes and use pull policy `Never`.
+Each UUID changes the derivation; final test results cannot be substituted.
+Native runs are bounded at 1800 seconds, outer commands at 2700 seconds and B
+phases at 180 seconds. Success requires both guests to stop.
 
-The wrapper clears the environment and HOME, selects only the public Nix cache,
-disables flake configuration and remote builders, and bounds local jobs/cores.
-Both guests restrict external networking and expose no forwarded ports. Images
-are imported locally and use pull policy `Never`. The final test result cannot be
-substituted from a cache. Native execution has a 1800-second limit; the command
-above adds a 45-minute outer bound. Both shutdowns are attempted on failure, and
-the success marker requires completed assertions and cleanup. The wrapper prints
-the resulting `alloy-replica.json` path.
+## Scope and recovery
 
-## Scope and remaining proof
+`just test` includes fifteen payload, seventeen TLS fixture and eleven API-helper
+tests; it starts no VMs. The [Gherkin contract](../tests/replica/alloy-security.feature)
+remains unautomated; native runners implement its behavior procedurally.
+The earlier R21 v1.18.1 proof remains historical in the predecessor change.
 
-The renderer preserves both actual cAdvisor and kubelet scrape blocks and rejects
-unknown configuration, resources and complete-manifest changes before boot. It
-removes production KSM/etcd targets and substitutes the local receiver and run
-label. Runtime credentials exist only inside the disposable guests.
-
-`nodes/proxy` remains allowed and powerful. Direct API denial does not prove
-that indirect kubelet operations are denied. Synthetic targets do not establish
-production Traefik/Argo compatibility, PVC metrics, KSM or etcd behavior. Slice B's
-same-image wrong-CA and wrong-name matrix remains planned.
-
-`just test` includes eleven payload tests and eleven native TLS API-helper tests;
-it does not start VMs. The [Gherkin contract](../tests/replica/alloy-security.feature)
-remains unautomated: the Nix runner implements A procedurally. Reverting this
-test-only change requires no production rollout.
+`nodes/proxy` remains powerful: direct API denials do not establish denial of
+indirect kubelet operations. Synthetic endpoints do not prove deployed certificate,
+exporter, PVC, KSM or etcd correctness. Reverting this follow-up restores the prior
+source image pin and fixture behavior. Production TLS verification was unchanged.

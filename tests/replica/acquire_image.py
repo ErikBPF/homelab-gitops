@@ -12,10 +12,10 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-INDEX = "sha256:0f4434c92b3e6cdac38bb129b344e1790c246f7b6e2eaffcc16a5fa363240e33"
-MANIFEST = "sha256:754409730f1a4ed9781f8a2ea3b6a8c55750ee125a267ecf8fb449f9a25c109a"
-CONFIG = "sha256:07906cae4d9ee28ea6b30989643967343244ef19f6768ece60feff7b7c429f7f"
-ARCHIVE_SHA256 = "9e20208ef7ba49a1aa9e770251b71da77769fff9129cefdd2fbd73a509e9a241"
+INDEX = "sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18"
+MANIFEST = "sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7"
+CONFIG = "sha256:a987a8dd42a1797dde3cd2badd869b2973f8ecb5868619c50e5f1f183ad94843"
+ARCHIVE_SHA256 = "3570ce6b7c660cdf6988f57c4abb7044faef46f52e09f7cd65225a4cd130b4a7"
 IMAGE_NAME = "docker.io/grafana/alloy:replica-r21"
 ARCHIVE_NAME = "alloy-linux-amd64.oci.tar"
 CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
@@ -106,7 +106,7 @@ def download(root):
     require(manifest["config"]["digest"] == CONFIG, "Wrong config")
     require(len(manifest["layers"]) == 7, "Wrong layer count")
     require(
-        sum(layer["size"] for layer in manifest["layers"]) == 171017645,
+        sum(layer["size"] for layer in manifest["layers"]) == 223615801,
         "Wrong layer size",
     )
     for blob in [manifest["config"], *manifest["layers"]]:

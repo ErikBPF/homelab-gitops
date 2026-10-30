@@ -1,4 +1,8 @@
-{ runId, imageArchive }:
+{
+  runId,
+  imageArchive,
+  tlsProof ? false,
+}:
 let
   pins = builtins.fromJSON (builtins.readFile ./artifacts.json);
   desktop = builtins.getFlake "github:ErikBPF/desktop-nixos/${pins.desktop_revision}";
@@ -11,7 +15,12 @@ let
   };
   chartSource = lib.cleanSourceWith {
     src = ../../platform/alloy-metrics;
-    filter = path: type: builtins.baseNameOf path != "charts";
+    filter =
+      path: type:
+      !(builtins.elem (builtins.baseNameOf path) [
+        "charts"
+        "Chart.lock"
+      ]);
   };
   chartArchive = pkgs.fetchurl {
     url = "https://github.com/grafana/helm-charts/releases/download/alloy-${pins.chart_version}/alloy-${pins.chart_version}.tgz";
@@ -39,7 +48,9 @@ let
   test = desktop.checks.x86_64-linux.k3s-smoke.extend {
     modules = [
       ({ config, lib, ... }: {
-        name = lib.mkForce "homelab-gitops-alloy-replica-r21-${runId}";
+        name = lib.mkForce "homelab-gitops-alloy-replica-${
+          if tlsProof then "tls" else "permissions"
+        }-${runId}";
         globalTimeout = 1800;
         passthru.payload = payload;
         nodes.server = {
@@ -48,6 +59,7 @@ let
           environment.systemPackages = [
             python
             pkgs.prometheus
+            pkgs.openssl
           ];
         };
         nodes.agent = {
@@ -60,7 +72,7 @@ let
           ARCHIVE = "${archive}"
           REPLICA = "${replica}"
           SERVER_IP = "${config.nodes.server.networking.primaryIPAddress}"
-          ${builtins.readFile ./test_script.py}
+          ${builtins.readFile (if tlsProof then ./test_tls_script.py else ./test_script.py)}
         '';
       })
     ];

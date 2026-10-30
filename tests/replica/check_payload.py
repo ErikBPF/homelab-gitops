@@ -8,9 +8,48 @@ import re
 import sys
 
 import yaml
+from tls_fixture import PHASES, tls_config
 
-IMAGE = "docker.io/grafana/alloy@sha256:754409730f1a4ed9781f8a2ea3b6a8c55750ee125a267ecf8fb449f9a25c109a"
+IMAGE = "docker.io/grafana/alloy@sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7"
 SINK = "http://alloy-replica-receiver.monitoring.svc.cluster.local:9090/api/v1/write"
+TLS_MANIFEST_SHA256 = {
+    "secure": "a2b43ac0b18702c928f6c54c7e250780c53b149b3064cfb597e11569a42f3400",
+    "mutation": "4d9b421bb7505d18977c84ecb9820087ce7bb42e015620a22eaafdd4e9d6e5e5",
+    "restored": "3a6e6e106ed283a5737f3c2ba64331f16d99f85651c1dade7b9c9d346eee9c32",
+}
+
+
+def check_tls_payload(documents, source_config, run_id, phase):
+    if phase not in PHASES:
+        raise AssertionError("unknown TLS phase")
+    name = "alloy-tls-" + phase
+    expected = {
+        ("ConfigMap", name),
+        ("Pod", name),
+        ("Service", "alloy-tls-witness"),
+        ("Endpoints", "alloy-tls-witness"),
+    }
+    identities = [(item["kind"], item["metadata"]["name"]) for item in documents]
+    if (
+        len(identities) != 4
+        or set(identities) != expected
+        or any(item["metadata"].get("namespace") != "monitoring" for item in documents)
+    ):
+        raise AssertionError("unreviewed TLS resource")
+    config = next(item for item in documents if item["kind"] == "ConfigMap")["data"][
+        "config.alloy"
+    ]
+    if config != tls_config(source_config, run_id, phase):
+        raise AssertionError(
+            "TLS configuration differs from reviewed source transformation"
+        )
+    normalized = json.dumps(documents, sort_keys=True, separators=(",", ":")).replace(
+        run_id, "REPLICA_RUN_ID"
+    )
+    if hashlib.sha256(normalized.encode()).hexdigest() != TLS_MANIFEST_SHA256.get(
+        phase
+    ):
+        raise AssertionError("complete TLS payload changed")
 
 
 def scrape(config, name):
@@ -157,7 +196,7 @@ def check_payload(documents, source_config, run_id):
     # This reviewed whole-manifest pin also rejects added env, arguments and mounts.
     if (
         hashlib.sha256(normalized.encode()).hexdigest()
-        != "9bca91b7509883ca6aab2076801cab2009cac91d2a25687abd63a142a8f3d1f7"
+        != "591146a9bf70967247e7518e61d95745362d4b17bcd49311bf99ec98d6783151"
     ):
         raise AssertionError("complete rendered payload changed")
 

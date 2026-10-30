@@ -2,12 +2,17 @@
 set -euo pipefail
 
 dry_run=()
+tls_proof=false
+if [[ ${1:-} == --tls ]]; then
+  tls_proof=true
+  shift
+fi
 if [[ ${1:-} == --dry-run ]]; then
   dry_run=(--dry-run)
   shift
 fi
 if [[ $# != 1 || ! -f $1 ]]; then
-  echo 'usage: run.sh [--dry-run] pinned-alloy.oci.tar' >&2
+  echo 'usage: run.sh [--tls] [--dry-run] pinned-alloy.oci.tar' >&2
   exit 2
 fi
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
@@ -30,17 +35,19 @@ case "$stored" in
   *) echo 'unexpected local archive store path' >&2; exit 2 ;;
 esac
 command=(nix build --store daemon --option substituters https://cache.nixos.org --option extra-substituters '' --option accept-flake-config false --option sandbox true --option builders '' --max-jobs 2 --cores 2 --no-link --print-out-paths
-  --file "$root/tests/replica/alloy-security.nix" --argstr runId "$run_id" --arg imageArchive "$stored")
+  --file "$root/tests/replica/alloy-security.nix" --argstr runId "$run_id" --arg imageArchive "$stored" --arg tlsProof "$tls_proof")
 if [[ ${#dry_run[@]} == 1 ]]; then
   "${clean[@]}" "${command[@]}" "${dry_run[@]}"
   exit
 fi
 output=$("${clean[@]}" "${command[@]}")
-python3 - "$output/alloy-replica.json" "$run_id" <<'PY'
+python3 - "$output/alloy-replica.json" "$run_id" "$tls_proof" <<'PY'
 import json, sys
-receipt = json.load(open(sys.argv[1]))
-if receipt.get("run_id") != sys.argv[2] or receipt.get("cleanup") != "both guests stopped":
+with open(sys.argv[1]) as stream:
+    receipt = json.load(stream)
+proof = "tls" if sys.argv[3] == "true" else "permissions"
+if receipt.get("run_id") != sys.argv[2] or receipt.get("cleanup") != "both guests stopped" or receipt.get("proof") != proof:
     raise SystemExit("replica run or cleanup receipt mismatch")
-print("ALLOY_REPLICA_PERMISSIONS_METRICS_OK")
+print("ALLOY_REPLICA_TLS_OK" if proof == "tls" else "ALLOY_REPLICA_PERMISSIONS_METRICS_OK")
 print("receipt=" + sys.argv[1])
 PY

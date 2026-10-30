@@ -2,9 +2,10 @@
   "desktop_revision": "bdfe7e2ef605a2988873d6a2694498128fe569da",
   "chart_version": "1.14.3",
   "chart_sha256": "6f14c2c05f3c1b038c61df8ea4a27c7bcb9f1681ece276394a321c3fe4bb08ba",
-  "image_index_digest": "sha256:0f4434c92b3e6cdac38bb129b344e1790c246f7b6e2eaffcc16a5fa363240e33",
-  "image_manifest_digest": "sha256:754409730f1a4ed9781f8a2ea3b6a8c55750ee125a267ecf8fb449f9a25c109a",
-  "image_config_digest": "sha256:07906cae4d9ee28ea6b30989643967343244ef19f6768ece60feff7b7c429f7f",
-  "image_archive_sha256": "9e20208ef7ba49a1aa9e770251b71da77769fff9129cefdd2fbd73a509e9a241",
-  "platform": "linux/amd64"
+  "image_index_digest": "sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18",
+  "image_manifest_digest": "sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7",
+  "image_config_digest": "sha256:a987a8dd42a1797dde3cd2badd869b2973f8ecb5868619c50e5f1f183ad94843",
+  "image_archive_sha256": "3570ce6b7c660cdf6988f57c4abb7044faef46f52e09f7cd65225a4cd130b4a7",
+  "platform": "linux/amd64",
+  "image_version": "v1.21.2"
 }
