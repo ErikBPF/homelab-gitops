@@ -3,5 +3,5 @@ name: langfuse-wrapper
 version: 1.0.0
 dependencies:
   - name: langfuse
-    version: 2.1.6
+    version: 2.1.7
     repository: https://langfuse.github.io/langfuse-k8s
