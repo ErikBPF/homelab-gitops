@@ -40,6 +40,18 @@ now = datetime(2026, 11, 2, tzinfo=timezone.utc)
 OWN_BUILD = "harbor.homelab.pastelariadev.com/library/airflow-dataplatform@sha256:" + "c" * 64
 assert policy.age_check(OWN_BUILD, "apps/homelab/airflow:x", now) == []
 
+DIFF = "\n".join(
+    [
+        "--- a/x",
+        "+++ b/x",
+        " sha256:" + "d" * 64,
+        "-sha256:" + "e" * 64,
+        "+sha256:" + "f" * 64,
+    ]
+)
+assert policy.parse_added_digests(DIFF) == {"sha256:" + "f" * 64}
+assert policy.parse_added_digests("+++ b/x\n sha256:" + "d" * 64) == set()
+
 assert policy.parse_created("2026-10-28T20:06:48.659631472Z") == datetime(
     2026, 10, 28, 20, 6, 48, 659631, tzinfo=timezone.utc
 )

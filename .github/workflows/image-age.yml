@@ -4,9 +4,10 @@ name: image-age
 # publish a release timestamp for tags, so the OCI config `created` field is
 # the only verifiable age signal.
 #
-# Make this check required on main. A red check does not re-run by itself, so
-# the scheduled job reruns failed runs for open pull requests; three days later
-# they turn green without a new commit.
+# Make this check required on main. The scheduled job reruns failed runs for
+# open pull requests: an age hold turns green once the image is old enough.
+# A drift failure (tag no longer resolves to the pinned digest) never clears on
+# its own and must be fixed in the diff.
 
 on:
   pull_request:

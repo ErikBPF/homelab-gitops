@@ -8,9 +8,11 @@ placeholder (all-zero) digest. With --base it checks only the components the
 diff touches, so existing refs do not block an unrelated change.
 
 Age mode (--age --base REV) renders only the components touched by the diff
-against REV and rejects images younger than three days, measured from the OCI
-config `created` field. Docker registries publish no release timestamp, so
-this is the only place the hold can be checked.
+against REV, and only checks refs whose digest the diff adds, so pre-existing
+stale pins do not block unrelated changes. It rejects images younger than
+three days, measured from the OCI config `created` field, and a tag that no
+longer resolves to the digest it names. Docker registries publish no release
+timestamp, so this is the only place the hold can be checked.
 
 Rendering is required because this repository spreads a pin across
 `repository`, `tag` and `digest`/`sha` keys with values inherited from the
@@ -28,6 +30,8 @@ import json
 import re
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -226,6 +230,27 @@ def policy_violations(base):
     return violations
 
 
+def changed_digests(base):
+    """Digests introduced by the diff, so untouched stale pins are not checked."""
+    merge_base = subprocess.run(
+        ["git", "merge-base", base, "HEAD"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    diff = subprocess.run(
+        ["git", "diff", "--unified=0", merge_base],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    ).stdout
+    return parse_added_digests(diff)
+
+
+def parse_added_digests(diff_text):
+    found = set()
+    for line in diff_text.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            found.update(re.findall(r"sha256:[0-9a-f]{64}", line))
+    return found
+
+
 def changed_files(base):
     merge_base = subprocess.run(
         ["git", "merge-base", base, "HEAD"],
@@ -238,12 +263,24 @@ def changed_files(base):
     return [name for name in raw.splitlines() if name]
 
 
-def _open(url, headers=None):
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "image-policy/1", **(headers or {})}
-    )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return response.read()
+def _open(url, headers=None, attempts=3):
+    last = None
+    for attempt in range(attempts):
+        try:
+            request = urllib.request.Request(
+                url, headers={"User-Agent": "image-policy/1", **(headers or {})}
+            )
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if error.code not in (408, 425, 429) and not 500 <= error.code < 600:
+                raise
+            last = error
+        except (urllib.error.URLError, TimeoutError) as error:
+            last = error
+        if attempt + 1 < attempts:
+            time.sleep(2 ** attempt)
+    raise last
 
 
 def _token(host, path):
@@ -313,15 +350,20 @@ def parse_created(value):
 
 def age_violations(base):
     now = datetime.now(timezone.utc)
+    digests = changed_digests(base)
     rendered, plain = touched_units(base)
     violations = []
     for unit in rendered:
         for ref in unit.refs():
+            if split_ref(ref)[2] not in digests:
+                continue
             violations.extend(age_check(ref, f"{unit.path}: {ref}", now))
     for name in plain:
         text = (ROOT / name).read_text(encoding="utf-8")
         for document in yaml.safe_load_all(text) if yaml else []:
             for ref in image_refs(document):
+                if split_ref(ref)[2] not in digests:
+                    continue
                 violations.extend(age_check(ref, f"{name}: {ref}", now))
     return violations
 
