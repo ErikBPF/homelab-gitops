@@ -375,22 +375,24 @@ def parse_created(value):
     return datetime.fromisoformat(text)
 
 
+def new_refs(head, before):
+    """Refs whose rendered value changed; None means the base did not render."""
+    if before is None:
+        return list(head)
+    return [ref for ref in head if ref not in before]
+
+
 def age_violations(base):
     now = datetime.now(timezone.utc)
     rendered, plain = touched_units(base)
     previous = base_refs(base, [unit.path for unit in rendered], plain)
     violations = []
     for unit in rendered:
-        before = previous.get(unit.path)
-        for ref in unit.refs():
-            if before is not None and ref in before:
-                continue
+        for ref in new_refs(unit.refs(), previous.get(unit.path)):
             violations.extend(age_check(ref, f"{unit.path}: {ref}", now))
     for name in plain:
-        before = previous.get(name, set())
-        for ref in refs_in_text((ROOT / name).read_text(encoding="utf-8")):
-            if ref in before:
-                continue
+        head = refs_in_text((ROOT / name).read_text(encoding="utf-8"))
+        for ref in new_refs(head, previous.get(name, set())):
             violations.extend(age_check(ref, f"{name}: {ref}", now))
     return violations
 

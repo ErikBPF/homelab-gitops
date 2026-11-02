@@ -52,6 +52,11 @@ assert policy.registry("harbor.homelab.pastelariadev.com/library/cognee-homelab"
 )
 assert policy.registry("harbor.homelab.pastelariadev.com/unknown/thing") == (None, None)
 
+# Ratchet: only refs whose rendered value moved are held.
+assert policy.new_refs(["a:1@sha256:x"], {"a:1@sha256:x"}) == []
+assert policy.new_refs(["a:2@sha256:y"], {"a:1@sha256:x"}) == ["a:2@sha256:y"]
+assert policy.new_refs(["a:1@sha256:x"], None) == ["a:1@sha256:x"]
+
 assert policy.parse_created("2026-10-28T20:06:48.659631472Z") == datetime(
     2026, 10, 28, 20, 6, 48, 659631, tzinfo=timezone.utc
 )
