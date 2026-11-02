@@ -15,7 +15,7 @@ import yaml
 from check_payload import IMAGE, SINK, check_payload, check_tls_payload
 from tls_fixture import CASES, PHASES, SCRAPES, target_port, tls_config
 
-SOURCE_SHA256 = "995ee316a76f4c34b01c659aa356cf8029fd159579a529f219416274c30dddcc"
+SOURCE_SHA256 = "3501bf7b81c5cdb3838876bb960edba324c7bc689063985cb16534f4d7348301"
 
 
 def check_artifacts(chart, pins):
@@ -23,10 +23,12 @@ def check_artifacts(chart, pins):
     wrapper = yaml.safe_load((chart / "Chart.yaml").read_text())
     with tarfile.open(chart / "charts/alloy-1.14.3.tgz") as archive:
         metadata = yaml.safe_load(archive.extractfile("alloy/Chart.yaml").read())
+    image = values["alloy"]["image"]
+    configured_digest = image.get("digest") or image["tag"].split("@", 1)[1]
     expected = {
         "chart_version": wrapper["dependencies"][0]["version"],
         "image_version": metadata["appVersion"],
-        "image_index_digest": values["alloy"]["image"]["digest"],
+        "image_index_digest": configured_digest,
         "image_manifest_digest": IMAGE.split("@", 1)[1],
         "platform": "linux/amd64",
     }
