@@ -1,6 +1,6 @@
 # Synthetic trace producer so the OTel→Jaeger pipeline isn't inert (grill §8):
 # emits OTLP spans → otel-collector → Jaeger. Lab demo; swap for a real
-# instrumented app later. image: latest (demo) — pin via Renovate if kept.
+# instrumented app later. image: telemetrygen v0.164.1, digest-pinned.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
