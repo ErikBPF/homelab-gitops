@@ -8,7 +8,8 @@ application=clusters/kepler/apps/airflow.yaml
 capture=scripts/capture-airflow-runtime-to-vault.sh
 
 grep -Fq 'version: 1.22.0' "$chart"
-grep -Fq 'tag: pr-180-27d225a@sha256:179ffa3e6978e1bcc060f7baf163105cd8283ad6966568629f69f24ce9b79b9f' "$values"
+helm template airflow apps/homelab/airflow --namespace airflow |
+  grep -Fq 'image: "harbor.homelab.pastelariadev.com/library/airflow-dataplatform:pr-180-27d225a@sha256:179ffa3e6978e1bcc060f7baf163105cd8283ad6966568629f69f24ce9b79b9f"' 
 grep -Fq 'name: airflow-harbor' "$values"
 grep -Fq 'metadataSecretName: airflow-metadata' "$values"
 grep -Fq 'fernetKeySecretName: airflow-fernet-key' "$values"
