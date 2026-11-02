@@ -267,7 +267,7 @@ spec:
       containers:
         - name: cognee
           # Built and published by cognee-homelab; GitOps only selects the release tag.
-          image: harbor.homelab.pastelariadev.com/library/cognee-homelab@sha256:bf0a0eb4090f7fe9220105576ddcb6c9ae752c1171a2b31ddce833a206c9963a
+          image: harbor.homelab.pastelariadev.com/library/cognee-homelab:operational-20260914-3486862@sha256:bf0a0eb4090f7fe9220105576ddcb6c9ae752c1171a2b31ddce833a206c9963a
           envFrom:
             - configMapRef: { name: cognee }
             - secretRef: { name: cognee-runtime }
@@ -543,7 +543,7 @@ spec:
             seccompProfile: { type: RuntimeDefault }
           containers:
             - name: backup
-              image: harbor.homelab.pastelariadev.com/dockerhub/bitnami/kubectl:latest@sha256:65447dcbb2813878e22265949a4ba4cca02f8d008ff3fe66a25354b511f28015
+              image: harbor.homelab.pastelariadev.com/k8s/kubectl:v1.36.4@sha256:b8d523e7b8cdc5e3caa0f8891ee9f504abf137dec786e6e0ddd33e4f272c2f13
               command: [/bin/bash, /scripts/backup.sh]
               env:
                 - { name: COGNEE_BACKUP_RETENTION_DAYS, value: "14" }

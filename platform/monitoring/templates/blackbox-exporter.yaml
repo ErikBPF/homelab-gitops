@@ -36,7 +36,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: blackbox-exporter
-          image: harbor.homelab.pastelariadev.com/quay/prometheus/blackbox-exporter@sha256:43027b43fb785b7c5adc53bd3b5dbc1a258270a2e8aff24f477b45c4e38dac68
+          image: harbor.homelab.pastelariadev.com/quay/prometheus/blackbox-exporter:v0.29.1@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
           args: ["--config.file=/etc/blackbox/blackbox.yml"]
           ports:
             - {name: http, containerPort: 9115}
