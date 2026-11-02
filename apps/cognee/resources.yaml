@@ -543,7 +543,7 @@ spec:
             seccompProfile: { type: RuntimeDefault }
           containers:
             - name: backup
-              image: harbor.homelab.pastelariadev.com/k8s/kubectl:v1.36.4@sha256:b8d523e7b8cdc5e3caa0f8891ee9f504abf137dec786e6e0ddd33e4f272c2f13
+              image: harbor.homelab.pastelariadev.com/dockerhub/alpine/k8s:1.36.4@sha256:358ddfc2d6ff3f00dd461dbd79aaa6d6738709f225b8da0945bb63bd4dbc304e
               command: [/bin/bash, /scripts/backup.sh]
               env:
                 - { name: COGNEE_BACKUP_RETENTION_DAYS, value: "14" }
