@@ -7,7 +7,7 @@ loki:
     auth_enabled: false
     image:
       registry: harbor.homelab.pastelariadev.com/dockerhub
-      digest: sha256:cd6e176883a90c21755f0315688668991634143423f75bdedfef41441b0fdc3c
+      tag: 3.6.3@sha256:cd6e176883a90c21755f0315688668991634143423f75bdedfef41441b0fdc3c
     commonConfig: {replication_factor: 1}
     schemaConfig:
       configs:
@@ -43,7 +43,7 @@ loki:
   sidecar:
     image:
       registry: harbor.homelab.pastelariadev.com/dockerhub
-      sha: 8c06e1ba643a4625de14b2db65c356f5db6b1482a25fce4754380a2936207338
+      tag: 1.30.9@sha256:8c06e1ba643a4625de14b2db65c356f5db6b1482a25fce4754380a2936207338
     resources:
       requests: {cpu: 10m, memory: 32Mi}
       limits: {cpu: 100m, memory: 128Mi}
@@ -51,7 +51,7 @@ loki:
     enabled: true
     image:
       registry: harbor.homelab.pastelariadev.com/dockerhub
-      digest: sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
+      tag: 1.29.8-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
     resources:
       requests: {cpu: 20m, memory: 32Mi}
       limits: {cpu: 200m, memory: 128Mi}
