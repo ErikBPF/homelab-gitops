@@ -15,9 +15,11 @@ this is the only place the hold can be checked.
 Rendering is required because this repository spreads a pin across
 `repository`, `tag` and `digest`/`sha` keys with values inherited from the
 chart, so the source text does not describe the effective image. Helm
-dependencies must already be built (`scripts/validate.sh` does that).
+dependencies must already be built (rendering builds them on demand).
 `harbor.homelab.pastelariadev.com/library/*` images are built here, so age mode
-skips them.
+skips them. Components listed in `DIGEST_ONLY_COMPONENTS` render a digest-only
+ref from a chart that ignores the pinned tag; they are exempt from the tag
+requirement until that chart carries the tag.
 """
 
 import argparse
@@ -52,6 +54,19 @@ PLACEHOLDER_FILES = {
     "apps/homelab/aster/deployment-server.yaml",
 }
 MIN_AGE = timedelta(days=3)
+# Components whose vendored chart renders `repository@digest` even when the
+# values pin a tag, so the effective ref cannot carry one. Shrinks as those
+# charts gain tag support; drop entries when the rendered ref has a tag.
+DIGEST_ONLY_COMPONENTS = {
+    "apps/homelab/airflow",
+    "platform/alloy-metrics",
+    "platform/cert-manager",
+    "platform/clickhouse-operator",
+    "platform/jaeger",
+    "platform/loki",
+    "platform/otel-collector",
+    "platform/traefik",
+}
 ACCEPT = (
     "application/vnd.oci.image.index.v1+json,"
     "application/vnd.oci.image.manifest.v1+json,"
@@ -155,7 +170,7 @@ def split_ref(ref):
     return name, tag, digest
 
 
-def check(ref, where):
+def check(ref, where, allow_missing_tag=False):
     repo, tag, digest = split_ref(ref)
     if digest is None:
         return [f"{where}: missing @sha256 digest"]
@@ -163,7 +178,8 @@ def check(ref, where):
         return [f"{where}: digest is not sha256:<64 lowercase hex>"]
     problems = []
     if tag is None:
-        problems.append(f"{where}: missing tag")
+        if not allow_missing_tag:
+            problems.append(f"{where}: missing tag")
     elif tag.lower() in ROLLING_TAGS:
         problems.append(f"{where}: rolling tag {tag!r}")
     if digest == ZERO_DIGEST and where.split(":", 1)[0] not in PLACEHOLDER_FILES:
@@ -185,8 +201,9 @@ def policy_violations(base):
     violations = []
     rendered, plain = (touched_units(base) if base else units())
     for unit in rendered:
+        allow = unit.path in DIGEST_ONLY_COMPONENTS
         for ref in unit.refs():
-            violations.extend(check(ref, f"{unit.path}: {ref}"))
+            violations.extend(check(ref, f"{unit.path}: {ref}", allow_missing_tag=allow))
     for name in plain:
         text = (ROOT / name).read_text(encoding="utf-8")
         documents = []
@@ -310,7 +327,10 @@ def age_violations(base):
 
 
 def age_check(ref, where, now):
-    _, _, digest = split_ref(ref)
+    name, _, digest = split_ref(ref)
+    if registry(name)[0] is None:
+        # Built and published here (Harbor-managed project); no upstream tag to age.
+        return []
     if not DIGEST_RE.match(digest or ""):
         return [f"{where}: not a pinned ref, age unverifiable"]
     try:
