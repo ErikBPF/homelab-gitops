@@ -19,7 +19,9 @@ Rendering is required because this repository spreads a pin across
 chart, so the source text does not describe the effective image. Helm
 dependencies must already be built (rendering builds them on demand).
 `harbor.homelab.pastelariadev.com/library/*` images are built here, so age mode
-skips them.
+skips them. `platform/alloy-metrics` stays digest-only because its chart
+derives an illegal `app.kubernetes.io/version` label from a tag that carries a
+digest.
 """
 
 import argparse
@@ -59,6 +61,13 @@ PLACEHOLDER_FILES = {
     "apps/homelab/aster/deployment-server.yaml",
 }
 MIN_AGE = timedelta(days=3)
+# Charts that render `repository@digest` even when the values pin a tag, or
+# derive an illegal label from a tag that carries the digest. Shrinks as the
+# upstream templates gain tag support; drop entries when the rendered ref
+# carries a tag.
+DIGEST_ONLY_COMPONENTS = {
+    "platform/alloy-metrics",
+}
 ACCEPT = (
     "application/vnd.oci.image.index.v1+json,"
     "application/vnd.oci.image.manifest.v1+json,"
@@ -171,7 +180,7 @@ def is_rolling(tag):
     )
 
 
-def check(ref, where):
+def check(ref, where, allow_missing_tag=False):
     repo, tag, digest = split_ref(ref)
     if digest is None:
         return [f"{where}: missing @sha256 digest"]
@@ -179,7 +188,8 @@ def check(ref, where):
         return [f"{where}: digest is not sha256:<64 lowercase hex>"]
     problems = []
     if tag is None:
-        problems.append(f"{where}: missing tag")
+        if not allow_missing_tag:
+            problems.append(f"{where}: missing tag")
     elif is_rolling(tag):
         problems.append(f"{where}: rolling tag {tag!r}")
     if digest == ZERO_DIGEST and where.split(":", 1)[0] not in PLACEHOLDER_FILES:
@@ -201,8 +211,9 @@ def policy_violations(base):
     violations = []
     rendered, plain = (touched_units(base) if base else units())
     for unit in rendered:
+        allow = unit.path in DIGEST_ONLY_COMPONENTS
         for ref in unit.refs():
-            violations.extend(check(ref, f"{unit.path}: {ref}"))
+            violations.extend(check(ref, f"{unit.path}: {ref}", allow_missing_tag=allow))
     for name in plain:
         for ref in refs_in_text((ROOT / name).read_text(encoding="utf-8")):
             violations.extend(check(ref, f"{name}: {ref}"))

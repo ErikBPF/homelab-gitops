@@ -15,7 +15,7 @@ import yaml
 from check_payload import IMAGE, SINK, check_payload, check_tls_payload
 from tls_fixture import CASES, PHASES, SCRAPES, target_port, tls_config
 
-SOURCE_SHA256 = "3501bf7b81c5cdb3838876bb960edba324c7bc689063985cb16534f4d7348301"
+SOURCE_SHA256 = "995ee316a76f4c34b01c659aa356cf8029fd159579a529f219416274c30dddcc"
 
 
 def check_artifacts(chart, pins):

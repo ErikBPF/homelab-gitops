@@ -46,7 +46,7 @@ airflow:
         - name: airflow-harbor
       containers:
         - name: base
-          image: "{{ .Values.images.airflow.repository }}@{{ .Values.images.airflow.digest }}"
+          image: "{{ .Values.images.airflow.repository }}:{{ .Values.images.airflow.tag }}"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
