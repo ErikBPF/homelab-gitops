@@ -36,17 +36,22 @@ now = datetime(2026, 11, 2, tzinfo=timezone.utc)
 OWN_BUILD = "harbor.homelab.pastelariadev.com/library/airflow-dataplatform@sha256:" + "c" * 64
 assert policy.age_check(OWN_BUILD, "apps/homelab/airflow:x", now) == []
 
-DIFF = "\n".join(
-    [
-        "--- a/x",
-        "+++ b/x",
-        " sha256:" + "d" * 64,
-        "-sha256:" + "e" * 64,
-        "+sha256:" + "f" * 64,
-    ]
+assert policy.is_rolling("latest")
+assert policy.is_rolling("master-web")
+assert policy.is_rolling("release")
+assert not policy.is_rolling("v3.7.16")
+assert not policy.is_rolling("1.29.8-alpine")
+
+assert policy.registry("harbor.homelab.pastelariadev.com/library/cognee-homelab") == (
+    "local",
+    None,
 )
-assert policy.parse_added_digests(DIFF) == {"sha256:" + "f" * 64}
-assert policy.parse_added_digests("+++ b/x\n sha256:" + "d" * 64) == set()
+assert policy.registry("harbor.homelab.pastelariadev.com/unknown/thing") == (None, None)
+
+# Ratchet: only refs whose rendered value moved are held.
+assert policy.new_refs(["a:1@sha256:x"], {"a:1@sha256:x"}) == []
+assert policy.new_refs(["a:2@sha256:y"], {"a:1@sha256:x"}) == ["a:2@sha256:y"]
+assert policy.new_refs(["a:1@sha256:x"], None) == ["a:1@sha256:x"]
 
 assert policy.parse_created("2026-10-28T20:06:48.659631472Z") == datetime(
     2026, 10, 28, 20, 6, 48, 659631, tzinfo=timezone.utc
@@ -60,10 +65,13 @@ assert policy.registry("harbor.homelab.pastelariadev.com/dockerhub/library/postg
     "registry-1.docker.io",
     "library/postgres",
 )
-assert policy.registry("harbor.homelab.pastelariadev.com/library/cognee-homelab") == (None, None)
 assert policy.registry("ghcr.io/berriai/litellm-database") == (
     "ghcr.io",
     "berriai/litellm-database",
 )
+assert policy.registry("busybox") == ("registry-1.docker.io", "library/busybox")
+assert policy.registry(
+    "harbor.homelab.pastelariadev.com/langfuse/langfuse/langfuse"
+) == ("registry-1.docker.io", "langfuse/langfuse")
 
 print("image policy helpers OK")
