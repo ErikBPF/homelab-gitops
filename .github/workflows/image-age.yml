@@ -1,0 +1,67 @@
+name: image-age
+
+# Holds image bumps until the image itself is three days old. Registries do not
+# publish a release timestamp for tags, so the OCI config `created` field is
+# the only verifiable age signal.
+#
+# Make this check required on main. A red check does not re-run by itself, so
+# the scheduled job reruns failed runs for open pull requests; three days later
+# they turn green without a new commit.
+
+on:
+  pull_request:
+  schedule:
+    - cron: "20 7 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+  pull-requests: read
+
+concurrency:
+  group: image-age-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  age:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
+
+      - name: Install manifest-test dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3
+
+      - name: Check image age
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/check-image-policy.py --age --base "$BASE_SHA"
+
+  refresh:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Rerun held age checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr list --state open --limit 50 --json number,headRefOid \
+            --jq '.[] | "\(.number) \(.headRefOid)"' |
+          while read -r number sha; do
+            for run in $(gh run list --workflow image-age.yml --commit "$sha" --limit 20 \
+                --json databaseId,conclusion \
+                --jq '.[] | select(.conclusion == "failure") | .databaseId'); do
+              if gh run rerun "$run" --failed >/dev/null; then
+                echo "reran $run for #$number"
+              fi
+            done
+          done
