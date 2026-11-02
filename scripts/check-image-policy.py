@@ -19,9 +19,9 @@ Rendering is required because this repository spreads a pin across
 chart, so the source text does not describe the effective image. Helm
 dependencies must already be built (rendering builds them on demand).
 `harbor.homelab.pastelariadev.com/library/*` images are built here, so age mode
-skips them. Components listed in `DIGEST_ONLY_COMPONENTS` render a digest-only
-ref from a chart that ignores the pinned tag; they are exempt from the tag
-requirement until that chart carries the tag.
+skips them. `platform/alloy-metrics` stays digest-only because its chart
+derives an illegal `app.kubernetes.io/version` label from a tag that carries a
+digest.
 """
 
 import argparse
@@ -61,18 +61,12 @@ PLACEHOLDER_FILES = {
     "apps/homelab/aster/deployment-server.yaml",
 }
 MIN_AGE = timedelta(days=3)
-# Components whose vendored chart renders `repository@digest` even when the
-# values pin a tag, so the effective ref cannot carry one. Shrinks as those
-# charts gain tag support; drop entries when the rendered ref has a tag.
+# Charts that render `repository@digest` even when the values pin a tag, or
+# derive an illegal label from a tag that carries the digest. Shrinks as the
+# upstream templates gain tag support; drop entries when the rendered ref
+# carries a tag.
 DIGEST_ONLY_COMPONENTS = {
-    "apps/homelab/airflow",
     "platform/alloy-metrics",
-    "platform/cert-manager",
-    "platform/clickhouse-operator",
-    "platform/jaeger",
-    "platform/loki",
-    "platform/otel-collector",
-    "platform/traefik",
 }
 ACCEPT = (
     "application/vnd.oci.image.index.v1+json,"

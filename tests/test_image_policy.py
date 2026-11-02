@@ -32,10 +32,6 @@ assert_bad("ghcr.io/example/app:latest@sha256:" + "a" * 64, "rolling tag")
 assert_bad(ZERO, "placeholder digest")
 assert_ok(ZERO, where="apps/homelab/aster/deployment-server.yaml")
 
-DIGEST_ONLY = "harbor.homelab.pastelariadev.com/dockerhub/library/traefik@sha256:" + "b" * 64
-assert_bad(DIGEST_ONLY, "missing tag")
-assert policy.check(DIGEST_ONLY, where="platform/traefik:x", allow_missing_tag=True) == []
-
 now = datetime(2026, 11, 2, tzinfo=timezone.utc)
 OWN_BUILD = "harbor.homelab.pastelariadev.com/library/airflow-dataplatform@sha256:" + "c" * 64
 assert policy.age_check(OWN_BUILD, "apps/homelab/airflow:x", now) == []
@@ -51,6 +47,10 @@ assert policy.registry("harbor.homelab.pastelariadev.com/library/cognee-homelab"
     None,
 )
 assert policy.registry("harbor.homelab.pastelariadev.com/unknown/thing") == (None, None)
+
+DIGEST_ONLY = "harbor.homelab.pastelariadev.com/dockerhub/grafana/alloy@sha256:" + "b" * 64
+assert_bad(DIGEST_ONLY, "missing tag")
+assert policy.check(DIGEST_ONLY, where="platform/alloy-metrics:x", allow_missing_tag=True) == []
 
 # Ratchet: only refs whose rendered value moved are held.
 assert policy.new_refs(["a:1@sha256:x"], {"a:1@sha256:x"}) == []

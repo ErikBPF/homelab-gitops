@@ -5,8 +5,7 @@ airflow:
   images:
     airflow:
       repository: harbor.homelab.pastelariadev.com/library/airflow-dataplatform
-      tag: pr-180-27d225a
-      digest: sha256:179ffa3e6978e1bcc060f7baf163105cd8283ad6966568629f69f24ce9b79b9f
+      tag: pr-180-27d225a@sha256:179ffa3e6978e1bcc060f7baf163105cd8283ad6966568629f69f24ce9b79b9f
       pullPolicy: IfNotPresent
   imagePullSecrets:
     - name: airflow-harbor
@@ -47,7 +46,7 @@ airflow:
         - name: airflow-harbor
       containers:
         - name: base
-          image: "{{ .Values.images.airflow.repository }}@{{ .Values.images.airflow.digest }}"
+          image: "{{ .Values.images.airflow.repository }}:{{ .Values.images.airflow.tag }}"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
