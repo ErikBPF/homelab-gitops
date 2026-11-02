@@ -26,6 +26,12 @@ mapfile -t manifests < <(
 )
 kubeconform -strict -summary -ignore-missing-schemas "${manifests[@]}"
 
+if [ -n "${BASE_SHA:-}" ]; then
+  python3 scripts/check-image-policy.py --base "$BASE_SHA"
+else
+  echo "image ref policy: skipped (BASE_SHA unset)"
+fi
+
 for contract in \
   tests/security-notification.py \
   tests/apollo-launch.py \
@@ -36,6 +42,7 @@ for contract in \
   tests/test_image_advisory.py \
   tests/test_image_archive_advisory.py \
   tests/test_image_debian_advisory.py \
+  tests/test_image_policy.py \
   tests/chart-image-parity.py \
   tests/path-boundary-contract.sh \
   tests/resource-contract.sh \
