@@ -83,6 +83,7 @@ HARBOR_HOSTS = {
     "quay": "quay.io",
     "k8s": "registry.k8s.io",
     "lscr": "lscr.io",
+    "langfuse": "docker.io",
 }
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -246,8 +247,13 @@ def changed_digests(base):
 def parse_added_digests(diff_text):
     found = set()
     for line in diff_text.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
-            found.update(re.findall(r"sha256:[0-9a-f]{64}", line))
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        found.update(re.findall(r"sha256:[0-9a-f]{64}", line))
+        # Charts accept a bare `sha:` value and prepend `@sha256:` at render
+        # time, so a re-pin written that way carries no prefixed digest.
+        if re.search(r"\b(?:sha|digest|tag):", line):
+            found.update("sha256:" + value for value in re.findall(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])", line))
     return found
 
 
@@ -312,7 +318,9 @@ def registry(name):
     first, _, path = name.partition("/")
     if "." in first or ":" in first or first == "localhost":
         return ("registry-1.docker.io" if first == "docker.io" else first), path
-    return "registry-1.docker.io", f"library/{path}" if "/" not in name else name
+    if not path:
+        return "registry-1.docker.io", f"library/{name}"
+    return "registry-1.docker.io", name
 
 
 def image_created(ref):

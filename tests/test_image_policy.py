@@ -51,6 +51,9 @@ DIFF = "\n".join(
 )
 assert policy.parse_added_digests(DIFF) == {"sha256:" + "f" * 64}
 assert policy.parse_added_digests("+++ b/x\n sha256:" + "d" * 64) == set()
+assert policy.parse_added_digests("+      sha: " + "a" * 64) == {"sha256:" + "a" * 64}
+assert policy.parse_added_digests("+  digest: " + "b" * 64) == {"sha256:" + "b" * 64}
+assert policy.parse_added_digests("+ arbitrary " + "c" * 64) == set()
 
 assert policy.parse_created("2026-10-28T20:06:48.659631472Z") == datetime(
     2026, 10, 28, 20, 6, 48, 659631, tzinfo=timezone.utc
@@ -69,5 +72,9 @@ assert policy.registry("ghcr.io/berriai/litellm-database") == (
     "ghcr.io",
     "berriai/litellm-database",
 )
+assert policy.registry("busybox") == ("registry-1.docker.io", "library/busybox")
+assert policy.registry(
+    "harbor.homelab.pastelariadev.com/langfuse/langfuse/langfuse"
+) == ("registry-1.docker.io", "langfuse/langfuse")
 
 print("image policy helpers OK")
