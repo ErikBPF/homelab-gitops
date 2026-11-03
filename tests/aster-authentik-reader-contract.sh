@@ -3,14 +3,18 @@ set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 stores=$root/platform/external-secrets/templates/clustersecretstore-vault.yaml
+staged=$root/apps/homelab/aster/authentik-reader-clustersecretstore.yaml
 secret=$root/apps/homelab/aster/authentik-reader-externalsecret.yaml
 deployment=$root/apps/homelab/aster/deployment-server.yaml
 
 test -f "$secret"
-test "$(yq -rN 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.provider.vault.server' "$stores" | sed '/^$/d')" = "$(yq -rN 'select(.metadata.name == "vault-platform") | .spec.provider.vault.server' "$stores" | sed '/^$/d')"
-test "$(yq -o=json -I=0 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.conditions' "$stores" | sed '/^$/d')" = '[{"namespaceRegexes":["^aster$"]}]'
-test "$(yq -rN 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.provider.vault.auth.appRole.roleRef | [.name,.key,.namespace] | join(",")' "$stores" | sed '/^$/d')" = 'vault-approle-aster-authentik-reader,role_id,external-secrets'
-test "$(yq -rN 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.provider.vault.auth.appRole.secretRef | [.name,.key,.namespace] | join(",")' "$stores" | sed '/^$/d')" = 'vault-approle-aster-authentik-reader,secret_id,external-secrets'
+test -f "$staged"
+# The unseeded store stays out of the deployed chart until the AppRole Secret exists.
+! grep -Fq 'vault-aster-authentik-reader' "$stores"
+test "$(yq -rN 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.provider.vault.server' "$staged" | sed '/^$/d')" = "$(yq -rN 'select(.metadata.name == "vault-platform") | .spec.provider.vault.server' "$stores" | sed '/^$/d')"
+test "$(yq -o=json -I=0 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.conditions' "$staged" | sed '/^$/d')" = '[{"namespaceRegexes":["^aster$"]}]'
+test "$(yq -rN 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.provider.vault.auth.appRole.roleRef | [.name,.key,.namespace] | join(",")' "$staged" | sed '/^$/d')" = 'vault-approle-aster-authentik-reader,role_id,external-secrets'
+test "$(yq -rN 'select(.metadata.name == "vault-aster-authentik-reader") | .spec.provider.vault.auth.appRole.secretRef | [.name,.key,.namespace] | join(",")' "$staged" | sed '/^$/d')" = 'vault-approle-aster-authentik-reader,secret_id,external-secrets'
 test "$(yq -r '.metadata.namespace + "," + .spec.secretStoreRef.name + "," + .spec.target.name' "$secret")" = 'aster,vault-aster-authentik-reader,aster-authentik-reader-secret'
 test "$(yq -r '.spec.data[0] | .secretKey + "," + .remoteRef.key + "," + .remoteRef.property' "$secret")" = 'authentik_read_token,platform/aster/authentik-reader,authentik_read_token'
 test "$(yq -r '.spec.data | length' "$secret")" = 1
