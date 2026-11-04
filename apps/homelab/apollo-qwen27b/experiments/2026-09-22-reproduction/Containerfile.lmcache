@@ -1,4 +1,4 @@
-FROM docker.io/vllm/vllm-openai@sha256:5f5e535216848d0c52159c8c13a0af04be5f6fe1a84e79914300610796f76d40
+FROM docker.io/vllm/vllm-openai@sha256:91ee972ab751fb7180bc71c175865e36b091686600dca783d52b2511399810b3
 
 # LMCache PR 4731: vLLM 0.30 packs attention K/V into rank-4 kernel pages.
 COPY lmcache-packed-kv.patch /tmp/lmcache-packed-kv.patch
