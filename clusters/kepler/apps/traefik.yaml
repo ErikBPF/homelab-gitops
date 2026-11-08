@@ -14,6 +14,8 @@ spec:
     repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
     path: platform/traefik
+    helm:
+      skipCrds: false # Include the main chart’s sole CRD set.
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik
