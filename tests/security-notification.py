@@ -9,7 +9,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-def notification_runs(condition, event, outcome, prior_success):
+def notification_runs(condition, event, outcome, prior_success, ref="refs/heads/main"):
     # This workflow uses only conjunctions and literal comparisons. Fail closed
     # on other syntax instead of pretending to implement GitHub expressions.
     terms = [term.strip() for term in condition.split("&&")]
@@ -19,11 +19,11 @@ def notification_runs(condition, event, outcome, prior_success):
             values.append(term == "always()" or prior_success)
             continue
         match = re.fullmatch(
-            r"(github\.event_name|steps\.gitleaks\.outcome) (==|!=) '([a-z_]+)'", term
+            r"(github\.event_name|github\.ref|steps\.gitleaks\.outcome) (==|!=) '([a-z0-9_/-]+)'", term
         )
         if match is None:
             raise ValueError(f"unsupported notification condition: {term}")
-        actual = event if match[1] == "github.event_name" else outcome
+        actual = {"github.event_name": event, "github.ref": ref, "steps.gitleaks.outcome": outcome}[match[1]]
         values.append((actual.casefold() == match[3].casefold()) if match[2] == "==" else (actual.casefold() != match[3].casefold()))
     # GitHub adds success() when no status function is present.
     status = "always()" in terms or "success()" in terms or prior_success
