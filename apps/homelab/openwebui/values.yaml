@@ -54,6 +54,7 @@ open-webui:
   # Verified against v0.12.5 backend/open_webui/{config.py,env.py}:
   # https://github.com/open-webui/open-webui/tree/v0.12.5/backend/open_webui
   extraEnvVars:
+    # Existing PVC settings require the single-key correction in docs/openwebui-sharing-rollout.md.
     - {name: ENABLE_COMMUNITY_SHARING, value: "false"}
     - {name: WEBUI_URL, value: "http://openwebui.homelab.pastelariadev.com"}
     - {name: ENABLE_OAUTH, value: "true"}

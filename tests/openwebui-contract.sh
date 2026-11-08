@@ -56,7 +56,7 @@ assert len(pod["containers"]) == 1
 container = pod["containers"][0]
 env = {entry["name"]: entry for entry in container["env"]}
 assert len(env) == len(container["env"]), "duplicate environment variables"
-assert env.get("ENABLE_COMMUNITY_SHARING", {}).get("value") == "false", "community sharing must stay disabled until reviewed"
+assert env.get("ENABLE_COMMUNITY_SHARING", {}).get("value") == "false", "community sharing default must render false; persisted state needs rollout verification"
 expected = {
     "WEBUI_URL": "http://openwebui.homelab.pastelariadev.com",
     "ENABLE_OAUTH": "true",

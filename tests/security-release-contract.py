@@ -21,6 +21,7 @@ COMPONENTS = {
     "argocd": ("argocd", "/argoproj/argocd", (3, 5, 4)),
     "authentik": ("platform/authentik", "/goauthentik/server", (2026, 8, 2)),
     "traefik": ("platform/traefik", "/library/traefik", (3, 7, 17)),
+    "openwebui": ("apps/homelab/openwebui", "/open-webui/open-webui", (0, 12, 2)),
 }
 
 
@@ -43,7 +44,7 @@ def main():
     selection.add_argument("--component", choices=COMPONENTS, action="append")
     args = parser.parse_args()
     components = list(COMPONENTS) if args.all else args.component
-    old = {"argocd": "3.5.1", "authentik": "2026.5.6", "traefik": "3.7.16"}
+    old = {"argocd": "3.5.1", "authentik": "2026.5.6", "traefik": "3.7.16", "openwebui": "0.11.3"}
     for component in components:
         directory, suffix, minimum = COMPONENTS[component]
         prefix = "registry.example" + suffix + ":"
