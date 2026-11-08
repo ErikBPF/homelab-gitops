@@ -22,6 +22,7 @@ COMPONENTS = {
     "authentik": ("platform/authentik", "/goauthentik/server", (2026, 8, 2)),
     "traefik": ("platform/traefik", "/library/traefik", (3, 7, 17)),
     "openwebui": ("apps/homelab/openwebui", "/open-webui/open-webui", (0, 12, 2)),
+    "litellm": ("apps/homelab/litellm", "/berriai/litellm-database", (1, 106, 5)),
 }
 
 
@@ -34,6 +35,7 @@ def reviewed(component, ref):
     return (
         name.endswith(COMPONENTS[component][1])
         and version >= COMPONENTS[component][2]
+        and not (component == "litellm" and version == (1, 107, 0))
     )
 
 
@@ -44,7 +46,7 @@ def main():
     selection.add_argument("--component", choices=COMPONENTS, action="append")
     args = parser.parse_args()
     components = list(COMPONENTS) if args.all else args.component
-    old = {"argocd": "3.5.1", "authentik": "2026.5.6", "traefik": "3.7.16", "openwebui": "0.11.3"}
+    old = {"argocd": "3.5.1", "authentik": "2026.5.6", "traefik": "3.7.16", "openwebui": "0.11.3", "litellm": "1.100.0"}
     for component in components:
         directory, suffix, minimum = COMPONENTS[component]
         prefix = "registry.example" + suffix + ":"
@@ -53,6 +55,8 @@ def main():
         assert reviewed(component, prefix + ".".join(map(str, minimum)) + digest)
         assert not reviewed(component, prefix + "latest" + digest)
         assert not reviewed(component, prefix + ".".join(map(str, minimum)))
+        if component == "litellm":
+            assert not reviewed(component, prefix + "1.107.0" + digest), "compromised release must stay rejected"
         documents = [doc for doc in yaml.safe_load_all(policy.Unit("helm", directory).text()) if doc]
         if component == "traefik":
             services = [doc for doc in documents if doc.get("kind") == "Service"]
