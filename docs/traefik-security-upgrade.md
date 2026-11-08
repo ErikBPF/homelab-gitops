@@ -38,3 +38,11 @@ The running Service type has not been observed in this task.
 
 Local render checks establish desired state only. No sync or live schema audit
 has been performed by this source change.
+
+## Ingress address publication
+
+Traefik explicitly publishes the existing Kepler L4 ingress VIP
+`192.168.10.250` into managed Ingress status. The chart's default
+`publishedService` is disabled: with a NodePort Service it copies node ExternalIPs,
+but these nodes have only InternalIPs. This restores Argo CD's Ingress health
+assessment without changing routing, NodePorts, or health-check policy.
