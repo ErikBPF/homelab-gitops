@@ -7,6 +7,10 @@ change is only the image digest; no production deployment or Harbor access was
 performed. Harbor availability remains a prerequisite before landing or deploying
 that pin.
 
+Chart 1.15.0 declares Alloy v1.21.3, but this proof retains the verified
+v1.21.2 binary. The 1.15.0 change is the inert `image.distroless` option while
+`image.digest` is pinned; no new disposable run was executed for the retention.
+
 A passed in 190.25 seconds with run ID
 `d06e42b5-1046-460b-86bc-55a4e6e7f4f3`. Four real direct reads—Secret,
 ConfigMap, pod log and an unrelated-namespace Service—returned HTTP 200 with known
