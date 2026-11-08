@@ -59,6 +59,10 @@ def main():
             assert not reviewed(component, prefix + "1.107.0" + digest), "compromised release must stay rejected"
         documents = [doc for doc in yaml.safe_load_all(policy.Unit("helm", directory).text()) if doc]
         if component == "traefik":
+            deployment = next(doc for doc in documents if doc.get("kind") == "Deployment")
+            arguments = deployment["spec"]["template"]["spec"]["containers"][0]["args"]
+            assert "--providers.kubernetesingress.ingressendpoint.ip=192.168.10.250" in arguments, arguments
+            assert not any("ingressendpoint.publishedservice=" in arg for arg in arguments), arguments
             services = [doc for doc in documents if doc.get("kind") == "Service"]
             front = next(doc["spec"] for doc in services if doc["metadata"]["name"] == "traefik")
             assert front["type"] == "NodePort", "Traefik must retain its L4 front door"
