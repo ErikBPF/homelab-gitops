@@ -56,9 +56,10 @@ open-webui:
   extraEnvVars:
     # Existing PVC settings require the single-key correction in docs/openwebui-sharing-rollout.md.
     - {name: ENABLE_COMMUNITY_SHARING, value: "false"}
-    - {name: WEBUI_URL, value: "http://openwebui.homelab.pastelariadev.com"}
+    - {name: WEBUI_URL, value: "https://openwebui.homelab.pastelariadev.com"}
     - {name: ENABLE_OAUTH, value: "true"}
-    - {name: OPENID_REDIRECT_URI, value: "http://openwebui.homelab.pastelariadev.com/oauth/oidc/callback"}
+    # Register provider3 HTTPS first: https://github.com/ErikBPF/homelab-iac/pull/166
+    - {name: OPENID_REDIRECT_URI, value: "https://openwebui.homelab.pastelariadev.com/oauth/oidc/callback"}
     - name: WEBUI_SECRET_KEY
       valueFrom:
         secretKeyRef: {name: openwebui-app-secrets, key: WEBUI_SECRET_KEY}
