@@ -153,6 +153,8 @@ yq -o=json 'select(.kind == "CronJob" and .metadata.name == "cognee-backup") | .
 for required in 'cognee-data.tar' 'readiness.json.lock' 'flock -x' 'mountPath: /source-data'; do
   grep -Fq "$required" "$manifest" || { echo "missing full recovery backup contract: $required" >&2; exit 1; }
 done
+# alpine/k8s uses BusyBox flock, which rejects the util-linux -w flag.
+refute grep -Fq "flock -x -w" "$manifest" || { echo "BusyBox flock has no -w" >&2; exit 1; }
 for required in 'cognee-data.tar' 'create namespace' 'policyTypes' 'Egress' 'dataset_database' \
   'vector_database_url' 'graph_database_url' '/api/v1/search' '/api/v1/datasets' 'readiness.json' \
   'raw_data_location' 'content_hash' '403' 'cognee-restore-'; do
