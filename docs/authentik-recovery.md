@@ -14,12 +14,16 @@ before accessing Kubernetes. It targets the existing `homelab` context and
 The drill creates a uniquely named deny-all NetworkPolicy before its scratch Pod.
 The Pod uses temporary database storage, no service-account token, and no exposed
 Service. PostgreSQL 17.10 accepts connections only over Pod loopback; Authentik
-2026.5.6 runs a one-shot application check, not a server or worker. The only
+2026.8.5 runs a one-shot application check, not a server or worker. The only
 production secret referenced is `AUTHENTIK_SECRET_KEY`; production database
 credentials and endpoints are not inherited.
 
-After `pg_restore --exit-on-error`, the application checks migration state and
-expected configuration relationships. A temporary user's correct password must
+After `pg_restore --exit-on-error`, the scratch Authentik container runs
+`python -m lifecycle.migrate`, the pinned release's startup migration handler,
+before checking that no migrations remain and configuration relationships exist.
+This exercises an older backup against the target release without contacting the
+production database. Migration failures stop verification and retain sanitized
+phase reporting and cleanup. A temporary user's correct password must
 validate and an incorrect password must fail, inside a rolled-back transaction.
 Only pass/fail metadata and image identifiers are printed. Database and application
 output is suppressed. Cleanup removes only the drill's own Pod and policy. If Pod
@@ -94,3 +98,9 @@ produced a 7,184,951-byte custom archive. At 01:25:48 UTC, the isolated PostgreS
 private local archive were removed. This pre-publication check used a direct
 read-only database export and the live runtime key; it is not evidence of the
 scheduled producer, offsite transport or independent OpenBao bootstrap recovery.
+
+The declared drill image now follows the 2026.8.5 server pin and a contract
+checks exact artifact parity. The September receipt above remains historical
+evidence for 2026.5.6. A fresh isolated drill for the new image is still required
+in the authorized rollout window; this source update does not establish migration
+compatibility.
