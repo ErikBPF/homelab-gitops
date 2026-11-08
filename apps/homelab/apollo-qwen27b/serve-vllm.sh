@@ -9,7 +9,7 @@
 # cross-container KV registration never completed.
 set -euo pipefail
 
-export VLLM_SERVER_DEV_MODE=1
+unset VLLM_SERVER_DEV_MODE
 export VLLM_CACHE_ROOT=/cache/vllm
 export HF_HOME=/cache/hf
 export XDG_CACHE_HOME=/cache/xdg
