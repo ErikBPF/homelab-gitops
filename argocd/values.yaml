@@ -6,7 +6,7 @@ argo-cd:
     priorityClassName: homelab-platform-critical
     image:
       repository: harbor.homelab.pastelariadev.com/quay/argoproj/argocd
-      tag: v3.5.1@sha256:0deb1a1c917629b960ead995ae3b6069450a866992676599658687ef9a641ee8
+      tag: v3.5.7@sha256:16df57da6f223808d204cd94c67c929b931fa01670b91b0b3a2298c4647de0db
 
   configs:
     params:
