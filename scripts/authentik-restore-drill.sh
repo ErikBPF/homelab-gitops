@@ -111,6 +111,8 @@ try:
     run("cp", str((bundle / "postgres.dump").resolve()), name + ":/tmp/authentik.dump", "-c", "postgres")
     run("exec", name, "-c", "postgres", "--", "pg_restore", "--exit-on-error",
         "--no-owner", "--no-privileges", "-U", "authentik", "-d", "authentik", "/tmp/authentik.dump")
+    phase = "database migration"
+    run("exec", name, "-c", "authentik", "--", "python", "-m", "lifecycle.migrate")
     phase = "application check"
     run("exec", name, "-c", "authentik", "--", "ak", "shell", "-c", check)
 except (OSError, subprocess.SubprocessError) as error:

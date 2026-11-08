@@ -18,8 +18,12 @@ Service. PostgreSQL 17.10 accepts connections only over Pod loopback; Authentik
 production secret referenced is `AUTHENTIK_SECRET_KEY`; production database
 credentials and endpoints are not inherited.
 
-After `pg_restore --exit-on-error`, the application checks migration state and
-expected configuration relationships. A temporary user's correct password must
+After `pg_restore --exit-on-error`, the scratch Authentik container runs
+`python -m lifecycle.migrate`, the pinned release's startup migration handler,
+before checking that no migrations remain and configuration relationships exist.
+This exercises an older backup against the target release without contacting the
+production database. Migration failures stop verification and retain sanitized
+phase reporting and cleanup. A temporary user's correct password must
 validate and an incorrect password must fail, inside a rolled-back transaction.
 Only pass/fail metadata and image identifiers are printed. Database and application
 output is suppressed. Cleanup removes only the drill's own Pod and policy. If Pod
