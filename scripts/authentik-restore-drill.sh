@@ -42,7 +42,7 @@ policy = {"apiVersion": "networking.k8s.io/v1", "kind": "NetworkPolicy", "metada
           "spec": {"podSelector": {"matchLabels": labels}, "policyTypes": ["Ingress", "Egress"],
                    "ingress": [], "egress": []}}
 postgres = "harbor.homelab.pastelariadev.com/dockerhub/library/postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f"
-authentik = "harbor.homelab.pastelariadev.com/ghcr/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868"
+authentik = "harbor.homelab.pastelariadev.com/ghcr/goauthentik/server:2026.8.5@sha256:602227a86455d6772e3d16b7d852713c4f864f40df5df894abd1285bb53979a5"
 pod = {"apiVersion": "v1", "kind": "Pod", "metadata": metadata, "spec": {
     "restartPolicy": "Never", "activeDeadlineSeconds": 900, "automountServiceAccountToken": False,
     "securityContext": {"runAsNonRoot": True, "fsGroup": 999, "seccompProfile": {"type": "RuntimeDefault"}},

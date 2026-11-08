@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts/authentik-restore-drill.sh'
 
@@ -71,6 +73,9 @@ if mode=='app-fail' and 'shell' in args:
         probe=pg['readinessProbe']['exec']['command']
         self.assertEqual(probe[probe.index('-h')+1],'127.0.0.1')
         auth=next(c for c in pod['spec']['containers'] if c['name']=='authentik')
+        image = yaml.safe_load((ROOT / 'platform/authentik/values.yaml').read_text())['authentik']['global']['image']
+        self.assertEqual(auth['image'], f"{image['repository']}:{image['tag']}@{image['digest']}",
+                         'restore drill must use the declared server artifact')
         refs=[e for e in auth['env'] if 'valueFrom' in e]
         self.assertEqual([e['name'] for e in refs],['AUTHENTIK_SECRET_KEY'])
         self.assertNotIn('envFrom',auth)

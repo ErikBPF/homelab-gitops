@@ -18,6 +18,7 @@ spec.loader.exec_module(policy)
 # Register a service only in the slice that patches it; --all covers active entries.
 COMPONENTS = {
     "argocd": ("argocd", "/argoproj/argocd", (3, 5, 4)),
+    "authentik": ("platform/authentik", "/goauthentik/server", (2026, 8, 2)),
 }
 
 
@@ -40,7 +41,7 @@ def main():
     selection.add_argument("--component", choices=COMPONENTS, action="append")
     args = parser.parse_args()
     components = list(COMPONENTS) if args.all else args.component
-    old = {"argocd": "3.5.1"}
+    old = {"argocd": "3.5.1", "authentik": "2026.5.6"}
     for component in components:
         directory, suffix, minimum = COMPONENTS[component]
         prefix = "registry.example" + suffix + ":"

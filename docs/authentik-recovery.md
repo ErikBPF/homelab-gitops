@@ -14,7 +14,7 @@ before accessing Kubernetes. It targets the existing `homelab` context and
 The drill creates a uniquely named deny-all NetworkPolicy before its scratch Pod.
 The Pod uses temporary database storage, no service-account token, and no exposed
 Service. PostgreSQL 17.10 accepts connections only over Pod loopback; Authentik
-2026.5.6 runs a one-shot application check, not a server or worker. The only
+2026.8.5 runs a one-shot application check, not a server or worker. The only
 production secret referenced is `AUTHENTIK_SECRET_KEY`; production database
 credentials and endpoints are not inherited.
 
@@ -94,3 +94,9 @@ produced a 7,184,951-byte custom archive. At 01:25:48 UTC, the isolated PostgreS
 private local archive were removed. This pre-publication check used a direct
 read-only database export and the live runtime key; it is not evidence of the
 scheduled producer, offsite transport or independent OpenBao bootstrap recovery.
+
+The declared drill image now follows the 2026.8.5 server pin and a contract
+checks exact artifact parity. The September receipt above remains historical
+evidence for 2026.5.6. A fresh isolated drill for the new image is still required
+in the authorized rollout window; this source update does not establish migration
+compatibility.
