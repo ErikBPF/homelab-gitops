@@ -56,15 +56,16 @@ assert len(pod["containers"]) == 1
 container = pod["containers"][0]
 env = {entry["name"]: entry for entry in container["env"]}
 assert len(env) == len(container["env"]), "duplicate environment variables"
+assert env.get("ENABLE_COMMUNITY_SHARING", {}).get("value") == "false", "community sharing default must render false; persisted state needs rollout verification"
 expected = {
-    "WEBUI_URL": "http://openwebui.homelab.pastelariadev.com",
+    "WEBUI_URL": "https://openwebui.homelab.pastelariadev.com",
     "ENABLE_OAUTH": "true",
     "ENABLE_OAUTH_SIGNUP": "true",
     "ENABLE_FORWARD_USER_INFO_HEADERS": "true",
     "OPENID_PROVIDER_URL": "https://authentik.homelab.pastelariadev.com/application/o/openwebui/.well-known/openid-configuration",
     "OAUTH_PROVIDER_NAME": "Authentik",
     "OAUTH_SCOPES": "openid email profile",
-    "OPENID_REDIRECT_URI": "http://openwebui.homelab.pastelariadev.com/oauth/oidc/callback",
+    "OPENID_REDIRECT_URI": "https://openwebui.homelab.pastelariadev.com/oauth/oidc/callback",
     "OPENAI_API_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000/v1",
     "DEFAULT_MODELS": "spike-echo",
     "DEFAULT_USER_ROLE": "user",

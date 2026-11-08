@@ -1,34 +1,67 @@
 name: Security
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: read
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: gitleaks
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        name: Verify scanner and scan checked-out history
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCAN_POLICY_REF: ${{ github.event.pull_request.base.sha || github.sha }}
+          GITLEAKS_VERSION: "8.24.3"
+          GITLEAKS_SHA256: "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c"
+        run: |
+          set -euo pipefail
+          # Manual scans use reviewed main; branch changes must use PR scanning.
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Manual security scans must target main; open a PR for branch changes."
+            exit 1
+          fi
+          # PR policy comes from its immutable base; main policy has passed review.
+          git cat-file -e "${SCAN_POLICY_REF}^{commit}"
+          printf '[extend]\nuseDefault = true\n' > "$RUNNER_TEMP/gitleaks.toml"
+          : > "$RUNNER_TEMP/gitleaks.ignore"
+          if git cat-file -e "${SCAN_POLICY_REF}:.gitleaksignore" 2>/dev/null; then
+            git show "${SCAN_POLICY_REF}:.gitleaksignore" > "$RUNNER_TEMP/gitleaks.ignore"
+          fi
+          # Gitleaks also auto-loads source/.gitleaksignore despite the path flag.
+          cp --remove-destination "$RUNNER_TEMP/gitleaks.ignore" .gitleaksignore
+          mkdir -p "$RUNNER_TEMP/gitleaks-bin"
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks-bin" gitleaks
+          export PATH="$RUNNER_TEMP/gitleaks-bin:$PATH"
+          # Scan before executing code from the scanned revision.
+          gitleaks git --log-opts=HEAD --redact --no-banner --ignore-gitleaks-allow --config "$RUNNER_TEMP/gitleaks.toml" --gitleaks-ignore-path "$RUNNER_TEMP/gitleaks.ignore" .
+          python3 tests/security-workflow-contract.py
 
       - name: Notify security channel
-        if: always() && steps.gitleaks.outcome == 'failure'
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.gitleaks.outcome == 'failure'
         env:
           WEBHOOK: ${{ secrets.DISCORD_SECURITY_WEBHOOK }}
           CLEYTIN_USER_ID: "1532710143517659356"
         run: |
+          # GitHub string equality ignores case; require the exact reviewed ref.
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then exit 0; fi
           if [[ -z "$WEBHOOK" ]]; then
             echo "::notice::DISCORD_SECURITY_WEBHOOK not configured"
             exit 0

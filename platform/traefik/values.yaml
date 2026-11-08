@@ -7,10 +7,9 @@ traefik:
   image:
     registry: harbor.homelab.pastelariadev.com
     repository: dockerhub/library/traefik
-    # Keep in step with the chart's appVersion (42.1.3 -> v3.7.16); the
+    # Keep in step with the chart's appVersion (42.3.1 -> v3.7.17); the
     # chart-image-parity contract fails a chart bump without this pin.
-    tag: v3.7.16
-    digest: sha256:1336e85aaed293bd63d005086e0dd013b04078b26aaeb1c18b26a2f928af7e65
+    tag: v3.7.17@sha256:f4bb143d1135a579b630ed491e17ec50f6f7c9c6a30585ff3d385471d2a86f5a
   priorityClassName: homelab-platform-critical
   deployment:
     replicas: 1 # lab; bump for HA later
@@ -24,9 +23,15 @@ traefik:
       enabled: true # IngressRoute/Middleware CRDs (prod-mimic)
     kubernetesIngress:
       enabled: true # plain Ingress objects too
+      # The external Kepler L4 VIP is the front door; nodes have no ExternalIP.
+      publishedService:
+        enabled: false
+      ingressEndpoint:
+        ip: 192.168.10.250
 
   service:
-    type: NodePort
+    spec:
+      type: NodePort
 
   ports:
     web:

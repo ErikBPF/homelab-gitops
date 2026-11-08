@@ -23,13 +23,15 @@ def check_artifacts(chart, pins):
     wrapper = yaml.safe_load((chart / "Chart.yaml").read_text())
     with tarfile.open(chart / "charts/alloy-1.15.0.tgz") as archive:
         metadata = yaml.safe_load(archive.extractfile("alloy/Chart.yaml").read())
+    image = values["alloy"]["image"]
+    configured_digest = image.get("digest") or image["tag"].split("@", 1)[1]
     retention = pins.get("image_version_retention")
     if retention and (pins["image_version"], pins["chart_version"]) != ("v1.21.2", "1.15.0"):
         raise AssertionError("unexpected retained image/chart pair")
     expected = {
         "chart_version": wrapper["dependencies"][0]["version"],
         "image_version": pins["image_version"] if retention else metadata["appVersion"],
-        "image_index_digest": values["alloy"]["image"]["digest"],
+        "image_index_digest": configured_digest,
         "image_manifest_digest": IMAGE.split("@", 1)[1],
         "platform": "linux/amd64",
     }

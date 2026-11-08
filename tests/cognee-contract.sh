@@ -22,7 +22,7 @@ test ! -e "$image_dir"
 test ! -e "$image_workflow"
 grep -Fq 'scripts/validate.sh' "$validate_workflow"
 
-grep -Eq 'harbor\.homelab\.pastelariadev\.com/library/cognee-homelab@sha256:[0-9a-f]{64}' "$manifest"
+grep -Fq 'harbor.homelab.pastelariadev.com/library/cognee-homelab:operational-20260914-3486862@sha256:bf0a0eb4090f7fe9220105576ddcb6c9ae752c1171a2b31ddce833a206c9963a' "$manifest"
 grep -Fq 'pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
 grep -Fq 'falkordb/falkordb-server:v4.20.3@sha256:aaecf621b52d33aa4946a77b7d6638e709bbb9d4e76220aea115fda117f5ff36' "$manifest"
 grep -Fq 'harbor.homelab.pastelariadev.com/dockerhub/pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a' "$manifest"
@@ -61,7 +61,7 @@ for expected in \
   'cd "$target"' \
   'sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv' \
   '/backups/cognee' \
-  'harbor.homelab.pastelariadev.com/dockerhub/bitnami/kubectl:'; do
+  'harbor.homelab.pastelariadev.com/dockerhub/alpine/k8s:1.36.4@sha256:358ddfc2'; do
   grep -Fq "$expected" "$manifest"
 done
 refute grep -Fq 'kubectl -n cognee exec statefulset/' "$manifest"
@@ -153,6 +153,8 @@ yq -o=json 'select(.kind == "CronJob" and .metadata.name == "cognee-backup") | .
 for required in 'cognee-data.tar' 'readiness.json.lock' 'flock -x' 'mountPath: /source-data'; do
   grep -Fq "$required" "$manifest" || { echo "missing full recovery backup contract: $required" >&2; exit 1; }
 done
+# alpine/k8s uses BusyBox flock, which rejects the util-linux -w flag.
+refute grep -Fq "flock -x -w" "$manifest" || { echo "BusyBox flock has no -w" >&2; exit 1; }
 for required in 'cognee-data.tar' 'create namespace' 'policyTypes' 'Egress' 'dataset_database' \
   'vector_database_url' 'graph_database_url' '/api/v1/search' '/api/v1/datasets' 'readiness.json' \
   'raw_data_location' 'content_hash' '403' 'cognee-restore-'; do

@@ -65,7 +65,7 @@ spec:
       securityContext: {seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: scrutiny
-          image: harbor.homelab.pastelariadev.com/ghcr/analogj/scrutiny:master-web@sha256:192656ce791dc3e5bda7f7bf81cd3cb9f77ab2cde42a9bd0d8cac442b7e8bee1
+          image: harbor.homelab.pastelariadev.com/ghcr/analogj/scrutiny:v0.10.0-web@sha256:1a3eb7802907e48c960c06b412592969efe5514b9c01b70fa634076f7e675adf
           envFrom: [{secretRef: {name: scrutiny-secrets}}]
           env:
             - {name: SCRUTINY_WEB_INFLUXDB_HOST, value: scrutiny-influxdb}
