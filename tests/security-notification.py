@@ -19,12 +19,12 @@ def notification_runs(condition, event, outcome, prior_success):
             values.append(term == "always()" or prior_success)
             continue
         match = re.fullmatch(
-            r"(github\.event_name|steps\.gitleaks\.outcome) == '([a-z_]+)'", term
+            r"(github\.event_name|steps\.gitleaks\.outcome) (==|!=) '([a-z_]+)'", term
         )
         if match is None:
             raise ValueError(f"unsupported notification condition: {term}")
         actual = event if match[1] == "github.event_name" else outcome
-        values.append(actual.casefold() == match[2].casefold())
+        values.append((actual.casefold() == match[3].casefold()) if match[2] == "==" else (actual.casefold() != match[3].casefold()))
     # GitHub adds success() when no status function is present.
     status = "always()" in terms or "success()" in terms or prior_success
     return status and all(values)
@@ -46,8 +46,8 @@ class SecurityNotification(unittest.TestCase):
             raise AssertionError("expected one security notification condition")
         cls.condition = conditions[0]
 
-    def test_manual_trigger_and_scanner_identity(self):
-        self.assertEqual(self.events, ["workflow_dispatch"])
+    def test_automatic_triggers_and_scanner_identity(self):
+        self.assertEqual(set(self.events), {"push", "pull_request", "workflow_dispatch"})
         self.assertEqual(self.source.count("      - id: gitleaks\n"), 1)
 
     def test_notification_for_declared_events(self):
@@ -57,7 +57,7 @@ class SecurityNotification(unittest.TestCase):
                     with self.subTest(event=event, outcome=outcome, prior_success=prior_success):
                         self.assertEqual(
                             notification_runs(self.condition, event, outcome, prior_success),
-                            outcome == "failure",
+                            outcome == "failure" and event != "pull_request",
                         )
 
     def test_known_failure_controls(self):
