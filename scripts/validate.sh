@@ -32,7 +32,7 @@ else
   echo "image ref policy: skipped (BASE_SHA unset)"
 fi
 
-python3 tests/security-release-contract.py --component argocd --component authentik --component traefik
+python3 tests/security-release-contract.py --component argocd --component authentik --component traefik --component openwebui
 
 for contract in \
   tests/security-notification.py \
