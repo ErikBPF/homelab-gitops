@@ -42,7 +42,16 @@ has been performed by this source change.
 ## Ingress address publication
 
 Traefik explicitly publishes the existing Kepler L4 ingress VIP
-`192.168.10.250` into managed Ingress status. The chart's default
-`publishedService` is disabled: with a NodePort Service it copies node ExternalIPs,
-but these nodes have only InternalIPs. This restores Argo CD's Ingress health
-assessment without changing routing, NodePorts, or health-check policy.
+`192.168.10.250` into managed Ingress status. Chart 42.3.1 defaults
+`providers.kubernetesIngress.publishedService.enabled` to `true`; this deployment
+explicitly sets it to `false` so `ingressEndpoint.ip` takes effect.
+
+In the pinned Traefik v3.7.17 implementation, the `ServiceTypeNodePort` branch of
+`updateIngressStatus` reads node addresses and selects `NodeExternalIP`. These
+nodes have only InternalIPs, so that branch produces no addresses. Copying the
+front Service's `status.loadBalancer.ingress` belongs to the separate
+`ServiceTypeLoadBalancer` branch. The explicit VIP restores Argo CD's Ingress
+health assessment without changing routing, NodePorts, or health-check policy.
+
+References: [chart defaults](https://github.com/traefik/traefik-helm-chart/blob/v42.3.1/traefik/values.yaml),
+[pinned status implementation](https://github.com/traefik/traefik/blob/v3.7.17/pkg/provider/kubernetes/ingress/kubernetes.go#L444-L546).
