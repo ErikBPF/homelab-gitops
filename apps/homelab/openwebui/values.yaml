@@ -58,6 +58,7 @@ open-webui:
     - {name: ENABLE_COMMUNITY_SHARING, value: "false"}
     - {name: WEBUI_URL, value: "https://openwebui.homelab.pastelariadev.com"}
     - {name: ENABLE_OAUTH, value: "true"}
+    # Register provider3 HTTPS first: https://github.com/ErikBPF/homelab-iac/pull/166
     - {name: OPENID_REDIRECT_URI, value: "https://openwebui.homelab.pastelariadev.com/oauth/oidc/callback"}
     - name: WEBUI_SECRET_KEY
       valueFrom:
