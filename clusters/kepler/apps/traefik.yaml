@@ -14,8 +14,8 @@ spec:
     repoURL: ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
     targetRevision: main
     path: platform/traefik
-    helm:
-      skipCrds: false # Include the main chart’s sole CRD set.
+    # Leave Helm's skipCrds default unset: an explicit false is dropped by the
+    # API and caused a perpetual root Application OutOfSync.
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik
