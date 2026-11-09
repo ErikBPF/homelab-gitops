@@ -4,9 +4,11 @@
 
 Chart 42.3.1 and Traefik v3.7.17 are pinned together. The main chart's bundled
 CRDs are the only source for both `traefik.io` and `hub.traefik.io`. The separate
-`traefik-crds` dependency is removed, and the Argo Application explicitly keeps
-`helm.skipCrds: false`. This removes ten conflicting duplicate definitions while
-retaining all ten Traefik and fifteen Hub CRDs.
+`traefik-crds` dependency is removed. The Argo Application intentionally leaves
+`helm.skipCrds` unset: Helm's default already includes the chart CRDs, and an
+explicit `false` is dropped by the API and causes a perpetual root Application
+OutOfSync. This removes ten conflicting duplicate definitions while retaining
+all ten Traefik and fifteen Hub CRDs.
 
 The bundled schema includes additive v3.8-generation fields even though this
 chart's appVersion is v3.7.17. Do not infer controller support for those fields

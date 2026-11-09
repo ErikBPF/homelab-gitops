@@ -81,7 +81,8 @@ def main():
             assert {group: sum(doc["spec"]["group"] == group for doc in crds)
                     for group in ("traefik.io", "hub.traefik.io")} == {"traefik.io": 10, "hub.traefik.io": 15}
             app = yaml.safe_load((ROOT / "clusters/kepler/apps/traefik.yaml").read_text())
-            assert app["spec"]["source"].get("helm", {}).get("skipCrds", False) is False
+            # An explicit false is dropped by the API and causes a perpetual OutOfSync.
+            assert "skipCrds" not in app["spec"]["source"].get("helm", {})
         refs = [ref for doc in documents for ref in policy.image_refs(doc)
                 if policy.split_ref(ref)[0].endswith(suffix)]
         assert refs, f"{component}: target image missing from rendered workloads"
