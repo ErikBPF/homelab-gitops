@@ -18,6 +18,8 @@ The Security workflow runs checksummed Gitleaks8.24.3 over checked-out HEAD ance
 
 `python3 tests/security-workflow-contract.py` executes synthetic clean, leaked and removed-history cases with the actual scanner, plus stubbed notification transport. It runs in the Security job where the pinned scanner is installed; general manifest validation needs no scanner installation.
 
+The scan and contract checks run in separate steps. After the verified scanner returns, contracts run even when it reports findings; scanner and contract failures independently fail the job. Setup failures, rejected manual refs and cancellation skip repository contracts. The contract step restores the verified scanner directory to PATH.
+
 Publish and observe a successful `secrets` job on main before applying the IaC required-check consumer. Preserve the independent review ruleset. Reverting enforcement requires an owner-reviewed IaC change, never bypassing a failed scanner to merge.
 
 Scanner policy is fixed default rules plus the immutable PR base commit's exact-fingerprint list (reviewed checked-out main policy on trusted push/dispatch). The CI workspace replaces its automatically loaded ignore file with that trusted snapshot; explicit ignore-path alone is insufficient in Gitleaks8.24.3. Inline gitleaks:allow comments cannot suppress results. Regression fixtures commit malicious config, ignore fingerprints and inline comments and still require failure. Policy changes take effect only after review and landing, before dependent content. Run the Security workflow for equivalent trust-boundary verification; an unqualified local command may load local policy.
