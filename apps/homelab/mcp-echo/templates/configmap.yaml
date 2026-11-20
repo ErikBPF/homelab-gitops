@@ -8,6 +8,7 @@ data:
     import logging
     import sys
     import time
+    from urllib.parse import urlsplit
     from http.server import BaseHTTPRequestHandler
     from socketserver import ThreadingTCPServer
 
@@ -21,14 +22,17 @@ data:
             parsed = super().parse_request()
             if parsed:
                 # Keep X-OpenWebUI identity diagnostics while redacting credential/cookie values.
-                logging.info("%s %s\n%s", self.command, self.path,
+                logging.info("%s %s\n%s", self.command, urlsplit(self.path).path,
                              "\n".join(f"{k}: {v}" for k, v in self.headers_json()))
             return parsed
 
         def headers_json(self):
             # Ordered pairs preserve repeated names and original casing.
-            sensitive = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
-            return [(name, "[REDACTED]" if name.casefold() in sensitive else value)
+            sensitive = {"authorization", "authentication", "cookie", "token", "secret", "password", "credential", "key", "apikey", "jwt"}
+            def hidden(name):
+                normalized = name.casefold().replace("_", "").replace("-", "")
+                return any(part in normalized for part in sensitive) or normalized == "cfaccessclientid"
+            return [(name, "[REDACTED]" if hidden(name) else value)
                     for name, value in self.headers.raw_items()]
 
         def reply(self, payload=None, status=200):
@@ -86,7 +90,7 @@ data:
                     response["result"] = {"protocolVersion": version, "capabilities": {"tools": {}},
                                           "serverInfo": {"name": "mcp-echo", "version": "1.0.0"}}
                 case "tools/list":
-                    response["result"] = {"tools": [{"name": "echo_headers", "description": "Return headers with Authorization, Proxy-Authorization, Cookie and Set-Cookie values redacted",
+                    response["result"] = {"tools": [{"name": "echo_headers", "description": "Return diagnostic headers with credential-named values redacted",
                         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}}]}
                 case "tools/call":
                     if params.get("name") != "echo_headers":

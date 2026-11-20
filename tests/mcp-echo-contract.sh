@@ -99,6 +99,17 @@ sensitive_headers = [
     ('cOoKiE', 'session=cookie-canary-second'),
     ('Set-Cookie', 'session=set-cookie-canary-first'),
     ('sEt-CoOkIe', 'session=set-cookie-canary-second'),
+    ('X-AuthToken', 'joined-auth-canary'),
+    ('X-AccessToken', 'joined-access-canary'),
+    ('Cookie2', 'legacy-cookie-canary'),
+    ('CF-Access-Client-Id', 'client-id-canary'),
+    ('cF-aCcEsS-cLiEnT-sEcReT', 'client-secret-canary'),
+    ('CF-Access-Jwt-Assertion', 'jwt-canary'),
+    ('X-API-Key', 'api-key-canary'),
+    ('X_Api_Key', 'underscore-api-canary'),
+    ('X-Custom-Service-Token', 'service-token-canary'),
+    ('X-Forwarded-Access-Token', 'forwarded-token-canary'),
+    ('X-Amz-Security-Token', 'cloud-session-canary'),
 ]
 headers = public_headers + sensitive_headers
 expected_headers = [list(pair) for pair in public_headers] + [[name, '[REDACTED]'] for name, _ in sensitive_headers]
@@ -169,6 +180,7 @@ with namespace['ThreadingTCPServer'](('127.0.0.1', 0), namespace['Handler']) as 
         assert request('POST', '/mcp', [1, 2])[0] == 400
         assert request('GET', '/mcp')[0] == 405
         assert request('DELETE', '/unknown')[0] == 501
+        assert request('GET', '/headers?access_token=QUERY-MUST-NOT-APPEAR')[0] == 404
         output = logs.getvalue()
         diagnostic_outputs['request logs'] = output
         leaks = [label for label, text in diagnostic_outputs.items() if any(value in text for _, value in sensitive_headers)]
@@ -181,6 +193,7 @@ with namespace['ThreadingTCPServer'](('127.0.0.1', 0), namespace['Handler']) as 
         for method, path in [('GET', '/headers'), ('POST', '/v1/chat/completions'), ('POST', '/mcp'), ('DELETE', '/unknown')]:
             assert f'{method} {path}' in output
         assert 'BODY-MUST-NOT-APPEAR' not in output
+        assert 'QUERY-MUST-NOT-APPEAR' not in output
     finally:
         server.shutdown()
         thread.join()

@@ -39,6 +39,22 @@ def alert_case(uid, name, metrics, expected):
     })
 
 
+# The only enrolled endpoint must alert when inactive or its telemetry disappears.
+wazuh_uid = "wazuh-orion-agent-unavailable"
+assert wazuh_uid in all_rules, "Wazuh agent loss has no provisioned alert"
+wazuh_metric = 'node_systemd_unit_state{instance="orion",name="podman-wazuh-agent.service",state="active"}'
+for name, metrics, expected in [
+    ("active", {wazuh_metric: 1}, 0),
+    ("inactive", {wazuh_metric: 0}, 1),
+    ("missing telemetry", {}, 1),
+    ("another host cannot mask missing Orion", {wazuh_metric.replace('instance="orion"', 'instance="kepler"'): 1}, 1),
+    ("another service cannot mask missing agent", {wazuh_metric.replace('podman-wazuh-agent.service', 'sshd.service'): 1}, 1),
+]:
+    alert_case(wazuh_uid, name, metrics, expected)
+assert all_rules[wazuh_uid]["for"] == "5m"
+assert all_rules[wazuh_uid]["labels"]["instance"] == "orion"
+assert all_rules[wazuh_uid]["labels"]["name"] == "podman-wazuh-agent.service"
+
 readiness = {
     "sops-runtime-secrets-missing": {
         'sops_runtime_secrets_ready{instance="discovery"}': 1,

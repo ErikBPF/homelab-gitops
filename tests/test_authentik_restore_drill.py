@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts/authentik-restore-drill.sh'
 
@@ -38,6 +40,8 @@ with Path(os.environ['CALLS']).open('a') as f:f.write(json.dumps(record)+'\\n')
 mode=os.environ['MODE']
 if mode=='restore-fail' and 'pg_restore' in args:
     print('synthetic-sensitive-db-error',file=sys.stderr);sys.exit(17)
+if mode=='migration-fail' and 'lifecycle.migrate' in args:
+    print('synthetic-sensitive-migration-error',file=sys.stderr);sys.exit(18)
 if mode=='cleanup-fail' and 'delete' in args and 'pod' in args: sys.exit(23)
 if mode=='app-fail' and 'shell' in args:
     print('synthetic-sensitive-app-error',file=sys.stderr);sys.exit(19)
@@ -71,6 +75,9 @@ if mode=='app-fail' and 'shell' in args:
         probe=pg['readinessProbe']['exec']['command']
         self.assertEqual(probe[probe.index('-h')+1],'127.0.0.1')
         auth=next(c for c in pod['spec']['containers'] if c['name']=='authentik')
+        image = yaml.safe_load((ROOT / 'platform/authentik/values.yaml').read_text())['authentik']['global']['image']
+        self.assertEqual(auth['image'], f"{image['repository']}:{image['tag']}@{image['digest']}",
+                         'restore drill must use the declared server artifact')
         refs=[e for e in auth['env'] if 'valueFrom' in e]
         self.assertEqual([e['name'] for e in refs],['AUTHENTIK_SECRET_KEY'])
         self.assertNotIn('envFrom',auth)
@@ -83,7 +90,14 @@ if mode=='app-fail' and 'shell' in args:
         self.assertNotIn('-i',restores[0]['args'])
         self.assertIn('/tmp/authentik.dump',restores[0]['args'])
         self.assertIn('--exit-on-error',restores[0]['args'])
+        migrations=[c for c in calls if 'lifecycle.migrate' in c['args']]
+        self.assertEqual(len(migrations),1,'restored old backups must migrate before verification')
+        migration=migrations[0]
+        self.assertEqual(migration['args'][-3:],['python','-m','lifecycle.migrate'])
+        self.assertEqual(migration['args'][migration['args'].index('-c')+1],'authentik')
+        self.assertLess(calls.index(restores[0]),calls.index(migration))
         app=next(c for c in calls if 'shell' in c['args'])
+        self.assertLess(calls.index(migration),calls.index(app))
         self.assertIn('check_password', ' '.join(app['args']))
         self.assertIn('set_rollback', ' '.join(app['args']))
         deleted=[c for c in calls if 'delete' in c['args']]
@@ -91,14 +105,14 @@ if mode=='app-fail' and 'shell' in args:
         self.assertIn('passed',result.stdout)
 
     def test_failures_are_sanitized_and_cleanup_runs(self):
-        for mode in ['restore-fail','app-fail']:
+        for mode in ['restore-fail','migration-fail','app-fail']:
             with self.subTest(mode=mode):
                 result,calls=self.run_case(mode)
-                self.assertEqual(result.returncode,17 if mode=='restore-fail' else 19)
+                self.assertEqual(result.returncode,{'restore-fail':17,'migration-fail':18,'app-fail':19}[mode])
                 self.assertNotIn('synthetic-sensitive',result.stdout+result.stderr)
                 self.assertNotIn('passed',result.stdout)
                 self.assertEqual(len([c for c in calls if 'delete' in c['args']]),2)
-                if mode=='restore-fail':
+                if mode in ['restore-fail','migration-fail']:
                     self.assertFalse(any('shell' in c['args'] for c in calls))
 
     def test_failed_pod_cleanup_keeps_isolation(self):
