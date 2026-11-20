@@ -105,6 +105,7 @@ alert_files=(
   "$root/platform/monitoring/files/alerting/buzz-rules.yaml"
   "$root/platform/monitoring/files/alerting/recovery-rules.yaml"
   "$root/platform/monitoring/files/alerting/storage-rules.yaml"
+  "$root/platform/monitoring/files/alerting/wazuh-rules.yaml"
 )
 unexpected_error_rules=$(yq -r '.groups[].rules[] | select(.uid != "datasource-prometheus-health" and .uid != "datasource-loki-health" and .execErrState != "KeepLast") | .uid' "${alert_files[@]}")
 test -z "$unexpected_error_rules"
