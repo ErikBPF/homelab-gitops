@@ -1,0 +1,52 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: wazuh-agent-health
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: wazuh-orion-agent-unavailable
+        title: Wazuh endpoint monitoring unavailable
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: KeepLast
+        annotations:
+          summary: "Orion's Wazuh agent is inactive or its service telemetry is missing; endpoint event collection is unproven."
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/wazuh-monitoring.md
+        labels:
+          severity: critical
+          category: security
+          instance: orion
+          name: podman-wazuh-agent.service
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                (max(node_systemd_unit_state{instance="orion",name="podman-wazuh-agent.service",state="active"}) == bool 0)
+                or absent(node_systemd_unit_state{instance="orion",name="podman-wazuh-agent.service",state="active"})
+          - refId: B
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource: {type: __expr__, uid: __expr__}
+          - refId: C
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource: {type: __expr__, uid: __expr__}
+              conditions:
+                - evaluator: {type: gt, params: [0]}
