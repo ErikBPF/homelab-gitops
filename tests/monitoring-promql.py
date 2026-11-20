@@ -230,6 +230,84 @@ for uid, threshold in [("authentik-offsite-aging", 18 * 3600),
                                   ("future", 700, 1)]:
         alert_case(uid, name, {} if value is None else {metric: value}, expected)
 
+# Integrity expectations are injected independently of producer telemetry.
+integrity_uids = ["host-integrity-finding", "host-integrity-incomplete",
+                  "host-integrity-stale", "host-integrity-signature-age",
+                  "host-integrity-missing-check"]
+for uid in integrity_uids:
+    assert uid in all_rules, f"missing integrity rule: {uid}"
+    assert all_rules[uid]["noDataState"] == "OK"
+    assert all_rules[uid]["execErrState"] == "KeepLast"
+
+
+def integrity_case(name, overrides=None, firing=(), check="store", enrolled=True, host=True):
+    # Ten days permits real positive timestamps for eight-day boundary tests.
+    now = 864000
+    values = {"state": 2, "last_attempt_seconds": now - 60,
+              "last_complete_seconds": now - 60, "last_publish_seconds": now - 60,
+              "findings": 0, "skipped": 0, "errors": 0}
+    if check == "signatures":
+        values["signature_database_seconds"] = now - 60
+    values.update(overrides or {})
+    identity = f'instance="orion",check="{check}"'
+    metrics = {f'host_integrity_{key}{{{identity},job="collector"}}': value
+               for key, value in values.items() if value is not None}
+    if enrolled:
+        metrics[f'host_integrity_expected{{{identity}}}'] = 1
+    if host:
+        metrics['up{instance="orion",job="integrations/unix"}'] = 1
+    # A healthy peer proves absence is evaluated per identity.
+    metrics['host_integrity_expected{instance="apollo",check="store"}'] = 1
+    metrics['up{instance="apollo",job="integrations/unix"}'] = 1
+    for key, value in {**values, "state": 2, "findings": 0, "skipped": 0,
+                       "errors": 0, "last_complete_seconds": now - 60,
+                       "last_publish_seconds": now - 60}.items():
+        metrics[f'host_integrity_{key}{{instance="apollo",check="store"}}'] = now - 60 if value is None else value
+    expressions = []
+    for uid in integrity_uids:
+        query = next(item["model"]["expr"] for item in all_rules[uid]["data"] if item["refId"] == "A")
+        expressions.append({"expr": query, "eval_time": "240h", "exp_samples":
+                            [{"labels": "{" + identity + "}", "value": 1}] if uid.removeprefix("host-integrity-") in firing else []})
+    tests.append({"name": "integrity: " + name, "interval": "1h",
+                  "input_series": [{"series": metric, "values": f"{value}+0x240"}
+                                   for metric, value in metrics.items()],
+                  "promql_expr_test": expressions})
+
+
+integrity_case("healthy")
+integrity_case("fresh finding", {"findings": 2}, ["finding"])
+for state in [3, 4]:
+    integrity_case(f"finding survives state {state}", {"state": state, "findings": 2,
+                   "last_complete_seconds": 1}, ["finding", "incomplete"])
+integrity_case("never run", {"state": 0, "last_complete_seconds": 0}, ["missing-check"])
+integrity_case("missing one check", {key: None for key in ["state", "last_attempt_seconds",
+               "last_complete_seconds", "last_publish_seconds", "findings", "skipped", "errors"]}, ["missing-check"])
+integrity_case("missing required gauge", {"last_complete_seconds": None}, ["missing-check"])
+integrity_case("whole host absent", {"state": None}, host=False)
+integrity_case("unsupported or unenrolled", {"state": 4, "findings": 2}, enrolled=False)
+for check, age in [("store", 48 * 3600), ("av", 8 * 86400)]:
+    integrity_case(f"{check} exact boundary", {"last_complete_seconds": 864000-age}, check=check)
+    integrity_case(f"{check} expired", {"last_complete_seconds": 864000-age-1}, ["stale"], check=check)
+integrity_case("fresh publish cannot renew coverage", {"last_complete_seconds": 1}, ["stale"])
+integrity_case("running first scan expires", {"state": 1, "last_complete_seconds": 0}, ["stale"])
+integrity_case("signature exact boundary", {"signature_database_seconds": 864000-172800}, check="signatures")
+integrity_case("updater success cannot renew database", {"signature_database_seconds": 1}, ["signature-age"], check="signatures")
+integrity_case("missing database evidence", {"signature_database_seconds": None}, ["missing-check"], check="signatures")
+integrity_case("unknown database", {"signature_database_seconds": 0}, ["signature-age"], check="signatures")
+integrity_case("recovered coverage retains finding", {"findings": 1}, ["finding"])
+integrity_case("reviewed resolution", {"findings": 0})
+
+# Observe loss and recovery across samples, preserving per-check identities.
+for name, transition, firing in [
+    ("series disappears while host remains", "2+0x238 stale _", ["missing-check"]),
+    ("failed rerun", "2+0x239 4", ["incomplete"]),
+    ("coverage recovers", "4+0x239 2", []),
+]:
+    integrity_case(name, firing=firing)
+    for series in tests[-1]["input_series"]:
+        if series["series"].startswith('host_integrity_state{instance="orion"'):
+            series["values"] = transition
+
 with tempfile.TemporaryDirectory(prefix="monitoring-promql-") as directory:
     path = Path(directory) / "tests.yaml"
     path.write_text(yaml.safe_dump({"evaluation_interval": "1m", "tests": tests}))

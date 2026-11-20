@@ -39,3 +39,49 @@ revision, rule UID/title, class, timestamps, delivery/recovery result and owner;
 omit credentials and raw security-event values. Source-render tests cannot prove
 Discord receipt or operator usefulness. Those require a staffed, bounded
 firing/resolved delivery check.
+
+## Host integrity
+
+The five `host-integrity-*` rules report findings, incomplete coverage, expired
+coverage, old signature databases, and missing check evidence. `instance` names
+the fleet host; `check` is `signatures`, `store`, or `av`. Host producers belong to
+`desktop-nixos`; GitOps owns these queries and notification provisioning.
+
+Enrollment is deliberately empty in `platform/monitoring/values.yaml`:
+`hostIntegrity.expectedChecks: []`. S04 must verify producer compatibility and
+explicitly enroll each supported `{instance, check}` pair, including any decision
+about Endeavour. No exclusion or unenrolled host is evidence of a clean scan.
+The chart creates `host_integrity_expected` recording rules through the existing
+Prometheus operator's release selector. This reviewed GitOps list remains present
+when a producer disappears; producer metrics never determine enrollment.
+
+| Condition | Meaning and first check |
+|---|---|
+| Finding | A retained positive result needs private investigation. Inspect the owner's protected receipt; do not include paths or signatures in notifications. A later clean, partial, or failed run does not clear this metric. Only reviewed producer-side resolution clears it. |
+| Incomplete | State is partial or failed. Inspect the attempt's coverage, skipped items and errors; repair the cause before rerunning. This suppresses the complete-age warning for that check. |
+| Stale | Complete coverage is older than 48 hours for store/signatures or eight days for AV. Equality is tolerated; exceeding the boundary warns. Running does not renew complete coverage. Check timers and protected receipts. |
+| Signature age | Actual selected signature database publication is older than 48 hours or unknown (zero). Successful updater execution and fresh publication of metrics do not establish a fresh database. |
+| Missing check | An enrolled check has never run or lacks required gauges while its host's node-exporter scrape is healthy. Missing signature-database evidence is included. Inspect collector publication and enrollment before claiming coverage. |
+
+Coverage-health rules require a current healthy `up{job="integrations/unix"}`
+for the host. Existing host-loss/scrape-down rules own whole-host failures;
+dedicated datasource rules own query failures. The existing always-on host-loss
+inventory excludes Endeavour; S04 must reconcile its intermittent availability
+and host-loss ownership before enabling expectations there. These rules keep prior state on
+query error and treat an empty result as OK. Findings remain visible independently
+of partial/failed state and host-health gating while their samples exist.
+All five rules evaluate every minute with a five-minute pending period.
+
+A producer-latched finding is not a durable Grafana incident store: missing series,
+retention expiry, disabled enrollment, or rule changes can resolve an alert without
+recovery. Prometheus currently retains samples for 15 days; the recording rules
+preserve expectations, not historical findings. Verify fresh producer evidence
+before closing an incident. Offline tests cannot prove Grafana pending duration,
+missing-series lifecycle, Discord delivery, or operator response; S04 owns those
+staffed checks. Never inject live findings as part of source validation.
+
+The expectation namespace is trusted monitoring configuration. S01 rejects
+`host_integrity_*` injection through legacy textfile input, but these queries do
+not authenticate a remote-write client: a writer with access to Prometheus could
+forge metrics, including expectation series. Review receiver access separately;
+do not grant an untrusted exporter write access based on these rules.

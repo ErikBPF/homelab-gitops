@@ -1,0 +1,29 @@
+{{- $seen := dict -}}
+{{- range .Values.hostIntegrity.expectedChecks -}}
+{{- if not (and (regexMatch "^[a-z][a-z0-9-]*$" .instance) (has .check (list "signatures" "store" "av"))) -}}
+{{- fail "hostIntegrity.expectedChecks requires a hostname and signatures/store/av check" -}}
+{{- end -}}
+{{- $key := printf "%s/%s" .instance .check -}}
+{{- if hasKey $seen $key -}}{{- fail (printf "duplicate host integrity expectation: %s" $key) -}}{{- end -}}
+{{- $_ := set $seen $key true -}}
+{{- end }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-host-integrity-expectations
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  groups:
+    - name: host-integrity-expectations
+      rules:
+        {{- range .Values.hostIntegrity.expectedChecks }}
+        - record: host_integrity_expected
+          expr: vector(1)
+          labels:
+            instance: {{ .instance | quote }}
+            check: {{ .check | quote }}
+        {{- else }}
+        - record: host_integrity_expected
+          expr: vector(0) == 1
+        {{- end }}
