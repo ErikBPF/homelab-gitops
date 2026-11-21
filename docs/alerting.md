@@ -47,10 +47,11 @@ coverage, old signature databases, and missing check evidence. `instance` names
 the fleet host; `check` is `signatures`, `store`, or `av`. Host producers belong to
 `desktop-nixos`; GitOps owns these queries and notification provisioning.
 
-Enrollment is deliberately empty in `platform/monitoring/values.yaml`:
-`hostIntegrity.expectedChecks: []`. S04 must verify producer compatibility and
-explicitly enroll each supported `{instance, check}` pair, including any decision
-about Endeavour. No exclusion or unenrolled host is evidence of a clean scan.
+The S04 source change in `platform/monitoring/values.yaml` enrolls only Endeavour
+for `signatures`, `store`, and `av`. Merge it only after the coordinator verifies
+those producer gauges in the monitoring backend: live automated sync can activate
+the main-branch change immediately. Source
+enrollment alone is not deployment evidence. See the [pilot runbook](host-integrity-pilot.md). No exclusion or unenrolled host is evidence of a clean scan.
 The chart creates `host_integrity_expected` recording rules through the existing
 Prometheus operator's release selector. This reviewed GitOps list remains present
 when a producer disappears; producer metrics never determine enrollment.
@@ -66,8 +67,11 @@ when a producer disappears; producer metrics never determine enrollment.
 Coverage-health rules require a current healthy `up{job="integrations/unix"}`
 for the host. Existing host-loss/scrape-down rules own whole-host failures;
 dedicated datasource rules own query failures. The existing always-on host-loss
-inventory excludes Endeavour; S04 must reconcile its intermittent availability
-and host-loss ownership before enabling expectations there. These rules keep prior state on
+inventory excludes Endeavour because the workstation may sleep or power off.
+Its integrity coverage is checked while a fresh healthy scrape is present.
+Sleep does not page as an always-on outage; after wake, overdue complete coverage
+warns until a fresh complete run. A failed awake scrape remains owned by the
+existing host scrape-down rule. These rules keep prior state on
 query error and treat an empty result as OK. Findings remain visible independently
 of partial/failed state and host-health gating while their samples exist.
 All five rules evaluate every minute with a five-minute pending period.

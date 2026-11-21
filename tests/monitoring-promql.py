@@ -240,7 +240,7 @@ for uid in integrity_uids:
     assert all_rules[uid]["execErrState"] == "KeepLast"
 
 
-def integrity_case(name, overrides=None, firing=(), check="store", enrolled=True, host=True):
+def integrity_case(name, overrides=None, firing=(), check="store", enrolled=True, host=True, instance="orion"):
     # Ten days permits real positive timestamps for eight-day boundary tests.
     now = 864000
     values = {"state": 2, "last_attempt_seconds": now - 60,
@@ -249,13 +249,13 @@ def integrity_case(name, overrides=None, firing=(), check="store", enrolled=True
     if check == "signatures":
         values["signature_database_seconds"] = now - 60
     values.update(overrides or {})
-    identity = f'instance="orion",check="{check}"'
+    identity = f'instance="{instance}",check="{check}"'
     metrics = {f'host_integrity_{key}{{{identity},job="collector"}}': value
                for key, value in values.items() if value is not None}
     if enrolled:
         metrics[f'host_integrity_expected{{{identity}}}'] = 1
     if host:
-        metrics['up{instance="orion",job="integrations/unix"}'] = 1
+        metrics[f'up{{instance="{instance}",job="integrations/unix"}}'] = host if isinstance(host, str) else 1
     # A healthy peer proves absence is evaluated per identity.
     metrics['host_integrity_expected{instance="apollo",check="store"}'] = 1
     metrics['up{instance="apollo",job="integrations/unix"}'] = 1
@@ -269,7 +269,7 @@ def integrity_case(name, overrides=None, firing=(), check="store", enrolled=True
         expressions.append({"expr": query, "eval_time": "240h", "exp_samples":
                             [{"labels": "{" + identity + "}", "value": 1}] if uid.removeprefix("host-integrity-") in firing else []})
     tests.append({"name": "integrity: " + name, "interval": "1h",
-                  "input_series": [{"series": metric, "values": f"{value}+0x240"}
+                  "input_series": [{"series": metric, "values": value if isinstance(value, str) else f"{value}+0x240"}
                                    for metric, value in metrics.items()],
                   "promql_expr_test": expressions})
 
@@ -296,6 +296,24 @@ integrity_case("missing database evidence", {"signature_database_seconds": None}
 integrity_case("unknown database", {"signature_database_seconds": 0}, ["signature-age"], check="signatures")
 integrity_case("recovered coverage retains finding", {"findings": 1}, ["finding"])
 integrity_case("reviewed resolution", {"findings": 0})
+
+# Endeavour is intermittent: sleeping is not recovery or an always-on outage.
+for check in ["signatures", "store", "av"]:
+    integrity_case(f"Endeavour sleeping {check}", {"state": 4, "last_complete_seconds": 1},
+                   check=check, instance="endeavour", host="1+0x238 stale _")
+    integrity_case(f"Endeavour awake overdue {check}", {"last_complete_seconds": 1},
+                   ["stale"], check=check, instance="endeavour", host="0+0x239 1")
+integrity_case("Endeavour scrape failed is existing host rule responsibility",
+               {"state": 4}, instance="endeavour", host="0+0x240")
+integrity_case("Endeavour sleep cannot clear retained finding while samples exist",
+               {"state": 4, "findings": 1}, ["finding"], instance="endeavour", host=False)
+# The healthy-scrape gate is load-bearing: without a live up series the
+# intermittency rules must stay silent even when coverage is overdue.
+integrity_case("Endeavour overdue without a scrape", {"last_complete_seconds": 1},
+               instance="endeavour", host=False)
+integrity_case("Endeavour incomplete without a scrape", {"state": 3},
+               instance="endeavour", host=False)
+assert 'endeavour' not in host_expr, "intermittent pilot must not enter always-on host absence inventory"
 
 # Observe loss and recovery across samples, preserving per-check identities.
 for name, transition, firing in [
