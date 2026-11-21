@@ -71,3 +71,15 @@ requires the named Secret-backed, read-only password mount and subPath. Both
 mutations now fail while the unchanged rendered deployment passes. No live
 manifest or Secret changed. Existing `scripts/validate.sh` already runs this
 contract in CI; no second workflow or deployment path was introduced.
+
+
+A second review at `ea58dd5` found that the XML assertions still parsed the source
+file instead of the ConfigMap actually mounted by the master. The guard now
+follows the rendered ossec.conf mount to its ConfigMap key and parses that XML.
+Mutations replacing its subPath, ConfigMap or mount, and altering the rendered
+XML, were observed passing before this correction and failing afterward. A
+verified adjacent binding gap was closed in the same repair: the persistent
+`/var/ossec/etc` mount must name an actual StatefulSet claim template. The
+unchanged render still passes; no runtime configuration was modified. This is
+repair two for the rendered enrollment-boundary guard, with the agreed three-
+repair stop bound retained.
