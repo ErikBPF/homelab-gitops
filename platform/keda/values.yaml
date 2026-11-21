@@ -8,11 +8,11 @@ keda:
       registry: harbor.homelab.pastelariadev.com/ghcr
   image:
     keda:
-      tag: 2.21.0@sha256:81fe6547ce8d1cc29273f887b76507e9b853e5bc1f875ec23fe60061a38ed809
+      tag: 2.21.1@sha256:d09d92c0a310e3057a3c54df387b99abf2bf31352218dbe1adcb00e807886488
     metricsApiServer:
-      tag: 2.21.0@sha256:255375037fe592732eeb554743aae360c2da88cf0b9b1258d0a987ef885f0881
+      tag: 2.21.1@sha256:747e376b3e80dc4f72bf4f7043f47cc4cdb56f34b1aed9531789f474996e1c84
     webhooks:
-      tag: 2.21.0@sha256:e1969628cca6123e32eea13c47c75817091af2657fa68d9d0d58a8620d1b75b1
+      tag: 2.21.1@sha256:5f4b0b0f7831b9f53738be85e99449a1747a5effa970305fe602455ab0f4fcd3
   resources:
     operator:
       requests: { cpu: 10m, memory: 64Mi }
