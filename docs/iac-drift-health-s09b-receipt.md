@@ -22,12 +22,13 @@ local work was preserved. Source changes are rules, existing renderer/PromQL tes
 The S09 owner froze seven `homelab_iac_drift_*` lifecycle gauges with fixed
 `instance="discovery"`, outcome 0–6 and notification 0–4 semantics documented in
 the runbook. Complete clean/drift advances completion even if notification fails;
-invalid result metadata does not. The producer's proposed finite service budget
-is 3,600 seconds, existing shared lock wait is 900 seconds, and reporting grace
-is 30 seconds. The consumer flags running attempts beyond 3,630 seconds.
+invalid result metadata does not. The producer bounds its begin reporter to 30 seconds and main command to 3,600
+seconds, including the existing 900-second shared lock wait. Five possible
+30-second cleanup/reporting phases yield the conservative 3,780-second consumer
+threshold. The five-minute pending period applies after that predicate.
 
 The coordinator accepted a provisional 26-hour completion threshold: daily
-cadence plus 15-minute jitter, one-hour execution budget and 45-minute ingestion
+cadence plus 15-minute jitter, 63-minute conservative lifecycle budget and 42-minute ingestion
 margin. Finished execution failures and overdue running attempts take precedence
 over stale completion; completed-but-undelivered finding notifications have their
 own health class. A healthy Discovery host scrape gates these workload alerts,
@@ -45,7 +46,7 @@ After the unchanged baseline passed, the expanded PromQL contract failed with
 `missing IaC lifecycle health rule: homelab-iac-drift-execution-health`. The four
 rules then passed actual promtool evaluation, preserving Discovery identity.
 Fixtures cover healthy clean/drift, every finished failure class, delivery states,
-3,630-second/26-hour boundaries, never-run and each missing gauge, a missing job
+3,780-second/26-hour boundaries, never-run and each missing gauge, a missing job
 beside a healthy peer, whole-host loss, failed scrape, timeout/recovery transitions,
 and old healthy lifecycle gauges beside a currently failed systemd unit.
 
@@ -75,3 +76,11 @@ fresh producer recovery and actual firing/resolved operator receipt. Preserve th
 existing finding notifier and shared apply lock. Withdraw deployed rules through
 reviewed main-branch source changes with explicit UID tombstones; never roll back
 infrastructure simply to make monitoring green.
+
+## Reviewed phase-budget correction
+
+Pinned systemd source review showed independent phase timeouts; the earlier
+3,630-second whole-service claim was incorrect. Boundary tests at 3,780 and 3,781
+seconds failed against the prior rules (`/tmp/s09b-3780-red.log`); the matching
+consumer threshold and documentation were corrected. Producer begin/finish are
+now separately bounded and stale results without a matching begin are rejected.

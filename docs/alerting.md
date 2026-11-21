@@ -100,9 +100,9 @@ must not create a second infrastructure-drift finding message.
 
 | Rule UID suffix (`homelab-iac-drift-`) | Meaning / first action |
 |---|---|
-| `execution-health` | Finished error, timeout or exhausted lock wait; or still running beyond 3,630 seconds. Inspect the named unit and protected lifecycle receipt. Do not retry or apply infrastructure from an alert. |
+| `execution-health` | Finished error, timeout or exhausted lock wait; or still running beyond 3,780 seconds. Inspect the named unit and protected lifecycle receipt. Do not retry or apply infrastructure from an alert. |
 | `delivery-health` | A completed check reports failed, unconfigured or unknown required notification delivery. Investigate the existing notifier; a healthy check does not prove recipient receipt. Execution failures take priority over this class. |
-| `stale` | No completed clean/drift check within 26 hours. Daily cadence plus 15-minute jitter, a one-hour run budget and 45-minute ingestion margin make this provisional threshold. Running beyond its deadline or a finished failure takes priority. A newly published old timestamp does not renew completion. |
+| `stale` | No completed clean/drift check within 26 hours. Daily cadence plus 15-minute jitter, a 63-minute conservative lifecycle budget and 42-minute ingestion margin make this provisional threshold. Running beyond its deadline or a finished failure takes priority. A newly published old timestamp does not renew completion. |
 | `missing` | Discovery has a healthy host scrape but the expected job never ran or lacks a required lifecycle gauge. Inspect the publisher/collector and unit bootstrap; another host's metrics cannot satisfy this expectation. |
 
 The producer v1 contract uses fixed `instance="discovery"` identity and seven
@@ -112,8 +112,10 @@ duration, outcome, notification and lock contention. Outcomes are 0 never-run,
 states are 0 not required, 1 delivered, 2 failed, 3 not configured, 4 unknown.
 Completed clean/drift advances completion even when notification delivery fails;
 invalid/missing structured results fail execution without advancing completion.
-The 3,630-second consumer deadline assumes the reviewed 3,600-second whole-service
-budget plus 30 seconds of reporting grace. Change producer budgets and consumer
+The 3,780-second consumer threshold conservatively includes the reviewed
+30-second begin reporter, 3,600-second main command, and five 30-second systemd
+cleanup/reporting phases. It is a detection predicate followed by the five-minute
+alert pending period, not a guaranteed exact wall-clock termination time. Change producer budgets and consumer
 thresholds together at a reviewed published revision.
 
 All rules evaluate every minute with five-minute pending periods. They require

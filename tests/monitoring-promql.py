@@ -370,8 +370,8 @@ for outcome in [4, 5, 6]:
 for notification in [2, 3, 4]:
     drift_case(f"completed drift delivery health {notification}",
                {"outcome": 3, "notification": notification}, [delivery])
-drift_case("running at whole-service grace boundary", {"outcome": 1, "last_attempt_seconds": 864000-3630})
-drift_case("running beyond whole-service grace boundary", {"outcome": 1, "last_attempt_seconds": 864000-3631}, [execution])
+drift_case("running at whole-service grace boundary", {"outcome": 1, "last_attempt_seconds": 864000-3780})
+drift_case("running beyond whole-service grace boundary", {"outcome": 1, "last_attempt_seconds": 864000-3781}, [execution])
 drift_case("26h completion boundary", {"last_complete_seconds": 864000-93600})
 drift_case("26h completion expired", {"last_complete_seconds": 864000-93601}, [stale])
 drift_case("fresh publication cannot renew old completion", {"last_complete_seconds": 1}, [stale])
