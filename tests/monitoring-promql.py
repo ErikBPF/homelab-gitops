@@ -307,6 +307,12 @@ integrity_case("Endeavour scrape failed is existing host rule responsibility",
                {"state": 4}, instance="endeavour", host="0+0x240")
 integrity_case("Endeavour sleep cannot clear retained finding while samples exist",
                {"state": 4, "findings": 1}, ["finding"], instance="endeavour", host=False)
+# The healthy-scrape gate is load-bearing: without a live up series the
+# intermittency rules must stay silent even when coverage is overdue.
+integrity_case("Endeavour overdue without a scrape", {"last_complete_seconds": 1},
+               instance="endeavour", host=False)
+integrity_case("Endeavour incomplete without a scrape", {"state": 3},
+               instance="endeavour", host=False)
 assert 'endeavour' not in host_expr, "intermittent pilot must not enter always-on host absence inventory"
 
 # Observe loss and recovery across samples, preserving per-check identities.
