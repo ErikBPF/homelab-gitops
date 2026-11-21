@@ -467,7 +467,11 @@ data:
     # NFS exclusive flock requires a writable descriptor; archive reads remain read-only.
     test -f /source-data/data/readiness.json.lock
     exec 9<>/source-data/data/readiness.json.lock
-    flock -x -w 300 9
+    # BusyBox flock in alpine/k8s has no -w; timeout enforces the 300-second wait.
+    if ! timeout 300 flock -x 9; then
+      echo "cognee backup: timed out waiting for readiness.json.lock" >&2
+      exit 75
+    fi
     kubectl -n cognee scale deployment cognee --replicas=0 >/dev/null
     kubectl -n cognee wait --for=delete pod -l app=cognee --timeout=2m >/dev/null
     kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
@@ -543,6 +547,7 @@ spec:
             seccompProfile: { type: RuntimeDefault }
           containers:
             - name: backup
+              # flock and timeout are BusyBox applets in this pinned image.
               image: harbor.homelab.pastelariadev.com/dockerhub/alpine/k8s:1.36.4@sha256:358ddfc2d6ff3f00dd461dbd79aaa6d6738709f225b8da0945bb63bd4dbc304e
               command: [/bin/bash, /scripts/backup.sh]
               env:

@@ -196,7 +196,7 @@ def check_payload(documents, source_config, run_id):
     # This reviewed whole-manifest pin also rejects added env, arguments and mounts.
     if (
         hashlib.sha256(normalized.encode()).hexdigest()
-        != "591146a9bf70967247e7518e61d95745362d4b17bcd49311bf99ec98d6783151"
+        != "69f1c7c664ebcd035edfe8deb6decbb5f21adb4004901b0e7a5823f8b8e60c8f"
     ):
         raise AssertionError("complete rendered payload changed")
 

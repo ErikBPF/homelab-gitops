@@ -2,8 +2,8 @@
 # busybox test Pods, and standalone PostgreSQL ignores existing Secret credentials.
 image:
   repository: ghcr.io/berriai/litellm-database
-  tag: "1.100.0"
-  digest: sha256:2657abe0f6a9c01a78d74825be2785964d439ac030d9d4befdce8257c37a3741
+  tag: "v1.106.7"
+  digest: sha256:2168b8a1e74bab377e9ce451e5c1f5c8d17a8ddcee70e84e386a835e6a3bcea4
 replicaCount: 1
 resources:
   requests: {cpu: 250m, memory: 512Mi}
