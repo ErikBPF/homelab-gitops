@@ -39,6 +39,7 @@ CHART_VERSION_PAIRS = {
 # directory -> (chart dependency, values key, image key)
 APP_VERSION_PAIRS = {
     "platform/traefik": ("traefik", "traefik", "traefik"),
+    "argocd": ("argo-cd", "argo-cd", ("global", "image", "tag")),
 }
 
 
