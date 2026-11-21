@@ -52,7 +52,22 @@ this public pin and exact hostname under TLS 1.2 (verification return code 0,
 ECDHE-RSA-AES256-GCM-SHA384). It sent no enrollment request or credentials and
 did not mutate standing identity. Deployed Orion recovery remains unproved.
 
-The coordinator requested a decision on S07 retention and the approved backup
-destination. Keep this pending: no deletion policy, backup store or credentials
-are inferred. The source has no Wazuh restore recipe; isolated restore evidence
-must be created before claiming that gate passed.
+The initial S07 retention decision was pending when this receipt began. The user
+subsequently answered “do as recomendation”, accepting thirty-day alert retention,
+daily encrypted index and manager-state backups, and isolated restore. The
+coordinator selected the existing Kepler-local encrypted Restic repository as the
+primary destination; Voyager expansion remains separate. This S06 change applies
+no retention policy and provisions no credential. The S07 recovery source and
+actual isolated-restore evidence remain separate delivery gates.
+
+
+## Review correction
+
+Hackerman's two P2 findings at `4420d94` were reproduced with rendered manifest
+mutations: renaming the master's selector/template label and removing its authd
+password volume/mount both incorrectly passed the original contract. The guard
+now compares the exact registration selector with the master Pod labels and
+requires the named Secret-backed, read-only password mount and subPath. Both
+mutations now fail while the unchanged rendered deployment passes. No live
+manifest or Secret changed. Existing `scripts/validate.sh` already runs this
+contract in CI; no second workflow or deployment path was introduced.

@@ -61,13 +61,28 @@ python3 "$root/scripts/check-first-wave-resources.py" "$render"
 
 # Orion pins the public authd certificate persisted in this master PVC. Moving
 # enrollment or replacing /var/ossec/etc requires a coordinated trust-pin review.
-test "$(yq -r 'select(.kind == "Service" and .metadata.name == "wazuh-registration") | .spec.selector."node-type"' "$render")" = master
 test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-master") | .spec.replicas' "$render")" = 1
 test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-master") | .spec.template.spec.containers[] | select(.name == "wazuh-manager") | .volumeMounts[] | select(.mountPath == "/var/ossec/etc") | .name + " " + .subPath' "$render")" = 'wazuh-manager-master wazuh/var/ossec/etc'
-python3 - "$app/upstream/wazuh_managers/wazuh_conf/master.conf" <<'PY'
+python3 - "$app/upstream/wazuh_managers/wazuh_conf/master.conf" "$render" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+import yaml
+
+resources = list(yaml.safe_load_all(Path(sys.argv[2]).read_text()))
+registration = next(r for r in resources if r and r.get('kind') == 'Service' and r['metadata']['name'] == 'wazuh-registration')
+master = next(r for r in resources if r and r.get('kind') == 'StatefulSet' and r['metadata']['name'] == 'wazuh-manager-master')
+selector = registration['spec']['selector']
+assert selector == {'app': 'wazuh-manager', 'node-type': 'master'}
+assert selector.items() <= master['spec']['template']['metadata']['labels'].items()
+pod = master['spec']['template']['spec']
+container = next(c for c in pod['containers'] if c['name'] == 'wazuh-manager')
+password = next(m for m in container['volumeMounts'] if m['name'] == 'wazuh-authd-pass')
+assert password['mountPath'] == '/wazuh-config-mount/etc/authd.pass'
+assert password['subPath'] == 'authd.pass' and password['readOnly'] is True
+volume = next(v for v in pod['volumes'] if v['name'] == password['name'])
+assert volume['secret']['secretName'] == 'wazuh-authd-pass'
+
 root = ET.fromstring('<config>' + Path(sys.argv[1]).read_text() + '</config>')
 auth = root.find('ossec_config/auth')
 assert auth.findtext('ssl_manager_cert') == '/var/ossec/etc/sslmanager.cert'
