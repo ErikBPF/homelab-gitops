@@ -2543,3 +2543,302 @@ groups:
           - refId: C
             datasourceUid: __expr__
             model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: lt, params: [1]}}]}
+
+  - orgId: 1
+    name: host-integrity
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: host-integrity-finding
+        title: Host integrity finding
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}/{{ $labels.check }}: finding'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#host-integrity
+        labels:
+          severity: critical
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance, check) (host_integrity_expected) == 1) and (max by (instance, check)
+                (host_integrity_findings) > 0)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: host-integrity-incomplete
+        title: Host integrity incomplete
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}/{{ $labels.check }}: incomplete'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#host-integrity
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance, check) (host_integrity_expected) == 1) and (max by (instance, check)
+                (host_integrity_state) >= 3) and on (instance) (max by (instance) (up{job="integrations/unix"})
+                == 1)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: host-integrity-stale
+        title: Host integrity stale
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}/{{ $labels.check }}: stale'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#host-integrity
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance, check) (host_integrity_expected) == 1) and ((max by (instance, check)
+                (host_integrity_state) == 1) or (max by (instance, check) (host_integrity_state) == 2))
+                and ((time() - max by (instance, check) (host_integrity_last_complete_seconds{check=~"store|signatures"})
+                > 172800) or (time() - max by (instance, check) (host_integrity_last_complete_seconds{check="av"})
+                > 691200)) and on (instance) (max by (instance) (up{job="integrations/unix"}) == 1)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: host-integrity-signature-age
+        title: Host integrity signature age
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}/{{ $labels.check }}: signature age'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#host-integrity
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance, check) (host_integrity_expected) == 1) and ((time() - max by (instance,
+                check) (host_integrity_signature_database_seconds{check="signatures"}) > 172800) or (max
+                by (instance, check) (host_integrity_signature_database_seconds{check="signatures"}) ==
+                0)) and on (instance) (max by (instance) (up{job="integrations/unix"}) == 1)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: host-integrity-missing-check
+        title: Host integrity missing check
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}/{{ $labels.check }}: missing check'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#host-integrity
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (((max by (instance, check) (host_integrity_expected) == 1) unless (((max by (instance,
+                check) (host_integrity_state)) and (max by (instance, check) (host_integrity_last_attempt_seconds))
+                and (max by (instance, check) (host_integrity_last_complete_seconds)) and (max by (instance,
+                check) (host_integrity_last_publish_seconds)) and (max by (instance, check) (host_integrity_findings))
+                and (max by (instance, check) (host_integrity_skipped)) and (max by (instance, check) (host_integrity_errors)))
+                and (max by (instance, check) (host_integrity_state) > 0))) and on (instance) (max by (instance)
+                (up{job="integrations/unix"}) == 1)) or ((max by (instance, check) (host_integrity_expected{check="signatures"})
+                == 1) unless max by (instance, check) (host_integrity_signature_database_seconds)) and on
+                (instance) (max by (instance) (up{job="integrations/unix"}) == 1)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
