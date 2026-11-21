@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Run the launch recipe with fake host commands; never contact Apollo."""
+import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -26,6 +29,29 @@ echo CONTAINER_STARTED
 
 
 class Launch(unittest.TestCase):
+    def test_serving_disables_inherited_development_controls(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fake_vllm = Path(directory) / "vllm"
+            fake_vllm.write_text(
+                f"#!{sys.executable}\n"
+                "import json, os, sys\n"
+                "print(json.dumps({'dev': os.getenv('VLLM_SERVER_DEV_MODE'), 'args': sys.argv[1:]}))\n"
+            )
+            fake_vllm.chmod(0o755)
+            result = subprocess.run(
+                [shutil.which("bash"), str(LAUNCH.parent / "serve-vllm.sh")],
+                env={"PATH": f"{directory}:{os.defpath}", "VLLM_SERVER_DEV_MODE": "1"},
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            served = json.loads(result.stdout)
+            self.assertNotEqual(served["dev"], "1")
+            self.assertEqual(served["args"][:2], ["serve", "/model"])
+            self.assertIn("qwen38-27b-nvfp4", served["args"])
+            self.assertNotIn("--profiler-config", served["args"])
+            self.assertNotIn("--tool-server", served["args"])
+
     def _env(self, directory, **overrides):
         root = Path(directory)
         (root / "sudo").write_text(SUDO)
