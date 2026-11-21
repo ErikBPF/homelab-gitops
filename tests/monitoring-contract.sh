@@ -135,8 +135,9 @@ def render(pairs):
         yaml.safe_dump({'hostIntegrity': {'expectedChecks': pairs}}, values)
         values.flush()
         return subprocess.run(['helm', 'template', 'monitoring', str(chart), '-f', values.name], text=True, capture_output=True)
-assert yaml.safe_load((chart / 'values.yaml').read_text()).get('hostIntegrity', {}).get('expectedChecks') == [], 'production enrollment must remain empty'
-for pairs in [[], [{'instance': 'orion', 'check': 'store'}, {'instance': 'orion', 'check': 'av'}]]:
+pilot = [{'instance': 'endeavour', 'check': check} for check in ['signatures', 'store', 'av']]
+assert yaml.safe_load((chart / 'values.yaml').read_text()).get('hostIntegrity', {}).get('expectedChecks') == pilot, 'pilot enrollment must contain only the three Endeavour checks'
+for pairs in [[], pilot, [{'instance': 'orion', 'check': 'store'}, {'instance': 'orion', 'check': 'av'}]]:
     result = render(pairs)
     assert result.returncode == 0, result.stderr
     docs = [d for d in yaml.safe_load_all(result.stdout) if d]
