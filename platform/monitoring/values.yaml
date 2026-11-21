@@ -130,6 +130,12 @@ kube-prometheus-stack:
         access: proxy
         url: http://loki-gateway.monitoring.svc.cluster.local
 
-# Activate only after the S04 producer/enrollment handoff.
+# S04 Endeavour pilot; merge only after collector backend verification.
 hostIntegrity:
-  expectedChecks: []
+  expectedChecks:
+    - instance: endeavour
+      check: signatures
+    - instance: endeavour
+      check: store
+    - instance: endeavour
+      check: av
