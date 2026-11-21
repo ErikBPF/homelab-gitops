@@ -129,3 +129,7 @@ kube-prometheus-stack:
         uid: loki
         access: proxy
         url: http://loki-gateway.monitoring.svc.cluster.local
+
+# Activate only after the S04 producer/enrollment handoff.
+hostIntegrity:
+  expectedChecks: []

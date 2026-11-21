@@ -3,5 +3,5 @@ name: immich-wrapper
 version: 1.0.0
 dependencies:
   - name: immich
-    version: 0.13.1
+    version: 0.13.4
     repository: oci://ghcr.io/immich-app/immich-charts
