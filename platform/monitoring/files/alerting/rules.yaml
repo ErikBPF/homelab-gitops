@@ -1587,8 +1587,9 @@ groups:
   # — its non-zero result is the documented false-fatal on this fleet
   # (memory/fleet_upgrade_2026_07_12), not a real failure. Routed to the incidents
   # Discord channel via the root policy (severity=warning: first notification is
-  # prompt after the 10m `for`, repeat 4h — catches an 8h outage without paging on
-  # every transient/benign unit failure). interval 1m for fast detection.
+  # prompt after the 10m `for`, repeat 12h — catches an 8h outage without paging
+  # on every transient/benign unit failure). Cache warm and release promotion are
+  # split into severity=info below. interval 1m for fast detection.
   - orgId: 1
     name: host-systemd
     folder: Infra Alerts
@@ -1617,7 +1618,66 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: node_systemd_unit_state{state="failed",name!="systemd-networkd-wait-online.service"} == 1
+              expr: node_systemd_unit_state{state="failed",name!="systemd-networkd-wait-online.service",name!="nix-cache-builder.service",name!="kindle-release-agent.service"} == 1
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+
+      # Background work, not a service outage. nix-cache-builder failing only
+      # means hosts build locally; kindle-release-agent failing means one
+      # promotion is stuck. Both retry on their own timers, and routing them as
+      # warnings put a failed cache warm in the same channel as a downed
+      # container. severity=info sends them to the deploys channel instead.
+      - uid: host-systemd-unit-failed-maintenance
+        title: maintenance unit failed on host
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "{{ $labels.instance }}: maintenance unit {{ $labels.name }} is failed — background work stopped, no service is down; check `systemctl status {{ $labels.name }}` / `journalctl -u {{ $labels.name }}`"
+          runbook_url: https://github.com/ErikBPF/servarr/blob/main/machines/discovery/RUNBOOK.md#container-and-systemd-alerts
+        labels:
+          severity: info
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: node_systemd_unit_state{state="failed",name="nix-cache-builder.service"} == 1 or node_systemd_unit_state{state="failed",name="kindle-release-agent.service"} == 1
           - refId: B
             relativeTimeRange:
               from: 600
