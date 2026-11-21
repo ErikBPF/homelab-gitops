@@ -1,0 +1,13 @@
+{
+  "cluster_permissions": [
+    "cluster:admin/repository/get",
+    "cluster:admin/repository/put",
+    "cluster:admin/repository/verify",
+    "cluster:admin/snapshot/create",
+    "cluster:admin/snapshot/get",
+    "cluster:admin/snapshot/status",
+    "cluster:admin/snapshot/delete"
+  ],
+  "index_permissions": [],
+  "tenant_permissions": []
+}

@@ -1,0 +1,16 @@
+# The controller must verify live Argo delegation before any scale operation.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: wazuh-backup-argo-observer, namespace: argocd}
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [applications]
+    resourceNames: [wazuh]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: wazuh-backup-argo-observer, namespace: argocd}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: wazuh-backup-argo-observer}
+subjects:
+  - {kind: ServiceAccount, name: svc-desktop-nixos-wazuh-manager-scale, namespace: wazuh}

@@ -14,4 +14,16 @@ spec:
         - .spec.volumeClaimTemplates[]?.kind
         - .spec.volumeClaimTemplates[]?.spec.volumeMode
         - .spec.volumeClaimTemplates[]?.status
+    # The bounded backup controller owns temporary scale-to-zero and rescue-to-one.
+    # Never ignore indexer replicas, other workloads, or any manager field besides replicas.
+    - group: apps
+      kind: StatefulSet
+      name: wazuh-manager-master
+      namespace: wazuh
+      jsonPointers: [/spec/replicas]
+    - group: apps
+      kind: StatefulSet
+      name: wazuh-manager-worker
+      namespace: wazuh
+      jsonPointers: [/spec/replicas]
   syncPolicy: {syncOptions: [CreateNamespace=true, ServerSideApply=true, RespectIgnoreDifferences=true]}

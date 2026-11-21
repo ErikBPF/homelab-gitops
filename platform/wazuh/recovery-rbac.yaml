@@ -1,0 +1,60 @@
+# Backup coordination only; no token Secret or unattended credential is created here.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: svc-desktop-nixos-wazuh-manager-scale}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: wazuh-manager-backup-scale}
+rules:
+  - apiGroups: [apps]
+    resources: [statefulsets/scale]
+    resourceNames: [wazuh-manager-master, wazuh-manager-worker]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: wazuh-manager-backup-scale}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: wazuh-manager-backup-scale}
+subjects:
+  - {kind: ServiceAccount, name: svc-desktop-nixos-wazuh-manager-scale, namespace: wazuh}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: wazuh-manager-backup-metadata}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    resourceNames: [wazuh-manager-master-0, wazuh-manager-worker-0]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    resourceNames: [wazuh-manager-master-wazuh-manager-master-0, wazuh-manager-worker-wazuh-manager-worker-0]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: wazuh-manager-backup-metadata}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: wazuh-manager-backup-metadata}
+subjects:
+  - {kind: ServiceAccount, name: svc-desktop-nixos-wazuh-manager-scale, namespace: wazuh}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: wazuh-backup-bound-volume-metadata}
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    resourceNames:
+      - pvc-4c197eed-4b28-431b-bb4c-99e17fc3d460
+      - pvc-24bb0968-7b98-463a-af73-249a186fddc8
+      - pvc-f310f72b-ce47-44df-929f-1fdf16c145be
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: wazuh-backup-bound-volume-metadata}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: wazuh-backup-bound-volume-metadata}
+subjects:
+  - {kind: ServiceAccount, name: svc-desktop-nixos-wazuh-manager-scale, namespace: wazuh}

@@ -66,6 +66,10 @@ for contract in \
   tests/grafana-alert-template_test.go \
   tests/grafana-alert-status.sh \
   tests/wazuh-contract.sh \
+  tests/wazuh-recovery.py \
+  tests/test_wazuh_index_snapshot.py \
+  tests/test_wazuh_prestop.py \
+  tests/test_wazuh_restore.py \
   tests/runtime-secret-bootstrap.sh \
   tests/cloudflare-token-handoff.sh \
   tests/grafana-admin-rotation.sh \
