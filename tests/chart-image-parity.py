@@ -28,11 +28,18 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # directory -> (chart dependency, values key, image key)
 CHART_VERSION_PAIRS = {
     "platform/csi-driver-nfs": ("csi-driver-nfs", "csi-driver-nfs", "nfs"),
+    "platform/cert-manager": ("cert-manager", "cert-manager", "tag"),
+    "platform/clickhouse-operator": (
+        "clickhouse-operator-helm",
+        "clickhouse-operator-helm",
+        ("manager", "image", "tag"),
+    ),
 }
 
 # directory -> (chart dependency, values key, image key)
 APP_VERSION_PAIRS = {
     "platform/traefik": ("traefik", "traefik", "traefik"),
+    "argocd": ("argo-cd", "argo-cd", ("global", "image", "tag")),
 }
 
 
@@ -54,6 +61,11 @@ def dependency(chart, name):
 
 
 def image_tag(values, values_key, image_key):
+    if isinstance(image_key, tuple):
+        node = values[values_key]
+        for key in image_key:
+            node = node[key]
+        return node
     image = values[values_key]["image"]
     if "tag" in image:
         return image["tag"]

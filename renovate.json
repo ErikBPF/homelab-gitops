@@ -16,6 +16,12 @@
       "matchFileNames": ["platform/**", "argocd/**"]
     },
     {
+      "description": "Archived Apollo experiments are reproduction receipts: their pinned digests must not drift, or the recorded run stops being reproducible.",
+      "matchManagers": ["dockerfile", "regex"],
+      "matchFileNames": ["apps/homelab/apollo-qwen27b/experiments/**"],
+      "enabled": false
+    },
+    {
       "description": "Pin digests off — these are versioned Helm charts, not images",
       "matchManagers": ["helmv3"],
       "pinDigests": false
