@@ -2902,3 +2902,251 @@ groups:
                     type: gt
                     params:
                       - 0
+
+  - orgId: 1
+    name: homelab-iac-drift-health
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      - uid: homelab-iac-drift-execution-health
+        title: IaC drift execution unhealthy
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}: Execution failed, timed out, exceeded the lock wait, or is still
+            running beyond its deadline; inspect the protected lifecycle receipt.'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#iac-drift-health
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance) (up{instance="discovery",job="integrations/unix"} == 1)) and ((max by
+                (instance) (homelab_iac_drift_outcome{instance="discovery"}) >= 4) or ((max by (instance)
+                (homelab_iac_drift_outcome{instance="discovery"}) == 1) and ((time() - max by (instance)
+                (homelab_iac_drift_last_attempt_seconds{instance="discovery"})) > 3630)))
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: homelab-iac-drift-delivery-health
+        title: IaC drift notification unhealthy
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}: The completed drift check did not establish required finding-notification
+            delivery; inspect the existing notifier without repeating its drift finding.'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#iac-drift-health
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance) (up{instance="discovery",job="integrations/unix"} == 1)) and ((max by
+                (instance) (homelab_iac_drift_outcome{instance="discovery"}) == 2) or (max by (instance)
+                (homelab_iac_drift_outcome{instance="discovery"}) == 3)) and (max by (instance) (homelab_iac_drift_notification{instance="discovery"})
+                >= 2)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: homelab-iac-drift-stale
+        title: IaC drift completion stale
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}: No complete drift check within 26 hours; inspect the daily timer
+            and latest attempt. Fresh publication does not renew coverage.'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#iac-drift-health
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance) (up{instance="discovery",job="integrations/unix"} == 1)) and (((max by
+                (instance) (homelab_iac_drift_outcome{instance="discovery"}) == 2) or (max by (instance)
+                (homelab_iac_drift_outcome{instance="discovery"}) == 3)) or ((max by (instance) (homelab_iac_drift_outcome{instance="discovery"})
+                == 1) and ((time() - max by (instance) (homelab_iac_drift_last_attempt_seconds{instance="discovery"}))
+                <= 3630))) and (time() - max by (instance) (homelab_iac_drift_last_complete_seconds{instance="discovery"})
+                > 93600)
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+      - uid: homelab-iac-drift-missing
+        title: IaC drift lifecycle evidence missing
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: '{{ $labels.instance }}: Discovery is reporting host telemetry but its expected drift
+            job has never run or lacks required lifecycle gauges; inspect the publisher and unit.'
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#iac-drift-health
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: >-
+                (max by (instance) (up{instance="discovery",job="integrations/unix"} == 1)) unless (((max
+                by (instance) (homelab_iac_drift_last_attempt_seconds{instance="discovery"})) and (max by
+                (instance) (homelab_iac_drift_last_complete_seconds{instance="discovery"})) and (max by
+                (instance) (homelab_iac_drift_last_publish_seconds{instance="discovery"})) and (max by (instance)
+                (homelab_iac_drift_duration_seconds{instance="discovery"})) and (max by (instance) (homelab_iac_drift_outcome{instance="discovery"}))
+                and (max by (instance) (homelab_iac_drift_notification{instance="discovery"})) and (max
+                by (instance) (homelab_iac_drift_lock_contention{instance="discovery"}))) and (max by (instance)
+                (homelab_iac_drift_outcome{instance="discovery"}) > 0))
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
