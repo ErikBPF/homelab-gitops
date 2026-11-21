@@ -27,3 +27,6 @@ Validate rule behavior with `tests/monitoring-promql.py` and rendering with
 `just sync <full-commit-sha> monitoring`; verify the Application and Grafana
 rule state after sync. Reverting the rule requires adding its UID to
 `deleteRules`, because Grafana does not prune deleted file-provisioned rules.
+
+Enrollment trust ownership and the S06/S07 boundary are recorded in
+[the Wazuh enrollment trust receipt](../platform/wazuh/ENROLLMENT-TRUST.md).

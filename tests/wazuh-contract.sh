@@ -58,3 +58,19 @@ for tuple in 'wazuh-indexer nfs-slow 30Gi' 'wazuh-manager-master nfs-fast 5Gi' '
   test "$(yq -r "select(.kind == \"StatefulSet\" and .metadata.name == \"$workload\") | .spec.volumeClaimTemplates[].spec | (.accessModes | join(\",\")) + \" \" + .storageClassName + \" \" + .resources.requests.storage" "$render")" = "ReadWriteOnce $storage_class $size"
 done
 python3 "$root/scripts/check-first-wave-resources.py" "$render"
+
+# Orion pins the public authd certificate persisted in this master PVC. Moving
+# enrollment or replacing /var/ossec/etc requires a coordinated trust-pin review.
+test "$(yq -r 'select(.kind == "Service" and .metadata.name == "wazuh-registration") | .spec.selector."node-type"' "$render")" = master
+test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-master") | .spec.replicas' "$render")" = 1
+test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-master") | .spec.template.spec.containers[] | select(.name == "wazuh-manager") | .volumeMounts[] | select(.mountPath == "/var/ossec/etc") | .name + " " + .subPath' "$render")" = 'wazuh-manager-master wazuh/var/ossec/etc'
+python3 - "$app/upstream/wazuh_managers/wazuh_conf/master.conf" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+root = ET.fromstring('<config>' + Path(sys.argv[1]).read_text() + '</config>')
+auth = root.find('ossec_config/auth')
+assert auth.findtext('ssl_manager_cert') == '/var/ossec/etc/sslmanager.cert'
+assert auth.findtext('ssl_manager_key') == '/var/ossec/etc/sslmanager.key'
+assert auth.findtext('use_password') == 'yes'
+PY
