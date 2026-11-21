@@ -13,7 +13,7 @@ service: {port: 4000}
 # inference or input echo; no provider credential or external endpoint is used.
 modelName: spike-echo
 postgres:
-  image: docker.io/library/postgres:18@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941
+  image: docker.io/library/postgres:18@sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a
   size: 10Gi
   storageClass: local-path
   resources:
