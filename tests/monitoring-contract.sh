@@ -105,6 +105,7 @@ alert_files=(
   "$root/platform/monitoring/files/alerting/buzz-rules.yaml"
   "$root/platform/monitoring/files/alerting/recovery-rules.yaml"
   "$root/platform/monitoring/files/alerting/storage-rules.yaml"
+  "$root/platform/monitoring/files/alerting/wazuh-rules.yaml"
 )
 unexpected_error_rules=$(yq -r '.groups[].rules[] | select(.uid != "datasource-prometheus-health" and .uid != "datasource-loki-health" and .execErrState != "KeepLast") | .uid' "${alert_files[@]}")
 test -z "$unexpected_error_rules"
@@ -123,3 +124,37 @@ grep -Fq 'container_health_unhealthy{host="discovery"}' <<<"$unhealthy_expr"
 grep -Fq 'max by (host, name, project)' <<<"$unhealthy_expr"
 test "$(yq -r '.groups[].rules[] | select(.uid == "container-unhealthy") | .for' "$root/platform/monitoring/files/alerting/rules.yaml")" = 5m
 test "$(yq -r '.groups[].rules[] | select(.uid == "container-unhealthy") | .labels.severity' "$root/platform/monitoring/files/alerting/rules.yaml")" = warning
+
+# Consumer-owned expectations must be loaded by the existing operator selector.
+python3 - "$root" <<'PY'
+import pathlib, subprocess, sys, tempfile, yaml
+root = pathlib.Path(sys.argv[1])
+chart = root / 'platform/monitoring'
+def render(pairs):
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml') as values:
+        yaml.safe_dump({'hostIntegrity': {'expectedChecks': pairs}}, values)
+        values.flush()
+        return subprocess.run(['helm', 'template', 'monitoring', str(chart), '-f', values.name], text=True, capture_output=True)
+assert yaml.safe_load((chart / 'values.yaml').read_text()).get('hostIntegrity', {}).get('expectedChecks') == [], 'production enrollment must remain empty'
+for pairs in [[], [{'instance': 'orion', 'check': 'store'}, {'instance': 'orion', 'check': 'av'}]]:
+    result = render(pairs)
+    assert result.returncode == 0, result.stderr
+    docs = [d for d in yaml.safe_load_all(result.stdout) if d]
+    expectation = next(d for d in docs if d.get('kind') == 'PrometheusRule' and d['metadata']['name'] == 'monitoring-host-integrity-expectations')
+    prometheus = next(d for d in docs if d.get('kind') == 'Prometheus')
+    selector = prometheus['spec']['ruleSelector']['matchLabels']
+    assert all(expectation['metadata']['labels'].get(k) == v for k, v in selector.items())
+    assert prometheus['spec']['ruleNamespaceSelector'] == {}
+    rules = expectation['spec']['groups'][0]['rules']
+    assert all(r['record'] == 'host_integrity_expected' for r in rules)
+    assert [(r.get('labels', {}).get('instance'), r.get('labels', {}).get('check')) for r in rules] == ([(p['instance'], p['check']) for p in pairs] or [(None, None)])
+    # Evaluate actual generated recording rules, including the empty default.
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp)
+        (path / 'rules.yaml').write_text(yaml.safe_dump(expectation['spec']))
+        samples = [{'labels': f'host_integrity_expected{{instance="{p["instance"]}",check="{p["check"]}"}}', 'value': 1} for p in pairs]
+        (path / 'tests.yaml').write_text(yaml.safe_dump({'rule_files': [str(path / 'rules.yaml')], 'tests': [{'interval': '1m', 'promql_expr_test': [{'expr': 'host_integrity_expected', 'eval_time': '1m', 'exp_samples': samples}]}]}))
+        subprocess.run(['promtool', 'test', 'rules', str(path / 'tests.yaml')], check=True)
+for pairs in [[{'instance': 'orion', 'check': 'unknown'}], [{'instance': 'bad"host', 'check': 'store'}], [{'instance': 'orion', 'check': 'store'}] * 2]:
+    assert render(pairs).returncode != 0, f'invalid enrollment accepted: {pairs}'
+PY
