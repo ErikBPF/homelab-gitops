@@ -98,7 +98,10 @@ grep -Fq 'kube_statefulset_replicas' <<<"$statefulset_expr"
 
 host_absence_expr=$(yq -r '.groups[].rules[] | select(.uid == "host-metrics-absent") | .data[] | select(.refId == "A") | .model.expr' "$root/platform/monitoring/files/alerting/rules.yaml")
 grep -Fq 'instance="apollo"' <<<"$host_absence_expr"
-test "$(grep -c 'uid: host-systemd-unit-failed' "$root/platform/monitoring/files/alerting/rules.yaml")" -eq 1
+test "$(grep -c 'uid: host-systemd-unit-failed$' "$root/platform/monitoring/files/alerting/rules.yaml")" -eq 1
+test "$(grep -c 'uid: host-systemd-unit-failed-maintenance$' "$root/platform/monitoring/files/alerting/rules.yaml")" -eq 1
+maintenance_severity=$(yq -r '.groups[].rules[] | select(.uid == "host-systemd-unit-failed-maintenance") | .labels.severity' "$root/platform/monitoring/files/alerting/rules.yaml")
+test "$maintenance_severity" = info
 
 alert_files=(
   "$root/platform/monitoring/files/alerting/rules.yaml"
