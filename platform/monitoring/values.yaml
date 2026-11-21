@@ -32,7 +32,7 @@ kube-prometheus-stack:
     tls: {enabled: false}
     image:
       registry: harbor.homelab.pastelariadev.com/quay
-      sha: 6dbbbbeca6d7b94aa30723bfaa55262e41b9f8c15304c484611c696503840aac
+      sha: c7edf0379b7271ef1705dce258d2bb73820e299cc95559369e9f6fc3321639ec
     resources:
       requests: {cpu: 50m, memory: 128Mi}
       limits: {cpu: 500m, memory: 512Mi}
@@ -55,7 +55,7 @@ kube-prometheus-stack:
     prometheusSpec:
       image:
         registry: harbor.homelab.pastelariadev.com/quay
-        sha: 1f0f50f06acaceb0f5670d2c8a658a599affe7b0d8e78b898c1035653849a702
+        sha: 9764044e09eb2c9e1abdb12d0f0188d4efb7384b0262d3c080f0fc59045c89ba
       enableRemoteWriteReceiver: true
       retention: 15d
       retentionSize: 25GB
@@ -71,7 +71,7 @@ kube-prometheus-stack:
   grafana:
     image:
       registry: harbor.homelab.pastelariadev.com/dockerhub
-      sha: 2175aaa91c96733d86d31cf270d5310b278654b03f5718c59de12a865380a31f
+      sha: 540b8afb775bf34aefce417e4329039daa5d44b6f2fbda6881397b1b247ca7df
     testFramework:
       enabled: false
     initChownData:
@@ -99,7 +99,7 @@ kube-prometheus-stack:
     sidecar:
       image:
         registry: harbor.homelab.pastelariadev.com/quay
-        sha: a36a5946ea215ca6435a2a7e155a17cc360ac35664ad33fa8f640a1d6786100e
+        sha: 52d311dcedd587421a236c4d6c621f05614c40a51386e955e0699dca97ec0880
       resources:
         requests: {cpu: 10m, memory: 32Mi}
         limits: {cpu: 100m, memory: 128Mi}
