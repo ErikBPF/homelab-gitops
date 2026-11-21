@@ -28,6 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # directory -> (chart dependency, values key, image key)
 CHART_VERSION_PAIRS = {
     "platform/csi-driver-nfs": ("csi-driver-nfs", "csi-driver-nfs", "nfs"),
+    "platform/cert-manager": ("cert-manager", "cert-manager", "tag"),
     "platform/clickhouse-operator": (
         "clickhouse-operator-helm",
         "clickhouse-operator-helm",
