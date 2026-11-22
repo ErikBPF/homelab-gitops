@@ -7,6 +7,14 @@ render=$(mktemp)
 trap 'rm -f "$render"' EXIT
 kubectl kustomize "$app" >"$render"
 
+# Slow cold starts must not be killed by steady-state liveness checks.
+indexer='select(.kind == "StatefulSet" and .metadata.name == "wazuh-indexer") | .spec.template.spec.containers[] | select(.name == "wazuh-indexer")'
+yq -o=json "$indexer" "$render" | jq -e '
+  .startupProbe == {tcpSocket: {port: "indexer-rest"}, periodSeconds: 10, timeoutSeconds: 1, failureThreshold: 60}
+  and .livenessProbe == {tcpSocket: {port: "indexer-rest"}, initialDelaySeconds: 60}
+  and .readinessProbe == {tcpSocket: {port: "indexer-rest"}, initialDelaySeconds: 30}
+' >/dev/null
+
 test "$(yq -r '.spec.project' "$root/clusters/kepler/apps/wazuh.yaml")" = platform
 test "$(yq -r 'select(.metadata.name == "platform") | .spec.namespaceResourceWhitelist[] | select(.group == "traefik.io" and .kind == "ServersTransport") | .kind' "$root/clusters/kepler/apps/projects.yaml")" = ServersTransport
 expected_ignored_paths=$(printf '%s\n' \
