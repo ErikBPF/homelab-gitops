@@ -13,6 +13,10 @@ keda:
       tag: 2.21.1@sha256:747e376b3e80dc4f72bf4f7043f47cc4cdb56f34b1aed9531789f474996e1c84
     webhooks:
       tag: 2.21.1@sha256:5f4b0b0f7831b9f53738be85e99449a1747a5effa970305fe602455ab0f4fcd3
+  # Temporary recovery: the pinned adapter exits 139 on w-1, but runs on w-2.
+  metricsServer:
+    nodeSelector:
+      kubernetes.io/hostname: w-2
   resources:
     operator:
       requests: { cpu: 10m, memory: 64Mi }

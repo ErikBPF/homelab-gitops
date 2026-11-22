@@ -55,6 +55,9 @@ image.
 See [the disposable Alloy proof](docs/alloy-disposable-proof.md) for the optional
 local replica fixture, artifact pins and current evidence limits.
 
+See [temporary KEDA metrics recovery](docs/keda-metrics-recovery.md) for the
+bounded node-comparison evidence and held placement workaround.
+
 ## Bootstrap
 
 ```
