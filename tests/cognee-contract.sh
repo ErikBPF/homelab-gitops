@@ -16,6 +16,12 @@ validate_workflow=.github/workflows/validate.yml
 
 test -f "$manifest"
 test -f "$application"
+
+# The backup owns this one replica count while quiescing and restoring Cognee.
+yq -o=json '.spec' "$application" | jq -e '
+  .ignoreDifferences == [{group:"apps",kind:"Deployment",name:"cognee",namespace:"cognee",jsonPointers:["/spec/replicas"]}]
+  and (.syncPolicy.syncOptions | index("RespectIgnoreDifferences=true") != null)
+' >/dev/null || { echo "Cognee backup replica ownership must survive Argo reconciliation" >&2; exit 1; }
 refute grep -Fq 'kind: Namespace' "$manifest"
 grep -Fq 'cognee.yaml' clusters/kepler/apps/kustomization.yaml
 test ! -e "$image_dir"
@@ -168,3 +174,10 @@ done
 
 # C6 must compare identities, not only row counts.
 python3 tests/cognee-restore-identity.py
+
+# Completion requires restored replicas/readiness, including failure cleanup.
+python3 tests/test_cognee_backup.py
+
+# rollout status uses a namespace-scoped ListWatch; preserve its read permissions.
+yq -o=json 'select(.kind == "Role" and .metadata.name == "cognee-backup") | .rules[] | select(.resources[] == "deployments")' "$manifest" \
+  | jq -e '(.verbs | index("get") != null) and (.verbs | index("list") != null) and (.verbs | index("watch") != null)' >/dev/null

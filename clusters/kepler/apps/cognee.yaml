@@ -15,5 +15,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: cognee
+  # The backup job owns quiesce/restore; self-healing must not restart writers.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: cognee
+      namespace: cognee
+      jsonPointers: [/spec/replicas]
   syncPolicy:
-    syncOptions: [ServerSideApply=true]
+    syncOptions: [ServerSideApply=true, RespectIgnoreDifferences=true]
