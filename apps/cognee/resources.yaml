@@ -470,7 +470,10 @@ data:
           -c 'drop table if exists cognee_backup_canary' >/dev/null || cleanup_status=1
         timeout -k 5 30 kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null || cleanup_status=1
       fi
-      # Application startup may require this lock; release it before restoration.
+      # Unlock the shared open-file description even if a child inherited FD 9.
+      if [[ $quiesce_attempted == 1 ]]; then
+        timeout -k 5 10 flock -u 9 || cleanup_status=1
+      fi
       exec 9>&-
       if [[ $quiesce_attempted == 1 ]]; then
         if timeout -k 5 30 kubectl -n cognee scale deployment cognee --replicas="$replicas" >/dev/null; then
@@ -566,7 +569,7 @@ spec:
         metadata: { labels: { app: cognee-backup } }
         spec:
           serviceAccountName: cognee-backup
-          # 125s foreground bound + 440s cleanup bound fit inside 600s grace.
+          # 125s foreground bound + 455s cleanup bound fit inside 600s grace.
           terminationGracePeriodSeconds: 600
           restartPolicy: Never
           securityContext:

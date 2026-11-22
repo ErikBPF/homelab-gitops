@@ -64,7 +64,19 @@ class BackupTest(unittest.TestCase):
                 command = ' '.join(a)
                 if 'drop table' in command or 'GRAPH.DELETE' in command: log('canary-cleanup')
                 if 'GRAPH.LIST' in a and fault == 'graph-list': sys.exit(47)
-                if 'pg_dump' in a: print('database fixture')
+                if 'pg_dump' in a:
+                    if fault == 'inherited-lock':
+                        os.fstat(9)
+                        child = os.fork()
+                        if child == 0:
+                            os.setsid()
+                            with open(os.devnull, 'wb') as output:
+                                os.dup2(output.fileno(), 1)
+                                os.dup2(output.fileno(), 2)
+                            os.execlp('sleep', 'sleep', '30')
+                        pathlib.Path(os.environ['HOLDER_PID']).write_text(str(child))
+                        log('inherited-lock-holder')
+                    print('database fixture')
                 elif 'cat /var/lib/falkordb/data/dump.rdb' in command: print('graph fixture')
                 elif 'to_regclass' in command: print('f')
                 elif 'encode(sha256' in command: print('identity fixture')
@@ -84,34 +96,56 @@ class BackupTest(unittest.TestCase):
             path = commands / name
             path.write_text('#!'+shutil.which('bash')+'\nset -eu\n'+body+'\n')
             path.chmod(0o755)
-        env = os.environ | {'PATH': str(commands)+':'+os.environ['PATH'], 'FAULT': fault,
-                            'REPLICAS': replicas, 'TRACE': str(trace), 'BACKUPS': str(backups),
-                            'LOCK': str(source/'data/readiness.json.lock')}
-        if fault == 'deferred-term':
-            process = subprocess.Popen(['bash', str(root/'backup.sh')], env=env,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       text=True, start_new_session=True)
-            try:
-                deadline = time.monotonic() + 5
-                while 'archive-blocked' not in trace.read_text() and time.monotonic() < deadline:
-                    time.sleep(0.02)
-                self.assertIn('archive-blocked', trace.read_text())
-                # Kubelet sends TERM to PID 1, not directly to its foreground tar.
-                process.send_signal(signal.SIGTERM)
+        holder_pid = root / 'holder-pid'
+        def stop_holder():
+            if holder_pid.exists():
                 try:
-                    stdout, stderr = process.communicate(timeout=3)
-                except subprocess.TimeoutExpired:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    stdout, stderr = process.communicate()
-                result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
-            finally:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
+                    os.killpg(int(holder_pid.read_text()), signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-        else:
-            result = subprocess.run(['bash', str(root/'backup.sh')], env=env,
-                                    capture_output=True, text=True, timeout=10)
+                deadline = time.monotonic() + 2
+                state_file = Path('/proc') / holder_pid.read_text() / 'stat'
+                while state_file.exists() and time.monotonic() < deadline:
+                    try:
+                        if state_file.read_text().split()[2] == 'Z':
+                            break  # Reparented child exited; no descriptors remain open.
+                    except FileNotFoundError:
+                        break
+                    time.sleep(0.01)
+                else:
+                    self.assertFalse(state_file.exists(), 'lock fixture child did not exit')
+        self.addCleanup(stop_holder)
+        env = os.environ | {'HOLDER_PID': str(holder_pid), 'PATH': str(commands)+':'+os.environ['PATH'], 'FAULT': fault,
+                            'REPLICAS': replicas, 'TRACE': str(trace), 'BACKUPS': str(backups),
+                            'LOCK': str(source/'data/readiness.json.lock')}
+        try:
+            if fault == 'deferred-term':
+                process = subprocess.Popen(['bash', str(root/'backup.sh')], env=env,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                           text=True, start_new_session=True)
+                try:
+                    deadline = time.monotonic() + 5
+                    while 'archive-blocked' not in trace.read_text() and time.monotonic() < deadline:
+                        time.sleep(0.02)
+                    self.assertIn('archive-blocked', trace.read_text())
+                    # Kubelet sends TERM to PID 1, not directly to its foreground tar.
+                    process.send_signal(signal.SIGTERM)
+                    try:
+                        stdout, stderr = process.communicate(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        stdout, stderr = process.communicate()
+                    result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+                finally:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+            else:
+                result = subprocess.run(['bash', str(root/'backup.sh')], env=env,
+                                        capture_output=True, text=True, timeout=10)
+        finally:
+            stop_holder()
         return result, trace.read_text().splitlines(), backups
 
     def test_success_restores_original_count_and_readiness_before_marker(self):
@@ -185,6 +219,15 @@ class BackupTest(unittest.TestCase):
         self.assertIn('readiness', trace)
         self.assertNotIn('success-marker', trace)
         self.assertNotIn('retention', trace)
+
+    def test_inherited_lock_descriptor_cannot_block_restoration(self):
+        result, trace, _ = self.run_backup(fault='inherited-lock')
+        self.assertIn('inherited-lock-holder', trace)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(trace.count('scale-2'), 1, trace)
+        self.assertNotIn('lock-held-during-restore', trace)
+        self.assertIn('readiness', trace)
+        self.assertIn('success-marker', trace)
 
     def test_original_failure_survives_failed_restoration(self):
         result, trace, _ = self.run_backup(fault='archive-restore')

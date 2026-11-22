@@ -182,6 +182,8 @@ python3 tests/test_cognee_backup.py
 yq -o=json 'select(.kind == "Role" and .metadata.name == "cognee-backup") | .rules[] | select(.resources[] == "deployments")' "$manifest" \
   | jq -e '(.verbs | index("get") != null) and (.verbs | index("list") != null) and (.verbs | index("watch") != null)' >/dev/null
 
-# Foreground timeout plus bounded restoration must fit the Pod termination grace.
+# 125s foreground + 455s cleanup (including explicit unlock) fit inside 600s grace.
 yq -o=json 'select(.kind == "CronJob" and .metadata.name == "cognee-backup") | .spec.jobTemplate.spec' "$manifest" \
   | jq -e '.activeDeadlineSeconds == 900 and .template.spec.terminationGracePeriodSeconds == 600' >/dev/null
+
+grep -Fq 'timeout -k 5 10 flock -u 9' "$manifest"
