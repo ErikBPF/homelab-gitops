@@ -1,8 +1,0 @@
-apiVersion: v2
-name: otel-collector
-description: OpenTelemetry Collector — OTLP ingest → Jaeger (prod-mimic trace pipeline)
-version: 0.1.0
-dependencies:
-  - name: opentelemetry-collector
-    version: 0.178.3 # Renovate-managed (open-telemetry.github.io/opentelemetry-helm-charts)
-    repository: https://open-telemetry.github.io/opentelemetry-helm-charts

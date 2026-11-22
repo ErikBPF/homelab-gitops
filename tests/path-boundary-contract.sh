@@ -5,7 +5,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 repo=ssh://git@ssh.github.com:443/ErikBPF/homelab-gitops.git
 apps=$root/clusters/kepler/apps
 
-for service in airflow demo trace-demo; do
+for service in airflow; do
   test -d "$root/apps/homelab/$service"
   test ! -e "$root/apps/$service"
 done
@@ -45,14 +45,13 @@ for name in ('authentik', 'monitoring'):
     assert all(dep['repository'] in expected for dep in chart['dependencies']), name
 PYTEST
 
-test "$(yq -r 'select(.metadata.name == "homelab") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "airflow,cognee,demo,langfuse,litellm,mcp-echo,openwebui,trace-demo"
+test "$(yq -r 'select(.metadata.name == "homelab") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "airflow,cognee,langfuse,litellm,mcp-echo,openwebui"
 test "$(yq -r 'select(.metadata.name == "home-services") | .spec.destinations[].namespace' "$projects" | sort | paste -sd, -)" = "changedetection,immich,karakeep"
 
 if grep -R -l '^kind: Namespace$' "$root/apps/homelab" "$root/apps/home-services"; then
   echo 'lane applications must not own cluster-scoped namespaces' >&2
   exit 1
 fi
-test "$(yq -r 'select(.kind == "Namespace" and .metadata.name == "demo") | .metadata.labels."pod-security.kubernetes.io/enforce"' "$apps/namespaces.yaml")" = restricted
 test -z "$(yq -r 'select(.kind == "Namespace" and .metadata.name == "external-secrets") | .metadata.name' "$apps/namespaces.yaml")"
 test "$(yq -r '.spec.syncPolicy.syncOptions[]' "$apps/external-secrets.yaml" | grep -Fx 'CreateNamespace=true')" = 'CreateNamespace=true'
 
@@ -61,17 +60,14 @@ if yq -r '.. | select(tag == "!!str")' "$projects" | grep -Fxq '*'; then
   exit 1
 fi
 
-for app in argocd alloy-metrics csi-driver-nfs external-secrets jaeger keda kube-state-metrics otel-collector spark-operator traefik yunikorn; do
+for app in argocd alloy-metrics csi-driver-nfs external-secrets keda kube-state-metrics traefik; do
   test "$(yq -r '.spec.project' "$apps/$app.yaml")" = platform
 done
 
-for app in airflow demo trace-demo; do
+for app in airflow; do
   test "$(yq -r '.spec.project' "$apps/$app.yaml")" = homelab
   test "$(yq -r '.spec.source.path' "$apps/$app.yaml")" = "apps/homelab/$app"
 done
-
-test "$(yq -r '.spec.destination.namespace' "$apps/trace-demo.yaml")" = trace-demo
-test "$(yq -r '.metadata.namespace' "$root/apps/homelab/trace-demo/deployment.yaml")" = trace-demo
 
 python - "$apps" <<'PY'
 import pathlib
