@@ -36,13 +36,17 @@ image digests, arguments, secrets and resource budgets remain unchanged. The
 production request is **10m CPU and 64Mi memory**; it is not reduced to force
 placement. At the recorded preflight, w-2 requested 3955m of 4000m CPU and
 11684Mi of approximately 15988Mi memory, leaving room for that pod. Capacity must
-be checked again before deployment.
+be checked again immediately before merge.
 
 This is temporary containment: w-2 downtime can leave the metrics pod Pending
 until an intentional repin or removal. It does not improve general availability
-or repair the separate control-plane/storage incident. Merge and the owning
-`just sync <reviewed-revision> keda` remain held while that recovery is pending.
-After approved deployment, verify placement, restart count, logs and the external
+or repair the separate control-plane/storage incident. The KEDA Application
+tracks `main`, and `clusters/kepler/apps/kustomization.yaml` enables automated
+sync with prune/self-heal. Merging this PR therefore triggers rollout through
+Argo reconciliation; a separate manual `just sync` is not a deployment gate.
+Complete the control-plane recovery and recheck w-2 capacity before merge.
+Keep the PR unmerged until those gates pass; automated sync has not been suspended.
+After the approved merge and automatic rollout, verify placement, restart count, logs and the external
 metrics API; a passing help probe alone is not production service proof.
 
 ## Evidence and limits
@@ -71,5 +75,7 @@ Remove the temporary selector only after w-1 is repaired and an authorized exact
 image probe succeeds there, followed by a controlled rollout. Removing it earlier
 allows the original failure to recur. If w-2 becomes unavailable first, select a
 separately verified node with capacity through source review; do not silently
-weaken resource requests or SSH trust. No rollout or new live diagnostic is
-performed by this source change.
+weaken resource requests or SSH trust. Preparing this unmerged branch performed
+no production rollout. Merging it, removing its selector, or changing placement
+on `main` triggers automatic reconciliation and must pass the same pre-merge
+recovery and capacity checks.
