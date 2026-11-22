@@ -28,14 +28,6 @@ metadata: {name: cognee}
 ---
 apiVersion: v1
 kind: Namespace
-metadata:
-  name: demo
-  labels:
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/enforce-version: latest
----
-apiVersion: v1
-kind: Namespace
 metadata: {name: immich}
 ---
 apiVersion: v1
@@ -64,23 +56,7 @@ metadata: {name: monitoring}
 ---
 apiVersion: v1
 kind: Namespace
-metadata: {name: observability}
----
-apiVersion: v1
-kind: Namespace
 metadata: {name: openwebui}
----
-apiVersion: v1
-kind: Namespace
-metadata: {name: spark-jobs}
----
-apiVersion: v1
-kind: Namespace
-metadata: {name: spark-operator}
----
-apiVersion: v1
-kind: Namespace
-metadata: {name: trace-demo}
 ---
 apiVersion: v1
 kind: Namespace
@@ -89,7 +65,3 @@ metadata: {name: traefik}
 apiVersion: v1
 kind: Namespace
 metadata: {name: wazuh}
----
-apiVersion: v1
-kind: Namespace
-metadata: {name: yunikorn}

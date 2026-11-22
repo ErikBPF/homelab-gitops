@@ -26,29 +26,22 @@ COMPONENTS = (
     "apps/home-services/immich",
     "apps/home-services/karakeep",
     "apps/homelab/airflow",
-    "apps/homelab/demo",
     "apps/homelab/langfuse",
-    "apps/homelab/trace-demo",
     "platform/alloy-metrics",
     "platform/authentik",
     "platform/cert-manager",
     "platform/clickhouse-operator",
     "platform/csi-driver-nfs",
     "platform/external-secrets",
-    "platform/jaeger",
     "platform/keda",
     "platform/kube-state-metrics",
     "platform/loki",
     "platform/monitoring",
-    "platform/otel-collector",
-    "platform/spark-operator",
     "platform/scrutiny",
     "platform/traefik",
-    "platform/spark-connect",
     "platform/trino",
     "platform/trino-gateway",
     "platform/wazuh",
-    "platform/yunikorn",
 )
 
 
@@ -104,6 +97,3 @@ for component in COMPONENTS:
             )
 
 assert not violations, "runtime images bypass Harbor:\n" + "\n".join(sorted(set(violations)))
-
-yunikorn = yaml.safe_load((ROOT / "platform/yunikorn/values.yaml").read_text())
-assert "@sha256:" in yunikorn["yunikorn"]["yunikornDefaults"]["service.placeholderImage"]

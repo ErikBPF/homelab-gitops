@@ -19,12 +19,8 @@ spec:
     - {server: https://kubernetes.default.svc, namespace: keda}
     - {server: https://kubernetes.default.svc, namespace: kube-system}
     - {server: https://kubernetes.default.svc, namespace: monitoring}
-    - {server: https://kubernetes.default.svc, namespace: observability}
-    - {server: https://kubernetes.default.svc, namespace: spark-operator}
-    - {server: https://kubernetes.default.svc, namespace: spark-jobs}
     - {server: https://kubernetes.default.svc, namespace: traefik}
     - {server: https://kubernetes.default.svc, namespace: wazuh}
-    - {server: https://kubernetes.default.svc, namespace: yunikorn}
   clusterResourceWhitelist:
     - {group: "", kind: Namespace}
     - {group: "", kind: PersistentVolume}
@@ -86,12 +82,10 @@ spec:
   destinations:
     - {server: https://kubernetes.default.svc, namespace: airflow}
     - {server: https://kubernetes.default.svc, namespace: cognee}
-    - {server: https://kubernetes.default.svc, namespace: demo}
     - {server: https://kubernetes.default.svc, namespace: langfuse}
     - {server: https://kubernetes.default.svc, namespace: litellm}
     - {server: https://kubernetes.default.svc, namespace: mcp-echo}
     - {server: https://kubernetes.default.svc, namespace: openwebui}
-    - {server: https://kubernetes.default.svc, namespace: trace-demo}
   clusterResourceWhitelist:
     - {group: "", kind: PersistentVolume}
   namespaceResourceWhitelist:

@@ -15,7 +15,6 @@ COMPONENTS = (
     "platform/cert-manager",
     "platform/clickhouse-operator",
     "platform/monitoring",
-    "platform/spark-connect",
     "platform/trino",
     "platform/trino-gateway",
     "platform/loki",

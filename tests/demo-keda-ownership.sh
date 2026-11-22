@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if grep -q '^[[:space:]]*replicas:' apps/homelab/demo/deployment.yaml; then
-  echo "KEDA-managed demo Deployment must not declare spec.replicas" >&2
-  exit 1
-fi
-
 python3 - <<'PY'
 import pathlib
 import re

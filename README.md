@@ -82,7 +82,7 @@ just sync "$SHA" root
 ```
 
 ```sh
-app=jaeger # example; choose the application being updated
+app=monitoring # example; choose the application being updated
 just sync "$SHA" "$app"
 ```
 
@@ -107,14 +107,14 @@ via the cluster ingress behind the kepler L4 LB (no LoadBalancer Service).
 
 ## Current applications
 
-The root app manages 26 child applications (27 Argo Applications including
+The root app manages 23 child applications (24 Argo Applications including
 `root`):
 
 - `argocd`, `traefik`, `csi-driver-nfs`, `external-secrets`, `cert-manager`,
-  `clickhouse-operator`, `kube-state-metrics`, `alloy-metrics`, `keda`, `jaeger`,
-  `otel-collector`, `monitoring`, `loki`,
-  `scrutiny`, `wazuh`, `trace-demo`, `demo`, `airflow`, `langfuse`,
-  `changedetection`, `karakeep`, `immich`, and the `cognee` graph+RAG experiment.
+  `clickhouse-operator`, `kube-state-metrics`, `alloy-metrics`, `keda`,
+  `monitoring`, `loki`, `scrutiny`, `wazuh`, `authentik`, `airflow`,
+  `langfuse`, `litellm`, `mcp-echo`, `openwebui`, `changedetection`,
+  `karakeep`, `immich`, and the `cognee` graph+RAG experiment.
 - Traefik is the default IngressClass behind Kepler's `.250` L4 endpoint.
 - ESO reads runtime secrets from OpenBao@Discovery through a dedicated AppRole.
 - Harbor is intentionally **not** an Argo application. It moved to Discovery
