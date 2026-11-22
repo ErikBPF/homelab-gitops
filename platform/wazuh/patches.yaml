@@ -20,6 +20,11 @@ spec:
           resources:
             requests: {cpu: 500m, memory: 1Gi}
             limits: {cpu: "2", memory: 3Gi}
+          startupProbe:
+            tcpSocket: {port: indexer-rest}
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 60
           readinessProbe: {tcpSocket: {port: indexer-rest}, initialDelaySeconds: 30}
           livenessProbe: {tcpSocket: {port: indexer-rest}, initialDelaySeconds: 60}
           volumeMounts:
