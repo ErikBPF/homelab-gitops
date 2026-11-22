@@ -429,7 +429,7 @@ rules:
     verbs: [get, create, patch]
   - apiGroups: [apps]
     resources: [deployments, deployments/scale]
-    verbs: [get, patch, update]
+    verbs: [get, list, watch, patch, update]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -453,67 +453,98 @@ data:
     target=$root/$stamp
     mkdir -p "$target"
     chmod 770 "$root" "$target"
-    replicas=$(kubectl -n cognee get deployment cognee -o jsonpath='{.spec.replicas}')
+    replicas=$(timeout -k 5 30 kubectl -n cognee get deployment cognee -o jsonpath='{.spec.replicas}')
+    [[ $replicas =~ ^[1-9][0-9]*$ ]] || { echo "backup requires a positive replica count" >&2; exit 2; }
+    # Persist recovery intent before quiescing; retain it if the Job is hard-killed.
+    printf '%s\n' "$replicas" >"$target/replicas-before"
+    sync -f "$target/replicas-before"
+    sync -f "$target"
+    quiesce_attempted=0
 
     cleanup() {
-      set +e
-      kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
-        -c 'drop table if exists cognee_backup_canary' >/dev/null
-      kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null
-      kubectl -n cognee scale deployment cognee --replicas="$replicas" >/dev/null
+      local status=$1 cleanup_status=0
+      trap - EXIT
+      trap '' HUP INT TERM
+      if [[ $quiesce_attempted == 1 ]]; then
+        timeout -k 5 30 kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
+          -c 'drop table if exists cognee_backup_canary' >/dev/null || cleanup_status=1
+        timeout -k 5 30 kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null || cleanup_status=1
+      fi
+      # Unlock the shared open-file description even if a child inherited FD 9.
+      if [[ $quiesce_attempted == 1 ]]; then
+        timeout -k 5 10 flock -u 9 || cleanup_status=1
+      fi
+      exec 9>&-
+      if [[ $quiesce_attempted == 1 ]]; then
+        if timeout -k 5 30 kubectl -n cognee scale deployment cognee --replicas="$replicas" >/dev/null; then
+          timeout -k 5 330 kubectl -n cognee rollout status deployment/cognee --timeout=300s >/dev/null || cleanup_status=1
+        else
+          cleanup_status=1
+        fi
+      fi
+      [[ $status != 0 || $cleanup_status == 0 ]] || status=1
+      return "$status"
     }
-    trap cleanup EXIT
+    trap 'cleanup "$?"' EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
     # NFS exclusive flock requires a writable descriptor; archive reads remain read-only.
     test -f /source-data/data/readiness.json.lock
     exec 9<>/source-data/data/readiness.json.lock
     # BusyBox flock in alpine/k8s has no -w; timeout enforces the 300-second wait.
-    if ! timeout 300 flock -x 9; then
+    if ! timeout -k 5 300 flock -x 9; then
       echo "cognee backup: timed out waiting for readiness.json.lock" >&2
       exit 75
     fi
-    kubectl -n cognee scale deployment cognee --replicas=0 >/dev/null
-    kubectl -n cognee wait --for=delete pod -l app=cognee --timeout=2m >/dev/null
-    kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
+    # Bound foreground work so Bash can handle TERM within the Pod grace period.
+    quiesce_attempted=1
+    timeout -k 5 30 kubectl -n cognee scale deployment cognee --replicas=0 >/dev/null
+    timeout -k 5 120 kubectl -n cognee wait --for=delete pod -l app=cognee --timeout=2m >/dev/null
+    timeout -k 5 120 kubectl -n cognee exec pod/postgres-0 -- psql -v ON_ERROR_STOP=1 -U cognee -d cognee \
       -c "create table if not exists cognee_backup_canary (id text primary key); truncate cognee_backup_canary; insert into cognee_backup_canary values ('$stamp')" >/dev/null
-    kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null 2>&1 || true
-    kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.QUERY cognee-backup-canary \
+    timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.DELETE cognee-backup-canary >/dev/null 2>&1 || true
+    timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- redis-cli GRAPH.QUERY cognee-backup-canary \
       "CREATE (:RecoveryCanary {id:'$stamp'})-[:RESTORES]->(:RecoveryTarget {id:'$stamp'})" >/dev/null
 
     : >"$target/postgres-counts.tsv"
     for table in cognee_backup_canary datasets users acls data dataset_data dataset_database permissions; do
-      exists=$(kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
+      exists=$(timeout -k 5 120 kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
         -c "select to_regclass('public.$table') is not null")
       if [[ $exists == t ]]; then
-        count=$(kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
+        count=$(timeout -k 5 120 kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee \
           -c "select count(*) from $table")
         printf '%s\t%s\n' "$table" "$count" >>"$target/postgres-counts.tsv"
       fi
     done
 
     : >"$target/falkor-counts.tsv"
+    graphs=$(timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.LIST)
     while IFS= read -r graph; do
       [[ -n $graph ]] || continue
-      nodes=$(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.QUERY "$graph" \
+      nodes=$(timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.QUERY "$graph" \
         'MATCH (n) RETURN count(n)' | sed -n '2p')
-      edges=$(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.QUERY "$graph" \
+      edges=$(timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.QUERY "$graph" \
         'MATCH ()-[r]->() RETURN count(r)' | sed -n '2p')
       printf '%s\t%s\t%s\n' "$graph" "$nodes" "$edges" >>"$target/falkor-counts.tsv"
-    done < <(kubectl -n cognee exec pod/falkordb-0 -- redis-cli --raw GRAPH.LIST)
+    done <<<"$graphs"
 
-    kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee -c "select encode(sha256(convert_to(coalesce(string_agg(value, E'\n' order by value), ''), 'UTF8')), 'hex') from (select jsonb_build_array('users', to_jsonb(u))::text value from users u union all select jsonb_build_array('datasets', to_jsonb(d))::text from datasets d union all select jsonb_build_array('acls', to_jsonb(a))::text from acls a) identity_rows" >"$target/identity-digest.sha256"
-    kubectl -n cognee exec pod/postgres-0 -- pg_dump -Fc -U cognee cognee >"$target/postgres.dump"
-    kubectl -n cognee exec pod/falkordb-0 -- redis-cli SAVE >/dev/null
-    kubectl -n cognee exec pod/falkordb-0 -- sh -c \
+    timeout -k 5 120 kubectl -n cognee exec pod/postgres-0 -- psql -At -U cognee -d cognee -c "select encode(sha256(convert_to(coalesce(string_agg(value, E'\n' order by value), ''), 'UTF8')), 'hex') from (select jsonb_build_array('users', to_jsonb(u))::text value from users u union all select jsonb_build_array('datasets', to_jsonb(d))::text from datasets d union all select jsonb_build_array('acls', to_jsonb(a))::text from acls a) identity_rows" >"$target/identity-digest.sha256"
+    timeout -k 5 120 kubectl -n cognee exec pod/postgres-0 -- pg_dump -Fc -U cognee cognee >"$target/postgres.dump"
+    timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- redis-cli SAVE >/dev/null
+    timeout -k 5 120 kubectl -n cognee exec pod/falkordb-0 -- sh -c \
       'cat /var/lib/falkordb/data/dump.rdb' >"$target/falkordb.rdb"
-    tar -C /source-data -cf "$target/cognee-data.tar" .
+    timeout -k 5 120 tar -C /source-data -cf "$target/cognee-data.tar" .
     (
       cd "$target"
-      sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv >SHA256SUMS.pending
-      sha256sum cognee-data.tar identity-digest.sha256 >>SHA256SUMS.pending
+      timeout -k 5 120 sha256sum postgres.dump falkordb.rdb postgres-counts.tsv falkor-counts.tsv \
+        cognee-data.tar identity-digest.sha256 >SHA256SUMS.pending
       mv SHA256SUMS.pending SHA256SUMS
     )
 
+    cleanup 0 || exit $?
+    trap - HUP INT TERM
     marker=cognee-backup-$(date -u +%s)
     kubectl -n cognee create configmap "$marker" --from-literal=backup="$stamp" --dry-run=client -o yaml \
       | kubectl -n cognee label -f - cognee.pastelariadev.com/backup=success --local -o yaml \
@@ -538,6 +569,8 @@ spec:
         metadata: { labels: { app: cognee-backup } }
         spec:
           serviceAccountName: cognee-backup
+          # 125s foreground bound + 455s cleanup bound fit inside 600s grace.
+          terminationGracePeriodSeconds: 600
           restartPolicy: Never
           securityContext:
             runAsNonRoot: true

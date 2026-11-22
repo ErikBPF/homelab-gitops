@@ -12,7 +12,11 @@ assert 'identity-digest.sha256' in backup_source, 'C6 missing: backup has no ide
 backup_sql = re.search(r'-c "([^"\n]+identity_rows)"', backup_source).group(1)
 restore_sql = re.search(r'-c "([^"\n]+identity_rows)"', restore_source).group(1)
 assert backup_sql == restore_sql, 'backup and restore identity definitions differ'
-assert 'sha256sum cognee-data.tar identity-digest.sha256 >>SHA256SUMS.pending' in backup_source
+checksum_command = re.search(r'sha256sum\s+(.+?)>SHA256SUMS.pending', backup_source, re.S).group(1)
+assert checksum_command.replace('\\\n', ' ').split() == [
+    'postgres.dump', 'falkordb.rdb', 'postgres-counts.tsv', 'falkor-counts.tsv',
+    'cognee-data.tar', 'identity-digest.sha256',
+], 'all archive and identity files must be covered by the bounded checksum command'
 assert 'cognee-data.tar identity-digest.sha256 SHA256SUMS;' in restore_source
 
 start = restore_source.index('# Compare identity rows before restored application mutations.')
