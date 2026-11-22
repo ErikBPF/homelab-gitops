@@ -3,6 +3,8 @@
 import os
 from pathlib import Path
 import shutil
+import signal
+import time
 import subprocess
 import tempfile
 import textwrap
@@ -61,6 +63,7 @@ class BackupTest(unittest.TestCase):
             elif 'exec' in a:
                 command = ' '.join(a)
                 if 'drop table' in command or 'GRAPH.DELETE' in command: log('canary-cleanup')
+                if 'GRAPH.LIST' in a and fault == 'graph-list': sys.exit(47)
                 if 'pg_dump' in a: print('database fixture')
                 elif 'cat /var/lib/falkordb/data/dump.rdb' in command: print('graph fixture')
                 elif 'to_regclass' in command: print('f')
@@ -73,8 +76,8 @@ class BackupTest(unittest.TestCase):
             '''))
         kubectl.chmod(0o755)
         for name, body in {
-            'timeout': 'echo "timeout $*" >>"$TRACE"; exec '+shutil.which('timeout')+' "$@"',
-            'tar': 'echo archive >>"$TRACE"; if [ "$FAULT" = archive ] || [ "$FAULT" = archive-restore ]; then exit 42; fi; if [ "$FAULT" = term ]; then kill -TERM "$PPID"; exit 143; fi; exec '+shutil.which('tar')+' "$@"',
+            'timeout': 'echo "timeout $*" >>"$TRACE"; if [ "$FAULT" = deferred-term ]; then exec '+shutil.which('timeout')+' -k 0.1 0.8 "${@:4}"; fi; exec '+shutil.which('timeout')+' "$@"',
+            'tar': 'echo archive >>"$TRACE"; if [ "$FAULT" = deferred-term ]; then trap \"\" TERM; echo archive-blocked >>"$TRACE"; while :; do sleep 1; done; fi; if [ "$FAULT" = archive ] || [ "$FAULT" = archive-restore ]; then exit 42; fi; if [ "$FAULT" = term ]; then kill -TERM "$PPID"; exit 143; fi; exec '+shutil.which('tar')+' "$@"',
             'find': 'echo retention >>"$TRACE"',
             'sync': 'echo durable-sync >>"$TRACE"; [ "$FAULT" != sync ] || exit 46; exec '+shutil.which('sync')+' "$@"',
         }.items():
@@ -84,8 +87,31 @@ class BackupTest(unittest.TestCase):
         env = os.environ | {'PATH': str(commands)+':'+os.environ['PATH'], 'FAULT': fault,
                             'REPLICAS': replicas, 'TRACE': str(trace), 'BACKUPS': str(backups),
                             'LOCK': str(source/'data/readiness.json.lock')}
-        result = subprocess.run(['bash', str(root/'backup.sh')], env=env,
-                                capture_output=True, text=True, timeout=10)
+        if fault == 'deferred-term':
+            process = subprocess.Popen(['bash', str(root/'backup.sh')], env=env,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, start_new_session=True)
+            try:
+                deadline = time.monotonic() + 5
+                while 'archive-blocked' not in trace.read_text() and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                self.assertIn('archive-blocked', trace.read_text())
+                # Kubelet sends TERM to PID 1, not directly to its foreground tar.
+                process.send_signal(signal.SIGTERM)
+                try:
+                    stdout, stderr = process.communicate(timeout=3)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    stdout, stderr = process.communicate()
+                result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+            finally:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        else:
+            result = subprocess.run(['bash', str(root/'backup.sh')], env=env,
+                                    capture_output=True, text=True, timeout=10)
         return result, trace.read_text().splitlines(), backups
 
     def test_success_restores_original_count_and_readiness_before_marker(self):
@@ -103,12 +129,24 @@ class BackupTest(unittest.TestCase):
         self.assertTrue(timeouts and all(x.startswith('timeout -k 5 ') for x in timeouts), timeouts)
         self.assertTrue(any(x.startswith('timeout -k 5 330 ') and 'rollout status' in x for x in timeouts))
         self.assertEqual(next(backups.glob('*/replicas-before')).read_text(), '2\n')
+        checksum_files = {line.split()[-1] for line in next(backups.glob('*/SHA256SUMS')).read_text().splitlines()}
+        self.assertEqual(checksum_files, {'postgres.dump', 'falkordb.rdb', 'postgres-counts.tsv',
+                                        'falkor-counts.tsv', 'cognee-data.tar', 'identity-digest.sha256'})
 
     def test_archive_failure_restores_but_preserves_failure(self):
         result, trace, _ = self.run_backup(fault='archive')
         self.assertEqual(result.returncode, 42, result.stderr)
         self.assertEqual(trace.count('scale-2'), 1, trace)
         self.assertIn('readiness', trace)
+        self.assertNotIn('success-marker', trace)
+        self.assertNotIn('retention', trace)
+
+    def test_graph_enumeration_failure_restores_without_success(self):
+        result, trace, _ = self.run_backup(fault='graph-list')
+        self.assertEqual(result.returncode, 47, result.stderr)
+        self.assertEqual(trace.count('scale-2'), 1, trace)
+        self.assertIn('readiness', trace)
+        self.assertNotIn('archive', trace)
         self.assertNotIn('success-marker', trace)
         self.assertNotIn('retention', trace)
 
@@ -139,6 +177,14 @@ class BackupTest(unittest.TestCase):
         self.assertNotIn('retention', trace)
 
 
+
+    def test_term_during_blocked_foreground_capture_restores_before_grace(self):
+        result, trace, _ = self.run_backup(fault='deferred-term')
+        self.assertEqual(result.returncode, 143, result.stderr)
+        self.assertEqual(trace.count('scale-2'), 1, trace)
+        self.assertIn('readiness', trace)
+        self.assertNotIn('success-marker', trace)
+        self.assertNotIn('retention', trace)
 
     def test_original_failure_survives_failed_restoration(self):
         result, trace, _ = self.run_backup(fault='archive-restore')

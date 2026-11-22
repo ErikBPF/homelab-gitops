@@ -73,3 +73,33 @@ then verify `kubectl --context homelab -n cognee rollout status deployment/cogne
 remain necessary. A hard-killed job may not execute its EXIT trap. Removing this
 exception before repairing backup coordination would reintroduce the race;
 rollback should first prevent a backup from running concurrently with sync.
+
+
+## Published review amendment: termination budget
+
+The first published-head review found that the default 30-second pod grace
+could kill the job before restoration, especially because Bash defers a signal
+trap while a foreground capture command runs. This was not covered by the
+original immediate-exit signal fixture. The repair gives the pod 600 seconds
+of termination grace and bounds every post-quiesce capture command at 120
+seconds plus five seconds kill grace. One checksum command covers all archive
+members. Maximum foreground deferral (125 seconds) plus bounded cleanup
+(440 seconds) fits that grace. The new deferred-child signal regression failed before the repair (the fixture
+had to kill Bash) and now observes exit 143 after exactly one restoration,
+without a success marker. Graph enumeration now propagates command failure;
+its pre-fix fixture incorrectly exited zero. All nine script tests and the full
+owner contract pass. Independent review found no remaining blockers.
+
+The previous three successful scheduled jobs completed in approximately 57,
+62 and 57 seconds; this is calibration evidence, not a guarantee for future
+larger archives. A phase exceeding 120 seconds now fails and restores Cognee;
+retune only with measured evidence. The Job execution deadline remains 900
+seconds. At deadline, the owner's 15-minute watcher may return before up to
+600 seconds of termination cleanup finishes. Do not start another backup or
+perform manual restoration while any old backup pod is active or terminating.
+SIGKILL, node loss or kernel/storage stalls still require the recorded-count
+recovery procedure. A disposable pod using the exact pinned backup image on w-3 verified BusyBox's
+`timeout -k` forced-kill behavior and `sync -f` on a file and directory, exiting
+zero. It had no credentials, service-account token or persistent data volumes
+and was deleted after completion. This tool check does not exercise a real
+backup or NFS recovery. Live backup verification remains pending.
