@@ -326,6 +326,73 @@ for name, transition, firing in [
         if series["series"].startswith('host_integrity_state{instance="orion"'):
             series["values"] = transition
 
+# S09 v1: a single independently expected daily job on Discovery.
+drift_uids = ["homelab-iac-drift-execution-health", "homelab-iac-drift-delivery-health",
+              "homelab-iac-drift-stale", "homelab-iac-drift-missing"]
+for uid in drift_uids:
+    assert uid in all_rules, f"missing IaC lifecycle health rule: {uid}"
+    assert all_rules[uid]["noDataState"] == "OK"
+    assert all_rules[uid]["execErrState"] == "KeepLast"
+    assert all_rules[uid]["for"] == "5m"
+
+
+def drift_case(name, overrides=None, firing=(), host=1):
+    now = 864000
+    values = {"last_attempt_seconds": now - 60, "last_complete_seconds": now - 40,
+              "last_publish_seconds": now - 40, "duration_seconds": 20,
+              "outcome": 2, "notification": 0, "lock_contention": 0}
+    values.update(overrides or {})
+    metrics = {f'homelab_iac_drift_{key}{{instance="discovery",job="collector"}}': value
+               for key, value in values.items() if value is not None}
+    if host is not None:
+        metrics['up{instance="discovery",job="integrations/unix"}'] = host
+    # Healthy foreign telemetry cannot fill Discovery's missing job.
+    metrics['up{instance="kepler",job="integrations/unix"}'] = 1
+    for key in values:
+        metrics[f'homelab_iac_drift_{key}{{instance="kepler"}}'] = now - 40 if key.endswith('_seconds') else 0
+    expressions = []
+    for uid in drift_uids:
+        query = next(item["model"]["expr"] for item in all_rules[uid]["data"] if item["refId"] == "A")
+        expressions.append({"expr": query, "eval_time": "240h", "exp_samples":
+                            [{"labels": '{instance="discovery"}', "value": 1}] if uid in firing else []})
+    tests.append({"name": "IaC health: " + name, "interval": "1h",
+                  "input_series": [{"series": metric, "values": value if isinstance(value, str) else f"{value}+0x240"}
+                                   for metric, value in metrics.items()],
+                  "promql_expr_test": expressions})
+
+
+execution, delivery, stale, missing = drift_uids
+drift_case("clean completion")
+drift_case("completed drift belongs to existing finding notifier", {"outcome": 3, "notification": 1})
+for outcome in [4, 5, 6]:
+    drift_case(f"finished failure {outcome} takes precedence over old completion",
+               {"outcome": outcome, "last_complete_seconds": 1, "notification": 4}, [execution])
+for notification in [2, 3, 4]:
+    drift_case(f"completed drift delivery health {notification}",
+               {"outcome": 3, "notification": notification}, [delivery])
+drift_case("running at whole-service grace boundary", {"outcome": 1, "last_attempt_seconds": 864000-3780})
+drift_case("running beyond whole-service grace boundary", {"outcome": 1, "last_attempt_seconds": 864000-3781}, [execution])
+drift_case("26h completion boundary", {"last_complete_seconds": 864000-93600})
+drift_case("26h completion expired", {"last_complete_seconds": 864000-93601}, [stale])
+drift_case("fresh publication cannot renew old completion", {"last_complete_seconds": 1}, [stale])
+drift_case("never run", {"outcome": 0, "last_complete_seconds": 0}, [missing])
+for metric in ["last_attempt_seconds", "last_complete_seconds", "last_publish_seconds",
+               "duration_seconds", "outcome", "notification", "lock_contention"]:
+    drift_case(f"missing required {metric}", {metric: None}, [missing])
+drift_case("entire job absent beside healthy peer", {key: None for key in [
+    "last_attempt_seconds", "last_complete_seconds", "last_publish_seconds",
+    "duration_seconds", "outcome", "notification", "lock_contention"]}, [missing])
+drift_case("whole host missing belongs to host-loss rule", {"outcome": None}, host=None)
+drift_case("failed host scrape belongs to scrape-down rule", {"outcome": 4}, host=0)
+drift_case("timeout then clean recovery", {"outcome": "5+0x239 2"})
+drift_case("job disappears while host remains", {"outcome": "2+0x238 stale _"}, [missing])
+# Keep the generic fallback: old successful lifecycle gauges cannot conceal a new unit failure.
+alert_case("host-systemd-unit-failed", "IaC reporter failure with old healthy lifecycle", {
+    'node_systemd_unit_state{instance="discovery",name="homelab-iac-drift.service",state="failed"}': 1,
+    'homelab_iac_drift_outcome{instance="discovery"}': 2,
+    'homelab_iac_drift_last_complete_seconds{instance="discovery"}': 500,
+}, 1)
+
 with tempfile.TemporaryDirectory(prefix="monitoring-promql-") as directory:
     path = Path(directory) / "tests.yaml"
     path.write_text(yaml.safe_dump({"evaluation_interval": "1m", "tests": tests}))

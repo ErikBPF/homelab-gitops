@@ -89,3 +89,54 @@ The expectation namespace is trusted monitoring configuration. S01 rejects
 not authenticate a remote-write client: a writer with access to Prometheus could
 forge metrics, including expectation series. Review receiver access separately;
 do not grant an untrusted exporter write access based on these rules.
+
+## IaC drift health
+
+Discovery's daily `homelab-iac-drift.service` is the single expected lifecycle
+producer. Desktop owns its timer, bootstrap and whole-service result publication;
+IaC's existing notifier owns drift findings. These four Grafana rules add only
+execution/delivery health. A completed drift result is healthy execution and
+must not create a second infrastructure-drift finding message.
+
+| Rule UID suffix (`homelab-iac-drift-`) | Meaning / first action |
+|---|---|
+| `execution-health` | Finished error, timeout or exhausted lock wait; or still running beyond 3,780 seconds. Inspect the named unit and protected lifecycle receipt. Do not retry or apply infrastructure from an alert. |
+| `delivery-health` | A completed check reports failed, unconfigured or unknown required notification delivery. Investigate the existing notifier; a healthy check does not prove recipient receipt. Execution failures take priority over this class. |
+| `stale` | No completed clean/drift check within 26 hours. Daily cadence plus 15-minute jitter, a 63-minute conservative lifecycle budget and 42-minute ingestion margin make this provisional threshold. Running beyond its deadline or a finished failure takes priority. A newly published old timestamp does not renew completion. |
+| `missing` | Discovery has a healthy host scrape but the expected job never ran or lacks a required lifecycle gauge. Inspect the publisher/collector and unit bootstrap; another host's metrics cannot satisfy this expectation. |
+
+The producer v1 contract uses fixed `instance="discovery"` identity and seven
+`homelab_iac_drift_*` gauges: last attempt, complete and publish timestamps,
+duration, outcome, notification and lock contention. Outcomes are 0 never-run,
+1 running, 2 clean, 3 drift, 4 error, 5 timeout, 6 lock contention. Notification
+states are 0 not required, 1 delivered, 2 failed, 3 not configured, 4 unknown.
+Completed clean/drift advances completion even when notification delivery fails;
+invalid/missing structured results fail execution without advancing completion.
+The 3,780-second consumer threshold conservatively includes the reviewed
+30-second begin reporter, 3,600-second main command, and five 30-second systemd
+cleanup/reporting phases. It is a detection predicate followed by the five-minute
+alert pending period, not a guaranteed exact wall-clock termination time. Change producer budgets and consumer
+thresholds together at a reviewed published revision.
+
+All rules evaluate every minute with five-minute pending periods. They require
+Discovery's current healthy `up{job="integrations/unix"}`; existing host-loss and
+scrape-down rules retain outage ownership. Empty results are OK and datasource
+errors keep prior state, using the dedicated datasource-health rules. The generic
+systemd failure rule remains intact: old healthy lifecycle gauges can survive a
+publisher failure, so suppressing that fallback would conceal the current fault.
+A generic unit warning may therefore coexist with a specific execution-health
+warning; neither duplicates the existing drift-finding notifier.
+
+**Hold merge until the S09 producer contract is published, deployed and observed.**
+The monitoring application's live Argo policy auto-syncs main with pruning and
+self-healing; merging these rules can activate them immediately. Verify all seven
+Discovery gauges and the pinned budget before rollout. No automatic retry, apply,
+new notifier, or live fault injection is part of this source change. Source tests
+do not prove firing/resolved delivery. An authorized later health-class scenario
+must retain fresh producer recovery and attributable operator receipt; missing
+series, rule removal and enrollment rollback are not recovery.
+
+Withdraw through a reviewed source revert at a published main revision, accounting
+for provisioning tombstones when retiring deployed UIDs. Preserve protected
+receipts, the existing finding notifier and host/datasource health rules; never
+roll back remote infrastructure just to recover monitoring.

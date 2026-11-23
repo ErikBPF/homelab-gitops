@@ -168,3 +168,12 @@ for pairs in [[], pilot, [{'instance': 'orion', 'check': 'store'}, {'instance': 
 for pairs in [[{'instance': 'orion', 'check': 'unknown'}], [{'instance': 'bad"host', 'check': 'store'}], [{'instance': 'orion', 'check': 'store'}] * 2]:
     assert render(pairs).returncode != 0, f'invalid enrollment accepted: {pairs}'
 PY
+
+# S09B owns lifecycle health only; existing IaC drift notifications remain the finding owner.
+for uid in homelab-iac-drift-execution-health homelab-iac-drift-delivery-health homelab-iac-drift-stale homelab-iac-drift-missing; do
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .noDataState" "${alert_files[@]}")" = OK
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .execErrState" "${alert_files[@]}")" = KeepLast
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .for" "${alert_files[@]}")" = 5m
+  test "$(yq -r ".groups[].rules[] | select(.uid == \"$uid\") | .labels.severity" "${alert_files[@]}")" = warning
+done
+test "$(yq -r '.groups[] | select(.name == "homelab-iac-drift-health") | .rules | length' "$root/platform/monitoring/files/alerting/rules.yaml")" = 4
