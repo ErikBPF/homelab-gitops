@@ -185,6 +185,10 @@ if __name__ == '__main__':
         base = Path('/var/lib/wazuh-indexer/recovery-captures')
         base.mkdir(mode=0o700, parents=True, exist_ok=True)
         cleanup_verified(base)
+        # A hard kill leaves staging behind; reclaim it before the budget gate,
+        # or three of them wedge every later run.
+        for stale in base.glob('.incomplete-*'):
+            shutil.rmtree(stale, ignore_errors=True)
         if len(list(base.iterdir())) >= 3:
             raise ValueError('unconsumed capture limit reached')
         print(json.dumps({'capture_id': export_capture(snapshot(), base)}))

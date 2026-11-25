@@ -199,11 +199,13 @@ def main():
     os.umask(0o077)
     with tempfile.TemporaryDirectory(prefix='.wazuh-drill-', dir=args.bundle.parent) as temporary:
         root = Path(temporary)
-        # Every archive is bounded by MAX_BYTES on its own, and all of ARCHIVES
-        # is extracted before the restored data is counted.
-        if shutil.disk_usage(root).free < len(ARCHIVES) * MAX_BYTES:
+        # Every archive is bounded by MAX_BYTES on its own, and the restore then
+        # writes primaries and translog beside them, so keep one extra budget
+        # for the restored data.
+        required = (len(ARCHIVES) + 1) * MAX_BYTES
+        if shutil.disk_usage(root).free < required:
             raise ValueError(
-                f'isolated restore requires {len(ARCHIVES) * MAX_BYTES // 1024 ** 3}GiB '
+                f'isolated restore requires {required // 1024 ** 3}GiB '
                 'free scratch budget'
             )
         for name in ARCHIVES: extract(args.bundle / name, root / name.removesuffix('.tar'))
