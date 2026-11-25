@@ -132,6 +132,10 @@ def cleanup_verified(base, proof_root=Path('/run/recovery-proof')):
 
 def export_capture(receipt, base=Path('/var/lib/wazuh-indexer/recovery-captures')):
     base.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # A crashed or failed export leaves staging behind; it is never valid input
+    # and it counts against the budget, so reclaim it before the next attempt.
+    for stale in base.glob('.incomplete-*'):
+        shutil.rmtree(stale, ignore_errors=True)
     if len(list(base.iterdir())) >= 3:
         raise ValueError('unconsumed capture limit reached')
     name = receipt['indexer_snapshot']
@@ -171,6 +175,7 @@ def export_capture(receipt, base=Path('/var/lib/wazuh-indexer/recovery-captures'
         return name
     except BaseException:
         # Keep incomplete evidence private; never publish its directory as complete.
+        shutil.rmtree(temporary, ignore_errors=True)
         raise
 
 

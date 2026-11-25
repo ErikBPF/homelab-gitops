@@ -199,8 +199,13 @@ def main():
     os.umask(0o077)
     with tempfile.TemporaryDirectory(prefix='.wazuh-drill-', dir=args.bundle.parent) as temporary:
         root = Path(temporary)
-        if shutil.disk_usage(root).free < 2 * MAX_BYTES:
-            raise ValueError('isolated restore requires24GiB free scratch budget')
+        # Every archive is bounded by MAX_BYTES on its own, and all of ARCHIVES
+        # is extracted before the restored data is counted.
+        if shutil.disk_usage(root).free < len(ARCHIVES) * MAX_BYTES:
+            raise ValueError(
+                f'isolated restore requires {len(ARCHIVES) * MAX_BYTES // 1024 ** 3}GiB '
+                'free scratch budget'
+            )
         for name in ARCHIVES: extract(args.bundle / name, root / name.removesuffix('.tar'))
         counts = [manager_checks(root / 'manager-master', True), manager_checks(root / 'manager-worker', False)]
         documents = indexer_restore(root / 'indexer', root / 'data', root / 'opensearch.yml', manifest, args.engine)
