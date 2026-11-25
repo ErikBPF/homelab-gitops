@@ -96,4 +96,11 @@ auth = root.find('ossec_config/auth')
 assert auth.findtext('ssl_manager_cert') == '/var/ossec/etc/sslmanager.cert'
 assert auth.findtext('ssl_manager_key') == '/var/ossec/etc/sslmanager.key'
 assert auth.findtext('use_password') == 'yes'
+# Enrollment breaks silently if authd is off or listens elsewhere than the
+# Service forwards to.
+assert auth.findtext('disabled') == 'no'
+assert auth.findtext('port') == '1515'
+authd = next(p for p in registration['spec']['ports'] if p['name'] == 'registration')
+assert authd['port'] == 1515
+assert authd['targetPort'] == 1515
 PY
