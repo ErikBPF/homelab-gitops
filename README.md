@@ -57,6 +57,8 @@ local replica fixture, artifact pins and current evidence limits.
 
 See [temporary KEDA metrics recovery](docs/keda-metrics-recovery.md) for the
 bounded node-comparison evidence and held placement workaround.
+See [Wazuh recovery preparation](docs/wazuh-recovery-plan.md) for the accepted
+retention/backup policy, existing destination, and unresolved activation gates.
 
 ## Bootstrap
 

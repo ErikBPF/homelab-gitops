@@ -3,8 +3,12 @@ kind: Kustomization
 namespace: wazuh
 generatorOptions: {disableNameSuffixHash: true}
 configMapGenerator:
+  - name: wazuh-snapshot-script
+    files: [index-snapshot.py=recovery/index-snapshot.py]
+  - name: wazuh-recovery-hook
+    files: [manager-prestop.py=recovery/manager-prestop.py]
   - name: indexer-conf
-    files: [opensearch.yml=upstream/indexer_stack/wazuh-indexer/indexer_conf/opensearch.yml]
+    files: [opensearch.yml=config/opensearch.yml]
   - name: wazuh-conf
     files:
       - master.conf=upstream/wazuh_managers/wazuh_conf/master.conf
@@ -25,5 +29,8 @@ resources:
   - externalsecrets.yaml
   - exposure.yaml
   - networkpolicy.yaml
+  - recovery-rbac.yaml
+  - recovery-producer.yaml
 patches:
   - path: patches.yaml
+  - path: recovery-patches.yaml

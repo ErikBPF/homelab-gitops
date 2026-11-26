@@ -23,7 +23,7 @@ expected_ignored_paths=$(printf '%s\n' \
   '.spec.volumeClaimTemplates[]?.kind' \
   '.spec.volumeClaimTemplates[]?.spec.volumeMode' \
   '.spec.volumeClaimTemplates[]?.status' | sort)
-actual_ignored_paths=$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet") | .jqPathExpressions[]' "$root/clusters/kepler/apps/wazuh.yaml" | sort)
+actual_ignored_paths=$(yq -r '.spec.ignoreDifferences[] | select(.group == "apps" and .kind == "StatefulSet" and .name == null) | .jqPathExpressions[]' "$root/clusters/kepler/apps/wazuh.yaml" | sort)
 test "$actual_ignored_paths" = "$expected_ignored_paths"
 grep -Fq 'wazuh.yaml' "$root/clusters/kepler/apps/kustomization.yaml"
 grep -Fq 'v4.14.7' "$app/UPSTREAM.md"

@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: wazuh-manager-master, namespace: wazuh}
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 90
+      volumes:
+        - name: recovery-hook
+          configMap: {name: wazuh-recovery-hook, defaultMode: 0555}
+      containers:
+        - name: wazuh-manager
+          env:
+            - name: POD_UID
+              valueFrom: {fieldRef: {fieldPath: metadata.uid}}
+          volumeMounts:
+            - {name: recovery-hook, mountPath: /recovery, readOnly: true}
+          lifecycle:
+            preStop:
+              exec:
+                command: [/var/ossec/framework/python/bin/python3, /recovery/manager-prestop.py]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: wazuh-manager-worker, namespace: wazuh}
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 90
+      volumes:
+        - name: recovery-hook
+          configMap: {name: wazuh-recovery-hook, defaultMode: 0555}
+      containers:
+        - name: wazuh-manager
+          env:
+            - name: POD_UID
+              valueFrom: {fieldRef: {fieldPath: metadata.uid}}
+          volumeMounts:
+            - {name: recovery-hook, mountPath: /recovery, readOnly: true}
+          lifecycle:
+            preStop:
+              exec:
+                command: [/var/ossec/framework/python/bin/python3, /recovery/manager-prestop.py]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: wazuh-indexer, namespace: wazuh}
+spec:
+  template:
+    spec:
+      securityContext: {fsGroupChangePolicy: OnRootMismatch}
+      initContainers:
+        - name: volume-mount-hack
+          # Preserve private recovery artifacts; public proof is outside this PVC.
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /var/lib/wazuh-indexer/nodes /var/lib/wazuh-indexer/recovery /var/lib/wazuh-indexer/recovery-captures
+              chown 1000:1000 /var/lib/wazuh-indexer /var/lib/wazuh-indexer/nodes /var/lib/wazuh-indexer/recovery /var/lib/wazuh-indexer/recovery-captures
+              chown -R 1000:1000 /var/lib/wazuh-indexer/nodes
+              chmod 0700 /var/lib/wazuh-indexer/recovery /var/lib/wazuh-indexer/recovery-captures

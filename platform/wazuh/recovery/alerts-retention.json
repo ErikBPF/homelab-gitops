@@ -1,0 +1,10 @@
+{
+  "policy": {
+    "description": "Thirty-day Wazuh alert retention; attach only after reviewed local encrypted backup and isolated restore proof",
+    "default_state": "retain",
+    "states": [
+      {"name": "retain", "actions": [], "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "30d"}}]},
+      {"name": "delete", "actions": [{"delete": {}}], "transitions": []}
+    ]
+  }
+}

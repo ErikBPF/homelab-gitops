@@ -1,0 +1,90 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: wazuh-snapshot-auth}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: vault-platform}
+  target: {name: wazuh-snapshot-auth}
+  data:
+    - secretKey: username
+      remoteRef: {key: platform/wazuh/snapshot, property: username}
+    - secretKey: password
+      remoteRef: {key: platform/wazuh/snapshot, property: password}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: wazuh-index-snapshot}
+spec:
+  # Provision the dedicated role/credential and prove restore before enabling.
+  suspend: true
+  schedule: "0 1 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 600
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata: {labels: {app: wazuh-index-snapshot}}
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: snapshot
+              # Reuse the reviewed image's Python runtime; never start a manager.
+              image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
+              command: [/var/ossec/framework/python/bin/python3, /scripts/index-snapshot.py]
+              env:
+                - name: SOURCE_INDEXER_IMAGE
+                  value: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-indexer:4.14.7@sha256:66b7640cce54f5f20a65e8320601b4570a1306d9f9b334d30bcaa324720a517c
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: [ALL]}
+              resources:
+                requests: {cpu: 100m, memory: 128Mi}
+                limits: {cpu: "1", memory: 512Mi}
+              volumeMounts:
+                - {name: script, mountPath: /scripts, readOnly: true}
+                - {name: auth, mountPath: /run/snapshot-auth, readOnly: true}
+                - {name: ca, mountPath: /run/indexer-ca, readOnly: true}
+                - {name: proof, mountPath: /run/recovery-proof, readOnly: true}
+                - {name: indexer, mountPath: /var/lib/wazuh-indexer/recovery, subPath: recovery}
+                - {name: indexer, mountPath: /var/lib/wazuh-indexer/recovery-captures, subPath: recovery-captures}
+          volumes:
+            - name: proof
+              nfs: {server: 10.250.0.1, path: /bulk/k8s/wazuh-recovery-proof, readOnly: true}
+            - name: script
+              configMap: {name: wazuh-snapshot-script, defaultMode: 0444}
+            - name: auth
+              # Read-only projection visible only to this single-container, tokenless Pod.
+              secret: {secretName: wazuh-snapshot-auth, defaultMode: 0444}
+            - name: ca
+              secret:
+                secretName: indexer-certs
+                defaultMode: 0444
+                items: [{key: root-ca.pem, path: root-ca.pem}]
+            - name: indexer
+              persistentVolumeClaim: {claimName: wazuh-indexer-wazuh-indexer-0}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: wazuh-snapshot-only-egress}
+spec:
+  podSelector: {matchLabels: {app: wazuh-index-snapshot}}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to: [{podSelector: {matchLabels: {app: wazuh-indexer}}}]
+      ports: [{protocol: TCP, port: 9200}]

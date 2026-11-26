@@ -9,7 +9,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: {name: allow-runtime}
 spec:
-  podSelector: {}
+  podSelector:
+    matchExpressions:
+      - {key: app, operator: NotIn, values: [wazuh-index-snapshot]}
   policyTypes: [Ingress, Egress]
   ingress:
     - from: [{podSelector: {}}]

@@ -129,3 +129,7 @@ backup-authentik:
 # Check an offsite-retrieved bundle in an isolated PostgreSQL/AuthentiK pod.
 restore-drill-authentik bundle:
     bash scripts/authentik-restore-drill.sh {{quote(bundle)}}
+
+# Explicit isolated local restore; requires a private retrieved bundle, no live API.
+wazuh-restore-drill bundle:
+    python3 scripts/wazuh-restore-drill.py {{quote(bundle)}}

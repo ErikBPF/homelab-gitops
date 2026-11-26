@@ -21,6 +21,7 @@ resources:
   - kube-state-metrics.yaml
   - alloy-metrics.yaml
   - wazuh.yaml
+  - wazuh-backup-observer.yaml
   - airflow.yaml
   - cognee.yaml
   - litellm.yaml
