@@ -1,12 +1,12 @@
 {
   "desktop_revision": "bdfe7e2ef605a2988873d6a2694498128fe569da",
-  "chart_version": "1.15.0",
-  "chart_sha256": "2ecc96c05004cc01a45ab23cb390194ad5259ec9d02b42bf148d4468d013aaa3",
+  "chart_version": "1.16.0",
+  "chart_sha256": "efb95c875245af3c73a93b50331dfcece7cd573d5f788d934748a741c9c1747a",
   "image_index_digest": "sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18",
   "image_manifest_digest": "sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7",
   "image_config_digest": "sha256:a987a8dd42a1797dde3cd2badd869b2973f8ecb5868619c50e5f1f183ad94843",
   "image_archive_sha256": "3570ce6b7c660cdf6988f57c4abb7044faef46f52e09f7cd65225a4cd130b4a7",
   "platform": "linux/amd64",
   "image_version": "v1.21.2",
-  "image_version_retention": "chart 1.15.0 retains Alloy v1.21.2; the chart delta is the inert image.distroless option while image.digest is pinned"
+  "image_version_retention": "chart 1.16.0 retains Alloy v1.21.2; the chart delta is the declared Alloy v1.22.0 appVersion while image.digest pins the verified v1.21.2 binary"
 }

@@ -54,7 +54,7 @@ class ReplicaPayload(unittest.TestCase):
     def test_chart_app_version_matches_verified_image_version(self):
         pins = json.loads((ROOT / "tests/replica/artifacts.json").read_text())
         with tarfile.open(
-            ROOT / "platform/alloy-metrics/charts/alloy-1.15.0.tgz"
+            ROOT / "platform/alloy-metrics/charts/alloy-1.16.0.tgz"
         ) as archive:
             chart = yaml.safe_load(archive.extractfile("alloy/Chart.yaml").read())
         if pins.get("image_version_retention"):
