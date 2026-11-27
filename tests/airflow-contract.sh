@@ -30,6 +30,7 @@ grep -Fq 'name: airflow-dags' "$application"
 grep -Fq 'name: airflow-logs' "$application"
 test "$(grep -Fc -- '- /spec/volumeName' "$application")" -eq 2
 grep -Fq -- '- RespectIgnoreDifferences=true' "$application"
+test "$(yq -r '.metadata.annotations."argocd.argoproj.io/compare-options"' "$application")" = ServerSideDiff=false
 ! grep -Eqi '(password|secret):[[:space:]]+[^~]' "$values"
 grep -Fq 'secret/data/lab/airflow' "$capture"
 grep -Fq 'application/merge-patch+json' "$capture"

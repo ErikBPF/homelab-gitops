@@ -29,8 +29,10 @@ resources:
   - externalsecrets.yaml
   - exposure.yaml
   - networkpolicy.yaml
-  - recovery-rbac.yaml
-  - recovery-producer.yaml
+  # Recovery capture and backup coordination are gated until the Vault key
+  # platform/wazuh/snapshot and a dedicated OpenSearch snapshot role exist and a
+  # restore is proven. Re-add recovery-rbac.yaml and recovery-producer.yaml only
+  # after that proof; the CronJob stays suspend: true until then.
 patches:
   - path: patches.yaml
   - path: recovery-patches.yaml
