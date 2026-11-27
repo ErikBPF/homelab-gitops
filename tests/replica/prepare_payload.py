@@ -21,12 +21,12 @@ SOURCE_SHA256 = "995ee316a76f4c34b01c659aa356cf8029fd159579a529f219416274c30dddc
 def check_artifacts(chart, pins):
     values = yaml.safe_load((chart / "values.yaml").read_text())
     wrapper = yaml.safe_load((chart / "Chart.yaml").read_text())
-    with tarfile.open(chart / "charts/alloy-1.15.0.tgz") as archive:
+    with tarfile.open(chart / "charts/alloy-1.16.0.tgz") as archive:
         metadata = yaml.safe_load(archive.extractfile("alloy/Chart.yaml").read())
     image = values["alloy"]["image"]
     configured_digest = image.get("digest") or image["tag"].split("@", 1)[1]
     retention = pins.get("image_version_retention")
-    if retention and (pins["image_version"], pins["chart_version"]) != ("v1.21.2", "1.15.0"):
+    if retention and (pins["image_version"], pins["chart_version"]) != ("v1.21.2", "1.16.0"):
         raise AssertionError("unexpected retained image/chart pair")
     expected = {
         "chart_version": wrapper["dependencies"][0]["version"],
@@ -185,7 +185,7 @@ def render(chart, output, run_id):
     check_artifacts(chart, pins)
     source = (chart / "values.yaml").read_bytes()
     values = prepare(source, run_id)
-    with tarfile.open(chart / "charts/alloy-1.15.0.tgz") as archive:
+    with tarfile.open(chart / "charts/alloy-1.16.0.tgz") as archive:
         upstream = yaml.safe_load(archive.extractfile("alloy/values.yaml").read())
     legacy_values = copy.deepcopy(values)
     legacy_values["alloy"]["rbac"] = upstream["rbac"]
