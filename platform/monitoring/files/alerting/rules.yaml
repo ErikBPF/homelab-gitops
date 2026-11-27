@@ -2804,9 +2804,13 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
+              # The ClamAV CDN can serve a daily build older than 48 hours, so
+              # a 48-hour build-time window alarms on publisher lag. Four days
+              # still catches a genuinely stalled database; a failed download
+              # surfaces as incomplete or failed state instead.
               expr: >-
                 (max by (instance, check) (host_integrity_expected) == 1) and ((time() - max by (instance,
-                check) (host_integrity_signature_database_seconds{check="signatures"}) > 172800) or (max
+                check) (host_integrity_signature_database_seconds{check="signatures"}) > 345600) or (max
                 by (instance, check) (host_integrity_signature_database_seconds{check="signatures"}) ==
                 0)) and on (instance) (max by (instance) (up{job="integrations/unix"}) == 1)
           - refId: B
