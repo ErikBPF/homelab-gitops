@@ -5,6 +5,8 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Server-side diff dry-run fails on the immutable PVC volumeName before ignoreDifferences applies.
+    argocd.argoproj.io/compare-options: ServerSideDiff=false
 spec:
   project: homelab
   source:
