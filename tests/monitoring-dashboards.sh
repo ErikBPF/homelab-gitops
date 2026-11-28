@@ -11,6 +11,7 @@ values=platform/monitoring/values.yaml
 rules=platform/monitoring/files/alerting/rules.yaml
 
 # Dashboards must use the same sidecar image and resources as alerts.
+test "$(yq -r '.kube-prometheus-stack.grafana.plugins | join(",")' "$values")" = grafana-opensearch-datasource
 test "$(yq -r '.kube-prometheus-stack.grafana.sidecar.dashboards.enabled' "$values")" = true
 test "$(yq -r '.kube-prometheus-stack.grafana.sidecar.dashboards.label' "$values")" = grafana_dashboard
 test "$(yq -r '.kube-prometheus-stack.grafana.sidecar.dashboards.labelValue' "$values")" = 1
@@ -115,6 +116,7 @@ grep -Fq 'checksum/blackbox-config' platform/monitoring/templates/blackbox-expor
 test -f platform/monitoring/files/blackbox.yml
 # Envelope bytes per decoded record, not per message.
 jq -e '.panels[] | select(.title == "Envelope bytes per record") | .targets[0].expr | contains("flowset_records_total")' platform/monitoring/files/dashboards/ipfix-flows.json >/dev/null
+jq -e '.panels[] | select(.title == "Flow rate") | .targets[0].expr | contains("flowset_records_total")' platform/monitoring/files/dashboards/ipfix-flows.json >/dev/null
 grep -Fq 'goflow2_flow_process_nf_total{job="goflow2"}' "$gateway"
 # unpoller 2.34.0 exposes no wan status or error counters, and no per-interface
 # rate gauges. These names must not reappear; the inventory in

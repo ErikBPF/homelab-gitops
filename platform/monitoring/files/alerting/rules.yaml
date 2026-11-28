@@ -3319,17 +3319,17 @@ groups:
               instant: true
               datasource: {type: prometheus, uid: prometheus}
               expr: >-
-                (max by (job) (up{job="goflow2"}) < bool 1)
+                max by (job) (up{job="goflow2"}) == 0
                 or absent(up{job="goflow2"})
                 or (
-                  sum(rate(goflow2_flow_process_nf_total{job="goflow2"}[5m])) == bool 0
+                  sum(rate(goflow2_flow_process_nf_total{job="goflow2"}[5m])) == 0
                   and on() (max by (job) (up{job="goflow2"}) == 1)
-                  and on() (max(unifi_device_wan_speed_bps) > 0)
+                  and on() (max by (name) (unifi_device_wan_speed_bps{name="ISS"}) > 0)
                 )
                 or (
-                  absent(goflow2_flow_process_nf_total{job="goflow2"})
+                  absent_over_time(goflow2_flow_process_nf_total{job="goflow2"}[15m])
                   and on() (max by (job) (up{job="goflow2"}) == 1)
-                  and on() (max(unifi_device_wan_speed_bps) > 0)
+                  and on() (max by (name) (unifi_device_wan_speed_bps{name="ISS"}) > 0)
                 )
           - refId: B
             relativeTimeRange: {from: 900, to: 0}

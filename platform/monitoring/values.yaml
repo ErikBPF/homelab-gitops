@@ -72,6 +72,11 @@ kube-prometheus-stack:
     image:
       registry: harbor.homelab.pastelariadev.com/dockerhub
       sha: 540b8afb775bf34aefce417e4329039daa5d44b6f2fbda6881397b1b247ca7df
+    # The chart maps this list to GF_PLUGINS_PREINSTALL_SYNC, so Grafana itself
+    # downloads the plugin at startup. That runs inside the distroless image;
+    # no shell-based installer or non-distroless variant is needed.
+    plugins:
+      - grafana-opensearch-datasource
     testFramework:
       enabled: false
     initChownData:
