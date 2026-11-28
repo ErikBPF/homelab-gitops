@@ -76,7 +76,7 @@ data:
   DATASET_QUEUE_ENABLED: "true"
   DATASET_QUEUE_MAX_CONCURRENT: "1"
   LLM_PROVIDER: openai
-  LLM_MODEL: openai/qwen-chat
+  LLM_MODEL: openai/deepseek-v4.1-flash
   LLM_ENDPOINT: https://litellm.homelab.pastelariadev.com/v1
   LLM_MAX_COMPLETION_TOKENS: "4096"
   LLM_ARGS: '{"max_tokens":4096,"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}}'

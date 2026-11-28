@@ -19,6 +19,6 @@ configMapGenerator:
       - KARAKEEP_VERSION=0.33.2
       - NEXTAUTH_URL=https://bookmarks.homelab.pastelariadev.com
       - OPENAI_BASE_URL=https://litellm.homelab.pastelariadev.com/v1
-      - INFERENCE_TEXT_MODEL=qwen-chat
+      - INFERENCE_TEXT_MODEL=deepseek-v4.1-flash
 patches:
   - path: patches.yaml
