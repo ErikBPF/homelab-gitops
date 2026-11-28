@@ -290,6 +290,8 @@ for check, age in [("store", 48 * 3600), ("av", 8 * 86400)]:
     integrity_case(f"{check} expired", {"last_complete_seconds": 864000-age-1}, ["stale"], check=check)
 integrity_case("fresh publish cannot renew coverage", {"last_complete_seconds": 1}, ["stale"])
 integrity_case("running first scan expires", {"state": 1, "last_complete_seconds": 0}, ["stale"])
+integrity_case("bounded av partial", {"state": 3}, [], check="av")
+integrity_case("failed av scan", {"state": 4}, ["incomplete"], check="av")
 integrity_case("signature exact boundary", {"signature_database_seconds": 864000-345600}, check="signatures")
 integrity_case("publisher lag inside four days", {"signature_database_seconds": 864000-200000}, [], check="signatures")
 integrity_case("updater success cannot renew database", {"signature_database_seconds": 1}, ["signature-age"], check="signatures")
