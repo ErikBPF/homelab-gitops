@@ -1,0 +1,31 @@
+# The controller's self-signed certificate (CN=unifi.local, valid to
+# 2028-11-12). Its SANs are unifi.local, localhost and loopback only, so the
+# exporter reaches it by name through a hostAlias and verifies the chain
+# against this file instead of disabling TLS verification.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unifi-controller-ca
+  labels: {app: unpoller}
+data:
+  unifi.local.pem: |
+    -----BEGIN CERTIFICATE-----
+    MIIDNTCCAh2gAwIBAgIJZaNeZA/Czm6oMA0GCSqGSIb3DQEBCwUAMBYxFDASBgNV
+    BAMTC3VuaWZpLmxvY2FsMB4XDTI2MDgxMDAzMDAwMFoXDTI4MTExMjAzMDAwMFow
+    FjEUMBIGA1UEAxMLdW5pZmkubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+    ggEKAoIBAQDJs+YJ3DsQzBpWTkYsrxi/ggn8h3GUrUs6/7uQb8aZ8WpYG2Veh5R7
+    NqcvXlOOA1P/2gWAEYFMHD1XNh7brR0uskMbFYQHNDCL5Fu+0HizXuU+64Eu0GE/
+    rrDAhWURWgzdaPPS2HUahXFAhk8Put0lN19gqGqZARoXTPQbEF/3UDGXJk42mXa2
+    llnhH1JwOv8SiBSoL8+nnxMhMUCwcXYyyawctUqA2ZkZXV/aXb9r3TQ2TJMPybSH
+    Eup1/r62zATi1Qu81hmA9kYbZc2k0vrbFC0pFA0Hk9Tn5sjAHXyA2cvj1iouFyKB
+    ER0usmblCesfg5JgJmQsWtnix/p7yBk5AgMBAAGjgYUwgYIwCwYDVR0PBAQDAgL0
+    MDEGA1UdJQQqMCgGCCsGAQUFBwMBBggrBgEFBQcDAgYIKwYBBQUHAwMGCCsGAQUF
+    BwMIMEAGA1UdEQQ5MDeCC3VuaWZpLmxvY2Fsgglsb2NhbGhvc3SCBVs6OjFdhwR/
+    AAABhxD+gAAAAAAAAAAAAAAAAAABMA0GCSqGSIb3DQEBCwUAA4IBAQBHE9f1teoR
+    /7WzoZUbr6f1q1rHBgMHSkIbUXlHtEXbJtmuTK6ajyKMokj3niRDIWfvyJ2AhMaL
+    SXn4aoNzJcjiqidBRZyOXmxf2pvu1xjwtmJ9OcntEuQQf1pL6zS9Kps8rqwQCKvN
+    vjihbx3dNY4Ej+omUr5DsnauGg9pUzLEgsLX+YsRsaPRq4VCRc8vsB21HT6fR0ce
+    S3p6faTKlOmH46ELFN1Lt5mQe2c+9F3/IRbFsbVk52xUCdfZimiktRv2EKkzUrW1
+    +vkJxY9ilwDCmrkkieZveB46OR+HQUxJdyisheyAkkLeSruzrcFMM1wNdqJ1o5fC
+    AxLc+9DxJQgE
+    -----END CERTIFICATE-----

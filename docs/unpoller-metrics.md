@@ -142,3 +142,18 @@ when it exists.
   returns. Missing families are absent series, not zero values.
 - The pod runs as the image's default user (root). It drops all capabilities,
   disables privilege escalation, and uses a read-only root filesystem.
+
+## Key rotation and certificate renewal
+
+Rotating `secret/platform/unifi` updates the Kubernetes Secret, but a running
+pod keeps the environment value it started with. After rotating, restart the
+Deployment and confirm the scrape:
+
+    kubectl -n monitoring rollout restart deployment/unpoller
+    kubectl -n monitoring rollout status deployment/unpoller
+
+`platform/unpoller/ca-configmap.yaml` carries the controller's self-signed
+certificate (CN=unifi.local, expires 2028-11-12). Replace it when the
+controller certificate changes, otherwise TLS verification fails and polling
+stops. The exporter reaches the gateway through a hostAlias on that name
+because the certificate has no SAN for 192.168.10.1.

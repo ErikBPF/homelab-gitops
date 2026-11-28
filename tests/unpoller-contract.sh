@@ -36,8 +36,19 @@ env_value() {
 test "$(env_value UP_INFLUXDB_DISABLE .value)" = true
 test "$(env_value UP_PROMETHEUS_NAMESPACE .value)" = unifi
 test "$(env_value UP_PROMETHEUS_HTTP_LISTEN .value)" = 0.0.0.0:9130
-test "$(env_value UP_UNIFI_DEFAULT_URL .value)" = https://192.168.10.1
-test "$(env_value UP_UNIFI_DEFAULT_VERIFY_SSL .value)" = false
+test "$(env_value UP_UNIFI_DEFAULT_URL .value)" = https://unifi.local
+test "$(env_value UP_UNIFI_DEFAULT_VERIFY_SSL .value)" = true
+test "$(env_value SSL_CERT_FILE .value)" = /etc/ssl/unifi/unifi.local.pem
+
+# The controller certificate is CN=unifi.local with no address SAN, so the pod
+# resolves that name through a hostAlias and trusts the pinned certificate.
+test "$(yq 'select(.kind == "Deployment") | .spec.template.spec.hostAliases[0].ip' "$dep")" = 192.168.10.1
+test "$(yq 'select(.kind == "Deployment") | .spec.template.spec.hostAliases[0].hostnames[0]' "$dep")" = unifi.local
+test "$(yq 'select(.kind == "Deployment") | .spec.template.spec.volumes[] | select(.name == "unifi-controller-ca") | .configMap.name' "$dep")" = unifi-controller-ca
+test "$(yq 'select(.kind == "Deployment") | .spec.template.spec.containers[0].volumeMounts[] | select(.name == "unifi-controller-ca") | .readOnly' "$dep")" = true
+grep -Fq 'ca-configmap.yaml' "$dir/kustomization.yaml"
+openssl x509 -in <(yq -r 'select(.kind == "ConfigMap") | .data["unifi.local.pem"]' "$dir/ca-configmap.yaml") -noout -subject | grep -q 'CN *= *unifi.local'
+grep -Fq 'rollout restart deployment/unpoller' "$root/docs/unpoller-metrics.md"
 test "$(env_value UP_UNIFI_DEFAULT_API_KEY .valueFrom.secretKeyRef.name)" = unpoller
 test "$(env_value UP_UNIFI_DEFAULT_API_KEY .valueFrom.secretKeyRef.key)" = api_key
 test -z "$(env_value UP_UNIFI_DEFAULT_API_KEY '.value // ""')"
@@ -48,13 +59,18 @@ test -z "$(grep -rn 'value: *"\?[A-Za-z0-9_-]\{32,\}' "$dir" || true)"
 
 # Egress: cluster DNS plus the controller API only. No wildcard, no other ports.
 np=$dir/networkpolicy.yaml
-test "$(yq -r '.spec.policyTypes | join(",")' "$np")" = Egress
+test "$(yq -r '.spec.policyTypes | join(",")' "$np")" = Ingress,Egress
 test "$(yq -r '.spec.egress | length' "$np")" = 2
 test "$(yq -r '.spec.egress[1].to[0].ipBlock.cidr' "$np")" = 192.168.10.1/32
 test "$(yq -r '.spec.egress[1].ports[0].port' "$np")" = 443
 test "$(yq -r '.spec.egress[1].ports[0].protocol' "$np")" = TCP
 test "$(yq -r '.spec.egress[0].ports | map(.port) | join(",")' "$np")" = 53,53
 test -z "$(grep -F '0.0.0.0/0' "$np" || true)"
+
+# Metrics are readable by the Prometheus scraper only.
+test "$(yq -r '.spec.ingress[0].from[0].namespaceSelector.matchLabels["kubernetes.io/metadata.name"]' "$np")" = monitoring
+test "$(yq -r '.spec.ingress[0].from[0].podSelector.matchLabels["app.kubernetes.io/name"]' "$np")" = prometheus
+test "$(yq -r '.spec.ingress[0].ports[0].port' "$np")" = 9130
 
 # Prometheus scrapes this pod: the wrapper selects `release: monitoring` in the
 # `monitoring` namespace, and the ServiceMonitor must carry that label.
