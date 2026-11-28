@@ -25,5 +25,11 @@ spec:
     - to:
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
       ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    # unifi-log-ship: Wazuh alerts -> Loki gateway. The gateway pod listens on
+    # 8080; service port 80 only maps to it.
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: loki, app.kubernetes.io/component: gateway}}
+      ports: [{protocol: TCP, port: 8080}]
     - to: [{ipBlock: {cidr: 0.0.0.0/0}}]
       ports: [{protocol: TCP, port: 443}]

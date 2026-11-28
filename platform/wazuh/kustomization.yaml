@@ -13,6 +13,8 @@ configMapGenerator:
     files:
       - master.conf=upstream/wazuh_managers/wazuh_conf/master.conf
       - worker.conf=config/worker.conf
+  - name: wazuh-alerts-alloy
+    files: [config.alloy=config/alloy-alerts.alloy]
   - name: dashboard-conf
     files: [opensearch_dashboards.yml=upstream/indexer_stack/wazuh-dashboard/dashboard_conf/opensearch_dashboards.yml]
 resources:

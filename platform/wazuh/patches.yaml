@@ -45,7 +45,13 @@ metadata: {name: wazuh-manager-master, namespace: wazuh}
 spec:
   template:
     spec:
+      restartPolicy: Always
       securityContext: {fsGroup: 101, seccompProfile: {type: RuntimeDefault}}
+      volumes:
+        - name: wazuh-alerts-alloy
+          configMap:
+            name: wazuh-alerts-alloy
+            defaultMode: 0444
       containers:
         - name: wazuh-manager
           image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
@@ -54,6 +60,32 @@ spec:
             limits: {cpu: "1", memory: 2Gi}
           readinessProbe: {tcpSocket: {port: api}, initialDelaySeconds: 30}
           livenessProbe: {tcpSocket: {port: api}, initialDelaySeconds: 60}
+        # Every manager that can write alerts runs its own shipper. The master
+        # analyses centrally, but a worker that handles agent events writes to
+        # its own alerts.json on its own PVC, which cluster sync does not copy.
+        - name: unifi-log-ship
+          image: harbor.homelab.pastelariadev.com/dockerhub/grafana/alloy:v1.21.2@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=127.0.0.1:12345
+            - --stability.level=generally-available
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - name: wazuh-alerts-alloy
+              mountPath: /etc/alloy/config.alloy
+              subPath: config.alloy
+              readOnly: true
+            - name: wazuh-manager-master
+              mountPath: /wazuh-logs
+              subPath: wazuh/var/ossec/logs
+              readOnly: true
   volumeClaimTemplates:
     - metadata: {name: wazuh-manager-master}
       spec:
@@ -69,6 +101,11 @@ spec:
   template:
     spec:
       securityContext: {fsGroup: 101, seccompProfile: {type: RuntimeDefault}}
+      volumes:
+        - name: wazuh-alerts-alloy
+          configMap:
+            name: wazuh-alerts-alloy
+            defaultMode: 0444
       containers:
         - name: wazuh-manager
           image: harbor.homelab.pastelariadev.com/dockerhub/wazuh/wazuh-manager:4.14.7@sha256:8665c9807a5765253c79e4b072a1b7462c997bd69be949118a8d82ce44dd33e9
@@ -79,6 +116,29 @@ spec:
             - {containerPort: 5514, name: syslog, protocol: UDP}
           readinessProbe: {tcpSocket: {port: agents-events}, initialDelaySeconds: 30}
           livenessProbe: {tcpSocket: {port: agents-events}, initialDelaySeconds: 60}
+        - name: unifi-log-ship
+          image: harbor.homelab.pastelariadev.com/dockerhub/grafana/alloy:v1.21.2@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=127.0.0.1:12345
+            - --stability.level=generally-available
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - name: wazuh-alerts-alloy
+              mountPath: /etc/alloy/config.alloy
+              subPath: config.alloy
+              readOnly: true
+            - name: wazuh-manager-worker
+              mountPath: /wazuh-logs
+              subPath: wazuh/var/ossec/logs
+              readOnly: true
   volumeClaimTemplates:
     - metadata: {name: wazuh-manager-worker}
       spec:
