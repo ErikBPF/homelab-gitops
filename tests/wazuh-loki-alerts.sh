@@ -9,12 +9,13 @@ kubectl kustomize "$app" >"$render"
 
 sidecar='select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-master") | .spec.template.spec.containers[] | select(.name == "unifi-log-ship")'
 
-# The alert shipper is a sidecar on the master only: the master analyses and
-# writes alerts, workers forward.
+# Every alert-writing manager runs the shipper. A worker handling agent events
+# writes to its own alerts.json on its own PVC; cluster sync does not copy it.
 test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-master") | .spec.template.spec.restartPolicy' "$render")" = Always
 test "$(yq -r "$sidecar | .name" "$render")" = unifi-log-ship
 test "$(yq -r "$sidecar | .resources.limits.memory" "$render")" = 256Mi
-test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-worker") | .spec.template.spec.containers[] | select(.name == "unifi-log-ship") | .name' "$render")" = ""
+test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-worker") | .spec.template.spec.containers[] | select(.name == "unifi-log-ship") | .name' "$render")" = unifi-log-ship
+test "$(yq -r 'select(.kind == "StatefulSet" and .metadata.name == "wazuh-manager-worker") | .spec.template.spec.containers[] | select(.name == "unifi-log-ship") | .volumeMounts[] | select(.name == "wazuh-manager-worker") | .readOnly' "$render")" = true
 
 # Reuse the Alloy pin already mirrored for alloy-metrics.
 alloy_digest=$(yq -r '.alloy.image.digest' "$root/platform/alloy-metrics/values.yaml")
@@ -37,6 +38,8 @@ grep -Fq 'rule.level' <<<"$config"
 grep -Fq 'agent.name' <<<"$config"
 grep -Fq 'stage.json' <<<"$config"
 grep -Fq 'stage.drop' <<<"$config"
+grep -Fq 'stage.match' <<<"$config"
+grep -Fq 'action   = "drop"' <<<"$config"
 grep -Fq 'stage.labels' <<<"$config"
 grep -Fq 'stage.timestamp' <<<"$config"
 grep -Eq 'source[[:space:]]*=[[:space:]]*"rule_id"' <<<"$config"
@@ -78,4 +81,6 @@ done
 policy=$root/platform/monitoring/templates/networkpolicy.yaml
 grep -Fq 'name: allow-wazuh-alerts-to-loki-gateway' "$policy"
 grep -Fq 'kubernetes.io/metadata.name: wazuh' "$policy"
+# The peer must be the manager pods, not the whole Wazuh namespace.
+grep -Fq 'podSelector: {matchLabels: {app: wazuh-manager}}' "$policy"
 grep -Fq 'port: 8080' "$policy"

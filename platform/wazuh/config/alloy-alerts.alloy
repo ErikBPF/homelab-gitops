@@ -24,7 +24,14 @@ loki.process "wazuh_alerts" {
   }
 
   // Unparsable lines and alerts without rule.id have no rule_id; drop them
-  // instead of indexing unbounded junk.
+  // instead of indexing unbounded junk. The explicit match is the guarantee:
+  // a line that fails JSON parsing never has a rule_id label, so it cannot
+  // reach loki.write even if the drop stage is bypassed.
+  stage.match {
+    selector = "{rule_id=\"\"}"
+    action   = "drop"
+  }
+
   stage.drop {
     source     = "rule_id"
     expression = "^$"

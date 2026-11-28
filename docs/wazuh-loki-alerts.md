@@ -1,7 +1,7 @@
 # Wazuh alerts in Loki
 
 Date: 2026-11-28
-Status: implemented; end-to-end delivery blocked by a monitoring-side policy
+Status: implemented; verify the shipped ingress policy has synced before testing delivery
 
 ## Outcome and why
 
@@ -10,21 +10,19 @@ that Wazuh already writes to `alerts.json` now also reach Loki, so Grafana can
 query network events next to host and cluster logs. Raw syslog does not go to
 Loki, and `logall`/`logall_json` stay `no`.
 
-## Blocker outside this slice
+## Cross-namespace delivery
 
-`platform/monitoring/templates/networkpolicy.yaml` (`allow-monitoring-runtime`)
-admits ingress only from the monitoring namespace and from `traefik`. The Loki
-gateway pods are in `monitoring`, so they drop the manager's pushes even though
-the Wazuh egress rule allows them. This slice does not touch
-`platform/monitoring`; the monitoring owner must add a separate NetworkPolicy
-scoped to the gateway pods (`app.kubernetes.io/name: loki`,
-`app.kubernetes.io/instance: loki`, `app.kubernetes.io/component: gateway`)
-that admits the Wazuh namespace (`app: wazuh-manager`, `node-type: master`) on
-TCP 8080. `allow-monitoring-runtime` has an empty pod selector, so do not add
-`from` to that rule. Until the allow lands, the sidecar runs and logs
-connection errors and Loki has no `job="wazuh-alerts"` stream. Do not widen
-the Wazuh egress rule to compensate; egress is already correct.
+`platform/monitoring/templates/networkpolicy.yaml` ships
+`allow-wazuh-alerts-to-loki-gateway` in this branch: it selects the Loki gateway
+pods and admits the Wazuh manager pods (`app: wazuh-manager`) on TCP 8080.
+`allow-monitoring-runtime` keeps its empty pod selector, so the new policy is
+the only cross-namespace allow.
 
+Before testing delivery, confirm the policy synced:
+
+```bash
+kubectl -n monitoring get networkpolicy allow-wazuh-alerts-to-loki-gateway -o yaml
+```
 
 ## Changes
 

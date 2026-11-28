@@ -38,4 +38,5 @@ spec:
   ingress:
     - from:
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: wazuh}}
+          podSelector: {matchLabels: {app: wazuh-manager}}
       ports: [{protocol: TCP, port: 8080}]
