@@ -15,6 +15,17 @@ data:
           valid_status_codes: [200]
           follow_redirects: true
           preferred_ip_protocol: ip4
+      # Gateway management UI returns a redirect or auth challenge on success.
+      # The certificate is device-local, so verify reachability, not its chain.
+      https_insecure:
+        prober: http
+        timeout: 5s
+        http:
+          valid_status_codes: [200, 302, 401, 403]
+          follow_redirects: true
+          preferred_ip_protocol: ip4
+          tls_config:
+            insecure_skip_verify: true
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -108,6 +108,11 @@ kube-prometheus-stack:
         label: grafana_alert
         labelValue: "1"
         searchNamespace: monitoring
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: monitoring
       datasources:
         alertmanager: {enabled: false}
     persistence:
@@ -129,6 +134,19 @@ kube-prometheus-stack:
         uid: loki
         access: proxy
         url: http://loki-gateway.monitoring.svc.cluster.local
+      - name: Wazuh
+        type: opensearch
+        uid: wazuh
+        access: proxy
+        url: https://wazuh-indexer-0.wazuh-indexer.wazuh.svc.cluster.local:9200
+        basicAuth: true
+        basicAuthUser: $WAZUH_INDEXER_USERNAME
+        secureJsonData:
+          basicAuthPassword: $WAZUH_INDEXER_PASSWORD
+          tlsCACert: $WAZUH_INDEXER_CA
+        jsonData:
+          timeField: "@timestamp"
+          tlsAuthWithCACert: true
 
 # S04 Endeavour pilot; merge only after collector backend verification.
 hostIntegrity:

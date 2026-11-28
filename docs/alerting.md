@@ -40,6 +40,27 @@ omit credentials and raw security-event values. Source-render tests cannot prove
 Discord receipt or operator usefulness. Those require a staffed, bounded
 firing/resolved delivery check.
 
+## Gateway health
+
+`gateway-health` covers the UniFi gateway reachability and the IPFIX collector.
+The management probe targets `https://192.168.10.1` with the `https_insecure`
+blackbox module, because the gateway serves a device-local certificate. A probe
+failure means the cluster cannot reach the management UI; it does not prove the
+WAN or the LAN is down.
+
+| Rule | First safe check |
+|---|---|
+| Gateway management endpoint down | Check the blackbox exporter target and reach the gateway UI from the cluster network. Do not change the probe to skip a real network failure. |
+| Gateway load high for 15m | Inspect the gateway dashboard CPU/load panels and the UniFi console. A single load spike is not the signal; the rule waits 15m. |
+| Gateway memory high for 15m | Inspect memory used/installed and the console's recent events. Do not reboot the gateway as a first step. |
+| WAN interface down or rising errors | Check the WAN status, receive/transmit error counters and the ISP path. A failover WAN going offline still reduces redundancy. |
+| IPFIX collector down or receiving no flows | Check `up{job="goflow2"}` on kepler and the collector logs. The rule also fires when the WAN is up and no flows arrive. Flow-volume bursts are not alerted. |
+
+The gateway and IPFIX dashboards mark unconfirmed metric names with a `verify`
+tag. `unifi_*` depends on the unpoller Prometheus namespace. Stock goflow2
+exports exporter counters, not per-flow `src_addr`, `dst_addr` or `dst_port`;
+the per-flow panels stay empty until a flow-record exporter supplies them.
+
 ## Host integrity
 
 The five `host-integrity-*` rules report findings, incomplete coverage, expired
