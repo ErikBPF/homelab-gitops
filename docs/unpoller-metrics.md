@@ -148,14 +148,17 @@ when it exists.
 Rotating `secret/platform/unifi` updates the Kubernetes Secret, but a running
 pod keeps the environment value it started with. Order matters:
 
-1. Wait for External Secrets to copy the new value into `Secret/unpoller`
-   (`kubectl -n monitoring get secret unpoller -o jsonpath='{.data}'` shows a
-   fresh `resourceVersion`), otherwise the replacement pod loads the old key
-   again.
+1. Wait for External Secrets to copy the new value into `Secret/unpoller`:
+   `kubectl -n monitoring get secret unpoller -o jsonpath='{.metadata.resourceVersion}'`
+   must change. Do not print `.data`; that is the base64 key. Otherwise the
+   replacement pod loads the old key again.
 2. Restart and wait: `kubectl -n monitoring rollout restart deployment/unpoller`
    then `kubectl -n monitoring rollout status deployment/unpoller`.
-3. Confirm fresh controller metrics before revoking the old key:
-   `curl -fsS http://unpoller.monitoring.svc.cluster.local:9130/metrics | grep '^unifi_device_uptime_seconds'`.
+3. Confirm fresh controller metrics before revoking the old key. The
+   NetworkPolicy admits only the Prometheus scraper, so query Prometheus
+   rather than the pod:
+   `curl -fsS 'https://prometheus.homelab.pastelariadev.com/api/v1/query?query=unifi_device_uptime_seconds'`
+   must return a current sample for the gateway.
 
 Rollout status alone does not prove the controller accepted the new key.
 
