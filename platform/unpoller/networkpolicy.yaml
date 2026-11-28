@@ -1,0 +1,29 @@
+# Egress is limited to cluster DNS and the UniFi gateway's controller API.
+# Ingress is limited to the Prometheus scraper: the metrics expose client,
+# DHCP and gateway telemetry that other pods have no business reading.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: unpoller-egress}
+spec:
+  podSelector:
+    matchLabels: {app: unpoller}
+  # Ingress is closed too: the exporter's metrics expose client, DHCP and
+  # gateway telemetry, so only the Prometheus scraper may read it.
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: prometheus}}
+      ports:
+        - {protocol: TCP, port: 9130}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - ipBlock: {cidr: 192.168.10.1/32}
+      ports:
+        - {protocol: TCP, port: 443}
