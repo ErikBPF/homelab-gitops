@@ -66,6 +66,7 @@ for contract in \
   tests/grafana-alert-template_test.go \
   tests/grafana-alert-status.sh \
   tests/wazuh-contract.sh \
+  tests/wazuh-loki-alerts.sh \
   tests/wazuh-recovery.py \
   tests/test_wazuh_index_snapshot.py \
   tests/test_wazuh_prestop.py \

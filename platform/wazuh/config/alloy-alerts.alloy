@@ -1,0 +1,60 @@
+// Ship Wazuh rule-matched alerts (alerts.json) to Loki.
+//
+// Source of truth stays Wazuh: this reads the file the master writes, it does
+// not replace syslog ingestion. logall/logall_json stay "no", so no raw event
+// archive exists and no raw event stream reaches Loki.
+//
+// The file is on a read-only bind of the manager PVC at /wazuh-logs.
+
+loki.source.file "wazuh_alerts" {
+  targets    = [{ __path__ = "/wazuh-logs/alerts/alerts.json" }]
+  forward_to = [loki.process.wazuh_alerts.receiver]
+}
+
+loki.process "wazuh_alerts" {
+  // Parse the raw alert line. A line that is not a JSON object extracts
+  // nothing, so the drop stage below discards it.
+  stage.json {
+    expressions = {
+      rule_id   = "rule.id",
+      level     = "rule.level",
+      agent     = "agent.name",
+      timestamp = "timestamp",
+    }
+  }
+
+  // Unparsable lines and alerts without rule.id have no rule_id; drop them
+  // instead of indexing unbounded junk.
+  stage.drop {
+    source     = "rule_id"
+    expression = "^$"
+  }
+
+  // Wazuh writes e.g. 2026-11-28T13:28:33.469+0000. Using the event time stops
+  // a re-read from looking like fresh traffic at read time.
+  stage.timestamp {
+    source           = "timestamp"
+    format           = "2006-01-02T15:04:05.000-0700"
+    fallback_formats = ["2006-01-02T15:04:05-0700"]
+  }
+
+  stage.labels {
+    values = {
+      rule_id = "",
+      level   = "",
+      agent   = "",
+    }
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+  }
+
+  external_labels = {
+    job = "wazuh-alerts",
+  }
+}
