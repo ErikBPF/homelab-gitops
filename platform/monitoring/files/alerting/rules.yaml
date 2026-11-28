@@ -2688,9 +2688,14 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
+              # A bounded AV scan is partial by construction once its byte
+              # budget is reached; with no findings and no errors that is a
+              # completed bounded scope, not an integrity gap. A failed AV run
+              # (state 4) still alerts.
               expr: >-
                 (max by (instance, check) (host_integrity_expected) == 1) and (max by (instance, check)
-                (host_integrity_state) >= 3) and on (instance) (max by (instance) (up{job="integrations/unix"})
+                (host_integrity_state) >= 3) unless on (instance, check) (max by (instance, check)
+                (host_integrity_state{check="av"} == 3)) and on (instance) (max by (instance) (up{job="integrations/unix"})
                 == 1)
           - refId: B
             relativeTimeRange:
