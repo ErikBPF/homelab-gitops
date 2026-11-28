@@ -146,14 +146,25 @@ when it exists.
 ## Key rotation and certificate renewal
 
 Rotating `secret/platform/unifi` updates the Kubernetes Secret, but a running
-pod keeps the environment value it started with. After rotating, restart the
-Deployment and confirm the scrape:
+pod keeps the environment value it started with. Order matters:
 
-    kubectl -n monitoring rollout restart deployment/unpoller
-    kubectl -n monitoring rollout status deployment/unpoller
+1. Wait for External Secrets to copy the new value into `Secret/unpoller`
+   (`kubectl -n monitoring get secret unpoller -o jsonpath='{.data}'` shows a
+   fresh `resourceVersion`), otherwise the replacement pod loads the old key
+   again.
+2. Restart and wait: `kubectl -n monitoring rollout restart deployment/unpoller`
+   then `kubectl -n monitoring rollout status deployment/unpoller`.
+3. Confirm fresh controller metrics before revoking the old key:
+   `curl -fsS http://unpoller.monitoring.svc.cluster.local:9130/metrics | grep '^unifi_device_uptime_seconds'`.
+
+Rollout status alone does not prove the controller accepted the new key.
 
 `platform/unpoller/ca-configmap.yaml` carries the controller's self-signed
 certificate (CN=unifi.local, expires 2028-11-12). Replace it when the
-controller certificate changes, otherwise TLS verification fails and polling
-stops. The exporter reaches the gateway through a hostAlias on that name
-because the certificate has no SAN for 192.168.10.1.
+controller certificate changes, then roll the Deployment in the same change:
+the mounted PEM updates in place, but Go caches the root pool after first use,
+so a running exporter keeps rejecting the renewed certificate until it
+restarts. Verify with the same metrics check.
+
+The exporter reaches the gateway through a hostAlias on that name because the
+certificate has no SAN for 192.168.10.1.
