@@ -37,3 +37,22 @@ spec:
         - https://bookmarks.homelab.pastelariadev.com/api/health
         - https://changedetection.homelab.pastelariadev.com/
         - https://wazuh.homelab.pastelariadev.com/
+---
+# The gateway management UI is reachable only from the cluster network. Its
+# certificate is self-signed, so the probe checks reachability and an accepted
+# status code without requiring a public CA.
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: gateway-management
+  labels: {release: monitoring}
+spec:
+  jobName: blackbox-gateway
+  interval: 60s
+  module: https_insecure
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - https://192.168.10.1

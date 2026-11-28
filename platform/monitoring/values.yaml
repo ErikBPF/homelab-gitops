@@ -72,6 +72,11 @@ kube-prometheus-stack:
     image:
       registry: harbor.homelab.pastelariadev.com/dockerhub
       sha: 540b8afb775bf34aefce417e4329039daa5d44b6f2fbda6881397b1b247ca7df
+    # The chart maps this list to GF_PLUGINS_PREINSTALL_SYNC, so Grafana itself
+    # downloads the plugin at startup. That runs inside the distroless image;
+    # no shell-based installer or non-distroless variant is needed.
+    plugins:
+      - grafana-opensearch-datasource
     testFramework:
       enabled: false
     initChownData:
@@ -108,6 +113,11 @@ kube-prometheus-stack:
         label: grafana_alert
         labelValue: "1"
         searchNamespace: monitoring
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: monitoring
       datasources:
         alertmanager: {enabled: false}
     persistence:
@@ -129,6 +139,19 @@ kube-prometheus-stack:
         uid: loki
         access: proxy
         url: http://loki-gateway.monitoring.svc.cluster.local
+      - name: Wazuh
+        type: grafana-opensearch-datasource
+        uid: wazuh
+        access: proxy
+        url: https://wazuh-indexer-0.wazuh-indexer.wazuh.svc.cluster.local:9200
+        basicAuth: true
+        basicAuthUser: $WAZUH_INDEXER_USERNAME
+        secureJsonData:
+          basicAuthPassword: $WAZUH_INDEXER_PASSWORD
+          tlsCACert: $WAZUH_INDEXER_CA
+        jsonData:
+          timeField: "@timestamp"
+          tlsAuthWithCACert: true
 
 # S04 Endeavour pilot; merge only after collector backend verification.
 hostIntegrity:

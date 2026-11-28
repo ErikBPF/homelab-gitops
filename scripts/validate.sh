@@ -62,6 +62,7 @@ for contract in \
   tests/mcp-echo-contract.sh \
   tests/openwebui-contract.sh \
   tests/monitoring-contract.sh \
+  tests/monitoring-dashboards.sh \
   tests/monitoring-promql.py \
   tests/grafana-alert-template_test.go \
   tests/grafana-alert-status.sh \

@@ -3159,3 +3159,183 @@ groups:
                     type: gt
                     params:
                       - 0
+
+  - orgId: 1
+    name: gateway-health
+    folder: Infra Alerts
+    interval: 1m
+    rules:
+      # The gateway management UI is a separate reachability path from the
+      # user-facing ingress probes. A failure means the cluster cannot reach
+      # the UniFi console even if WAN traffic still flows.
+      - uid: gateway-management-probe-down
+        title: Gateway management endpoint down
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "{{ $labels.instance }}: gateway management endpoint has not answered the blackbox probe for 5m"
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#gateway-health
+        labels: {severity: critical, category: availability}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                min by (instance) (probe_success{job="blackbox-gateway"}) < bool 1
+                or absent(probe_success{job="blackbox-gateway"})
+          - refId: B
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
+
+      # Baseline measured on this UDM Pro on 2026-11-28 with Protect, IPS and
+      # DPI active: load1 8.3-11.6, load5 ~9.5 on 4 cores, so the device is
+      # chronically oversubscribed. The threshold sits above that floor: a
+      # lower value fires permanently and hides a real regression.
+      - uid: gateway-load-high
+        title: Gateway load high for 15m
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "{{ $labels.name }}: gateway 5m load average above 12 for 15m"
+          verify: "unpoller metric namespace unifi_*; confirm the deployed --prometheus.namespace"
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#gateway-health
+        labels: {severity: warning, category: capacity}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                max by (name, site_name) (unifi_device_load_average_5) > 12
+          - refId: B
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
+
+      - uid: gateway-memory-high
+        title: Gateway memory high for 15m
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "{{ $labels.name }}: gateway memory utilization above 90% for 15m"
+          verify: "unpoller metric namespace unifi_*; confirm the deployed --prometheus.namespace"
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#gateway-health
+        labels: {severity: warning, category: capacity}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                max by (name, site_name) (unifi_device_memory_utilization_ratio) > 0.9
+          - refId: B
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
+
+      # Any WAN networkgroup going offline, or a sustained rise in interface
+      # errors, degrades redundancy or the primary path. A single transient
+      # counter bump is ignored.
+      - uid: gateway-wan-degraded
+        title: WAN link down
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "{{ $labels.name }}: gateway WAN link reports zero speed"
+          verify: "unpoller metric namespace unifi_*; confirm the deployed --prometheus.namespace"
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#gateway-health
+        labels: {severity: critical, category: availability}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                min by (name) (unifi_device_wan_speed_bps) == bool 0
+          - refId: B
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            relativeTimeRange: {from: 1200, to: 0}
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
+
+      # The collector can fail while its scrape target still answers, and it can
+      # answer while receiving no flows. The rule checks both, but only claims
+      # "zero flow" while the WAN telemetry says the uplink is up. Flow-volume
+      # bursts are intentionally not alerted.
+      - uid: ipfix-collector-down
+        title: IPFIX collector down or receiving no flows
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: KeepLast
+        annotations:
+          summary: "goflow2 on kepler is down, has never received a flow while the WAN link is up, or its flow rate is zero"
+          verify: "goflow2 native /metrics exposes no per-flow src/dst dimensions; this alert uses only exporter health and record counters"
+          runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#gateway-health
+        labels: {severity: critical, category: availability}
+        data:
+          - refId: A
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              datasource: {type: prometheus, uid: prometheus}
+              expr: >-
+                max by (job) (up{job="goflow2"}) == 0
+                or absent(up{job="goflow2"})
+                or (
+                  sum(rate(goflow2_flow_process_nf_total{job="goflow2"}[5m])) == 0
+                  and on() (max by (job) (up{job="goflow2"}) == 1)
+                  and on() (max by (name) (unifi_device_wan_speed_bps{name="ISS"}) > 0)
+                )
+                or (
+                  absent_over_time(goflow2_flow_process_nf_total{job="goflow2"}[15m])
+                  and on() (max by (job) (up{job="goflow2"}) == 1)
+                  and on() (max by (name) (unifi_device_wan_speed_bps{name="ISS"}) > 0)
+                )
+          - refId: B
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: __expr__
+            model: {refId: B, type: reduce, expression: A, reducer: last, datasource: {type: __expr__, uid: __expr__}}
+          - refId: C
+            relativeTimeRange: {from: 900, to: 0}
+            datasourceUid: __expr__
+            model: {refId: C, type: threshold, expression: B, datasource: {type: __expr__, uid: __expr__}, conditions: [{evaluator: {type: gt, params: [0]}}]}
