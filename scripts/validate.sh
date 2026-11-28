@@ -61,6 +61,7 @@ for contract in \
   tests/litellm-contract.sh \
   tests/mcp-echo-contract.sh \
   tests/openwebui-contract.sh \
+  tests/unpoller-contract.sh \
   tests/monitoring-contract.sh \
   tests/monitoring-promql.py \
   tests/grafana-alert-template_test.go \

@@ -1,0 +1,46 @@
+# UniFi Prometheus exporter (unpoller). Metrics-only: the InfluxDB output is
+# disabled, so Prometheus is the single sink. ServiceMonitor (same namespace)
+# carries the `release: monitoring` label the wrapper chart selects.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unpoller
+  labels: {app: unpoller}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: unpoller}}
+  template:
+    metadata: {labels: {app: unpoller}}
+    spec:
+      securityContext: {seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: unpoller
+          image: harbor.homelab.pastelariadev.com/ghcr/unpoller/unpoller:v2.34.0@sha256:73423ddfe304e866b2cda2d3ecf8e68c15317c93a22945ad7d941d3ca3a6d022
+          env:
+            - {name: UP_UNIFI_DEFAULT_URL, value: "https://192.168.10.1"}
+            # Controller serves a self-signed certificate; polling stays on the
+            # LAN gateway address and no gateway setting is changed.
+            - {name: UP_UNIFI_DEFAULT_VERIFY_SSL, value: "false"}
+            - {name: UP_UNIFI_DEFAULT_SAVE_SITES, value: "true"}
+            - {name: UP_INFLUXDB_DISABLE, value: "true"}
+            - {name: UP_PROMETHEUS_NAMESPACE, value: "unifi"}
+            - {name: UP_PROMETHEUS_HTTP_LISTEN, value: "0.0.0.0:9130"}
+            - name: UP_UNIFI_DEFAULT_API_KEY
+              valueFrom: {secretKeyRef: {name: unpoller, key: api_key}}
+          ports: [{name: http, containerPort: 9130}]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          readinessProbe: {httpGet: {path: /health, port: http}, initialDelaySeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: http}, initialDelaySeconds: 30}
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: unpoller, labels: {app: unpoller}}
+spec:
+  selector: {app: unpoller}
+  ports: [{name: http, port: 9130, targetPort: http}]

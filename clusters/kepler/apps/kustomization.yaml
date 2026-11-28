@@ -27,6 +27,7 @@ resources:
   - litellm.yaml
   - mcp-echo.yaml
   - openwebui.yaml
+  - unpoller.yaml
 
 # Every child Application syncs `main` automatically. Main is protected by the
 # required kubeconform check and changes only through reviewed PRs; `prune`
