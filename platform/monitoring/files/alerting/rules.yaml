@@ -3306,7 +3306,7 @@ groups:
         noDataState: OK
         execErrState: KeepLast
         annotations:
-          summary: "goflow2 on kepler is down, or the WAN is up while no IPFIX flows arrive"
+          summary: "goflow2 on kepler is down, has never received a flow while the WAN link is up, or its flow rate is zero"
           verify: "goflow2 native /metrics exposes no per-flow src/dst dimensions; this alert uses only exporter health and record counters"
           runbook_url: https://github.com/ErikBPF/homelab-gitops/blob/main/docs/alerting.md#gateway-health
         labels: {severity: critical, category: availability}
@@ -3319,12 +3319,17 @@ groups:
               instant: true
               datasource: {type: prometheus, uid: prometheus}
               expr: >-
-                (max by (job) (up{job="goflow2"}) < bool 1 or absent(up{job="goflow2"}))
+                (max by (job) (up{job="goflow2"}) < bool 1)
+                or absent(up{job="goflow2"})
                 or (
-                  (absent(goflow2_flow_process_nf_total{job="goflow2"})
-                  or (sum(rate(goflow2_flow_process_nf_total{job="goflow2"}[5m])) == bool 0))
+                  sum(rate(goflow2_flow_process_nf_total{job="goflow2"}[5m])) == bool 0
                   and on() (max by (job) (up{job="goflow2"}) == 1)
-                  and on() (max(unifi_device_uptime_seconds) > 0)
+                  and on() (max(unifi_device_wan_speed_bps) > 0)
+                )
+                or (
+                  absent(goflow2_flow_process_nf_total{job="goflow2"})
+                  and on() (max by (job) (up{job="goflow2"}) == 1)
+                  and on() (max(unifi_device_wan_speed_bps) > 0)
                 )
           - refId: B
             relativeTimeRange: {from: 900, to: 0}

@@ -128,7 +128,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(goflow2_flow_traffic_bytes_total{job=\"goflow2\"}[$__rate_interval])) / sum(rate(goflow2_flow_process_nf_total{job=\"goflow2\"}[$__rate_interval]))",
+          "expr": "sum(rate(goflow2_flow_traffic_bytes_total{job=\"goflow2\"}[$__rate_interval])) / sum(rate(goflow2_flow_process_nf_flowset_records_total{job=\"goflow2\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "bytes/flow",
           "refId": "A"

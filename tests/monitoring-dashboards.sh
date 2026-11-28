@@ -64,7 +64,7 @@ test "$(yq -r 'select(.kind == "Probe" and .metadata.name == "gateway-management
 # The Wazuh datasource exists, uses TLS, and takes credentials from the
 # environment supplied by the monitoring secret.
 wazuh=$(yq -r '.kube-prometheus-stack.grafana.additionalDataSources[] | select(.uid == "wazuh")' "$values")
-test "$(yq -r '.type' <<<"$wazuh")" = opensearch
+test "$(yq -r '.type' <<<"$wazuh")" = grafana-opensearch-datasource
 test "$(yq -r '.url' <<<"$wazuh")" = https://wazuh-indexer-0.wazuh-indexer.wazuh.svc.cluster.local:9200
 test "$(yq -r '.jsonData.timeField' <<<"$wazuh")" = '@timestamp'
 test "$(yq -r '.jsonData.tlsAuthWithCACert' <<<"$wazuh")" = true
@@ -83,7 +83,7 @@ done
 datasources=$(mktemp)
 trap 'rm -f "$render" "$datasources"' EXIT
 yq -r 'select(.kind == "ConfigMap" and .metadata.name == "monitoring-kube-prometheus-grafana-datasource") | .data["datasource.yaml"]' "$render" >"$datasources"
-yq -e '.datasources[] | select(.uid == "wazuh" and .type == "opensearch")' "$datasources" >/dev/null
+yq -e '.datasources[] | select(.uid == "wazuh" and .type == "grafana-opensearch-datasource")' "$datasources" >/dev/null
 allowed="__expr__ $(yq -r '.datasources[].uid' "$datasources" | tr '\n' ' ')"
 while IFS= read -r uid; do
   grep -qw -- "$uid" <<<"$allowed" || {
@@ -108,6 +108,13 @@ grep -Fq 'probe_success{job="blackbox-gateway"}' "$gateway"
 grep -Fq 'unifi_device_load_average_5' "$gateway"
 grep -Fq 'unifi_device_memory_utilization_ratio' "$gateway"
 grep -Fq 'unifi_device_wan_speed_bps' "$gateway"
+# The no-flow rule must be gated on the WAN link, not on generic uptime.
+test "$(yq -r '.groups[] | select(.name == "gateway-health") | .rules[] | select(.uid == "ipfix-collector-down") | .data[0].model.expr' "$gateway" | grep -c 'unifi_device_wan_speed_bps')" -ge 1
+# Blackbox modules live in a file, and the Deployment must roll on change.
+grep -Fq 'checksum/blackbox-config' platform/monitoring/templates/blackbox-exporter.yaml
+test -f platform/monitoring/files/blackbox.yml
+# Envelope bytes per decoded record, not per message.
+jq -e '.panels[] | select(.title == "Envelope bytes per record") | .targets[0].expr | contains("flowset_records_total")' platform/monitoring/files/dashboards/ipfix-flows.json >/dev/null
 grep -Fq 'goflow2_flow_process_nf_total{job="goflow2"}' "$gateway"
 # unpoller 2.34.0 exposes no wan status or error counters, and no per-interface
 # rate gauges. These names must not reappear; the inventory in

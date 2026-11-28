@@ -7,25 +7,7 @@ metadata:
   name: blackbox-exporter-config
 data:
   blackbox.yml: |
-    modules:
-      http_2xx:
-        prober: http
-        timeout: 5s
-        http:
-          valid_status_codes: [200]
-          follow_redirects: true
-          preferred_ip_protocol: ip4
-      # Gateway management UI returns a redirect or auth challenge on success.
-      # The certificate is device-local, so verify reachability, not its chain.
-      https_insecure:
-        prober: http
-        timeout: 5s
-        http:
-          valid_status_codes: [200, 302, 401, 403]
-          follow_redirects: true
-          preferred_ip_protocol: ip4
-          tls_config:
-            insecure_skip_verify: true
+{{ .Files.Get "files/blackbox.yml" | indent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,6 +21,10 @@ spec:
   template:
     metadata:
       labels: {app: blackbox-exporter}
+      # Roll the exporter when the module file changes; a ConfigMap update
+      # alone leaves the running pod on the old configuration.
+      annotations:
+        checksum/blackbox-config: {{ .Files.Get "files/blackbox.yml" | sha256sum }}
     spec:
       securityContext:
         runAsNonRoot: true

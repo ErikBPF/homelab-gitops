@@ -135,7 +135,7 @@ kube-prometheus-stack:
         access: proxy
         url: http://loki-gateway.monitoring.svc.cluster.local
       - name: Wazuh
-        type: opensearch
+        type: grafana-opensearch-datasource
         uid: wazuh
         access: proxy
         url: https://wazuh-indexer-0.wazuh-indexer.wazuh.svc.cluster.local:9200
