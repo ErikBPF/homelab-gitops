@@ -88,7 +88,7 @@ for setting in \
   'ALLOW_CYPHER_QUERY: "false"' \
   'AUTO_FEEDBACK: "false"' \
   'DATASET_QUEUE_MAX_CONCURRENT: "1"' \
-  'LLM_MODEL: openai/qwen-chat' \
+  'LLM_MODEL: openai/deepseek-v4.1-flash' \
   'LLM_MAX_COMPLETION_TOKENS: "4096"' \
   'LLM_INSTRUCTOR_MODE: json_mode' \
   'LLM_RATE_LIMIT_REQUESTS: "30"' \
