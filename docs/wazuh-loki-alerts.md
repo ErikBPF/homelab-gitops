@@ -43,15 +43,16 @@ kubectl -n monitoring get networkpolicy allow-wazuh-alerts-to-loki-gateway -o ya
   mounts, config contents, fixed job label, network rule, and `logall` state.
   Registered in `scripts/validate.sh`.
 
-The sidecar is on the master only. In this Wazuh cluster the master analyses
-events and writes alerts; workers forward them. Tailing the worker would
-duplicate or miss alerts depending on cluster state.
+Both managers run the sidecar. The master analyses centrally, but a worker
+that handles agent events writes its own `alerts.json` on its own PVC, and
+cluster sync does not copy those lines to the master, so a master-only shipper
+missed those agents.
 
 ## What this proves
 
-- The rendered `wazuh-manager-master` StatefulSet has the sidecar, a read-only
-  manager-PVC mount at `/wazuh-logs`, a read-only config mount, and an explicit
-  memory limit. The worker StatefulSet has no such sidecar.
+- The rendered manager StatefulSets (`wazuh-manager-master` and
+  `wazuh-manager-worker`) both carry the sidecar, a read-only PVC mount at
+  `/wazuh-logs`, a read-only config mount, and an explicit memory limit.
 - The Alloy config parses and references `alerts.json`, not `archives.json`.
   `alloy fmt` validates the River syntax.
 - A local `alloy run` with the same stages and `loki.echo` forwarded only the
@@ -59,8 +60,8 @@ duplicate or miss alerts depending on cluster state.
   `agent="orion-canary"` and the event timestamp, and dropped a non-JSON line.
 - Egress is limited to the Loki gateway pod port. The existing deny-all policy
   still applies to every other destination.
-- Graph construction, not delivery, is proven. The monitoring ingress blocker
-  above must land before any alert reaches Loki.
+- Graph construction, not delivery, is proven. Confirm
+  `allow-wazuh-alerts-to-loki-gateway` has synced, then check the stream.
 - Both `master.conf` and `worker.conf` keep `logall` and `logall_json` at `no`.
 
 
@@ -69,8 +70,8 @@ duplicate or miss alerts depending on cluster state.
 - Every Wazuh event reaches Loki. Only alerts that Wazuh already writes to
   `alerts.json` are shipped. Raw event archiving needs `logall_json: yes` and
   a separate storage/cost decision.
-- Alerts written by a worker in a future topology are covered. Only the master
-  is tailed today.
+- Whether a worker ever writes alerts in this topology. The sidecar is present
+  on both managers and idles when that file stays empty.
 - Loki accepts the labels without creating an excessive series count. `agent`
   and `rule_id` cardinality follows the enrolled agents and rule set. Check
   Loki series counts after the first day.
@@ -137,8 +138,10 @@ duplicate or miss alerts depending on cluster state.
   `too_far_behind`. Expect a small duplicate window after a restart. Persisting
   positions would need a writable volume, which this slice forbids.
 - The config is mounted with `subPath`, so kubelet does not refresh it. A
-  pipeline change requires deleting `wazuh-manager-master-0`, which also
-  restarts the manager. A reloader is not worth a second process here.
+  pipeline change requires deleting both manager pods
+  (`wazuh-manager-master-0` and `wazuh-manager-worker-0`); restarting only the
+  master leaves the worker on the old pipeline. A reloader is not worth a
+  second process here.
 - This repository has no `docs/audits/` directory, so this one-pager follows
   the existing flat `docs/` convention.
 
